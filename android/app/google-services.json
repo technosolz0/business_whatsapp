@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "96089127226",
+    "project_id": "business-whatsapp-87b28",
+    "storage_bucket": "business-whatsapp-87b28.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:96089127226:android:a9ed6194c04a8a1afcb803",
+        "android_client_info": {
+          "package_name": "com.example.business_whatsapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAvAUq5_uCoQ97JEZVx47MalIsoWApGxOk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
