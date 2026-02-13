@@ -1,7 +1,7 @@
-import 'package:business_whatsapp/app/modules/add_client/controllers/add_client_controller.dart';
+import 'package:adminpanel/app/modules/add_client/controllers/add_client_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:business_whatsapp/app/common%20widgets/shimmer_widgets.dart';
+import 'package:adminpanel/app/common%20widgets/shimmer_widgets.dart';
 import '../../../common widgets/common_filled_button.dart';
 import '../../../common widgets/custom_button.dart';
 import '../../../core/theme/app_colors.dart';
@@ -226,8 +226,14 @@ class _ClientFormViewState extends State<ClientFormView> {
                   ),
                   const SizedBox(height: 16),
                   _buildCheckbox(
-                    controller: controller,
+                    value: controller.isPremium,
                     label: 'Premium',
+                    isDark: isDark,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildCheckbox(
+                    value: controller.isCRMEnabled,
+                    label: 'CRM Enabled',
                     isDark: isDark,
                   ),
                   const SizedBox(height: 16),
@@ -264,8 +270,18 @@ class _ClientFormViewState extends State<ClientFormView> {
                     child: Padding(
                       padding: const EdgeInsets.only(top: 28),
                       child: _buildCheckbox(
-                        controller: controller,
+                        value: controller.isPremium,
                         label: 'Premium',
+                        isDark: isDark,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 28),
+                      child: _buildCheckbox(
+                        value: controller.isCRMEnabled,
+                        label: 'CRM Enabled',
                         isDark: isDark,
                       ),
                     ),
@@ -573,7 +589,7 @@ class _ClientFormViewState extends State<ClientFormView> {
   }
 
   Widget _buildCheckbox({
-    required AddClientController controller,
+    required RxBool value,
     required String label,
     required bool isDark,
   }) {
@@ -581,9 +597,9 @@ class _ClientFormViewState extends State<ClientFormView> {
       children: [
         Obx(() {
           return Checkbox(
-            value: controller.isPremium.value,
+            value: value.value,
             onChanged: (val) {
-              controller.isPremium.value = val ?? false;
+              value.value = val ?? false;
             },
             activeColor: AppColors.primary,
           );

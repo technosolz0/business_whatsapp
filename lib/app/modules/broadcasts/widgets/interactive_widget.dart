@@ -1,4 +1,4 @@
-import 'package:business_whatsapp/app/modules/broadcasts/controllers/create_broadcast_controller.dart';
+import 'package:adminpanel/app/modules/broadcasts/controllers/create_broadcast_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../data/models/interactive_model.dart';
@@ -269,9 +269,7 @@ class BroadcastActionsWidget extends StatelessWidget {
                 }
 
                 controller.btnValueErrors[index] = errorMessage;
-                print(
-                  "🔥 COPY_CODE validation - Index: $index, Value: '$v', Error: '$errorMessage'",
-                );
+          
               } else {
                 // Original validation for other types
                 String errorMessage = "";

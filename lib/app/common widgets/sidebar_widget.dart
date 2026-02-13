@@ -1,10 +1,10 @@
 import 'dart:convert';
 
-import 'package:business_whatsapp/app/data/services/subscription_service.dart';
+import 'package:adminpanel/app/data/services/subscription_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:business_whatsapp/app/common%20widgets/shimmer_widgets.dart';
-import 'package:business_whatsapp/app/common%20widgets/common_alert_dialog_delete.dart';
+import 'package:adminpanel/app/common%20widgets/shimmer_widgets.dart';
+import 'package:adminpanel/app/common%20widgets/common_alert_dialog_delete.dart';
 import '../core/theme/app_colors.dart';
 import '../controllers/navigation_controller.dart';
 import '../utilities/constants/app_constants.dart';
@@ -12,7 +12,7 @@ import '../utilities/utilities.dart';
 import '../utilities/webutils.dart';
 import '../utilities/responsive.dart';
 import '../modules/chats/controllers/chats_controller.dart';
-import 'package:business_whatsapp/main.dart';
+import 'package:adminpanel/main.dart';
 
 class SidebarWidget extends StatefulWidget {
   final VoidCallback? onItemTap;
@@ -128,6 +128,20 @@ class _SidebarWidgetState extends State<SidebarWidget> {
         'index': 10,
         'route': '/custom-notifications',
       });
+      menuItems.add({
+        'type': 'item',
+        'icon': Icons.account_balance_wallet,
+        'label': 'Charges',
+        'index': 11,
+        'route': '/charges',
+      });
+      menuItems.add({
+        'type': 'item',
+        'icon': Icons.bolt,
+        'label': 'Automation',
+        'index': 12,
+        'route': '/automation',
+      });
     }
 
     try {
@@ -175,10 +189,12 @@ class _SidebarWidgetState extends State<SidebarWidget> {
               orElse: () => {},
             );
 
-            // Always show Dashboard, Milestone Schedulars (if premium enabled), and Clients regardless of permissions
+            // Always show Dashboard, Milestone Schedulars (if premium enabled), Clients, and Charges regardless of permissions
             if (item['route'] == '/dashboard' ||
                 item['route'] == '/milestone-schedulars' ||
-                item['route'] == '/clients') {
+                item['route'] == '/clients' ||
+                item['route'] == '/automation' ||
+                item['route'] == '/charges') {
               filteredItems.add(item);
             } else if (permission.isNotEmpty) {
               String accessStr = (permission['ax'] ?? '').toString();
@@ -206,10 +222,10 @@ class _SidebarWidgetState extends State<SidebarWidget> {
       return true;
     }
 
-    // Special case: milestone schedulars
-    // Both /milestone-schedulars and /create-milestone-schedulars should highlight the milestone tab
-    if (itemRoute == '/milestone-schedulars' &&
-        currentRoute == '/create-milestone-schedulars') {
+    // Special case: settings sub-pages
+    // Both /settings and /zoho-crm should highlight the settings tab
+    if (itemRoute == '/settings' &&
+        (currentRoute == '/zoho-crm' || currentRoute == '/business-profile')) {
       return true;
     }
 
@@ -224,9 +240,7 @@ class _SidebarWidgetState extends State<SidebarWidget> {
     return Container(
       width: 256,
       decoration: BoxDecoration(
-        color: isDark
-            ? AppColors.cardDark.withValues(alpha: 0.5)
-            : Colors.white,
+        color: isDark ? AppColors.cardDark.withOpacity(0.5) : Colors.white,
         border: Border(
           right: BorderSide(
             color: isDark ? AppColors.borderDark : AppColors.borderLight,

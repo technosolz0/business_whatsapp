@@ -1,9 +1,9 @@
-import 'package:business_whatsapp/app/core/constants/language_codes.dart';
+import 'package:adminpanel/app/core/constants/language_codes.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:business_whatsapp/app/common%20widgets/shimmer_widgets.dart';
-import 'package:business_whatsapp/app/core/theme/app_colors.dart';
-import 'package:business_whatsapp/app/Utilities/responsive.dart';
+import 'package:adminpanel/app/common%20widgets/shimmer_widgets.dart';
+import 'package:adminpanel/app/core/theme/app_colors.dart';
+import 'package:adminpanel/app/Utilities/responsive.dart';
 import '../../../common widgets/custom_button.dart';
 import '../../../common widgets/standard_page_layout.dart';
 import '../../../Utilities/subscription_guard.dart';

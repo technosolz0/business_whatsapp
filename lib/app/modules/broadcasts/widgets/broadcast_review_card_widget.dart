@@ -1,5 +1,5 @@
-import 'package:business_whatsapp/app/modules/broadcasts/controllers/create_broadcast_controller.dart';
-import 'package:business_whatsapp/app/modules/broadcasts/views/widgets/contact_details_popup.dart';
+import 'package:adminpanel/app/modules/broadcasts/controllers/create_broadcast_controller.dart';
+import 'package:adminpanel/app/modules/broadcasts/views/widgets/contact_details_popup.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get/utils.dart';

@@ -3,15 +3,15 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:business_whatsapp/app/common%20widgets/shimmer_widgets.dart';
-import 'package:business_whatsapp/app/common%20widgets/custom_log_out_verify_button.dart';
-import 'package:business_whatsapp/app/common%20widgets/menu.dart';
-import 'package:business_whatsapp/app/common%20widgets/webmenu.dart';
-import 'package:business_whatsapp/app/core/constants/app_assets.dart';
-import 'package:business_whatsapp/app/data/models/menu_item_model.dart';
-import 'package:business_whatsapp/app/utilities/extensions.dart';
-import 'package:business_whatsapp/app/utilities/utilities.dart';
-import 'package:business_whatsapp/main.dart';
+import 'package:adminpanel/app/common%20widgets/shimmer_widgets.dart';
+import 'package:adminpanel/app/common%20widgets/custom_log_out_verify_button.dart';
+import 'package:adminpanel/app/common%20widgets/menu.dart';
+import 'package:adminpanel/app/common%20widgets/webmenu.dart';
+import 'package:adminpanel/app/core/constants/app_assets.dart';
+import 'package:adminpanel/app/data/models/menu_item_model.dart';
+import 'package:adminpanel/app/utilities/extensions.dart';
+import 'package:adminpanel/app/utilities/utilities.dart';
+import 'package:adminpanel/main.dart';
 
 class Webwrapper extends GetResponsiveView {
   final Widget Function(MenuItem item) child;

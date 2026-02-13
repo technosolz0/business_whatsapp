@@ -1,4 +1,4 @@
-import 'package:business_whatsapp/app/data/models/menu_item_model.dart';
+import 'package:adminpanel/app/data/models/menu_item_model.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/navigation_controller.dart';
@@ -22,6 +22,9 @@ import '../modules/clients/views/clients_view.dart';
 import '../modules/add_client/views/add_client_view.dart';
 import '../modules/custom_notifications/views/custom_notifications_view.dart';
 import '../modules/custom_notifications/views/create_custom_notification_view.dart';
+import '../modules/charges/views/charges_view.dart';
+import '../modules/automation/views/automation_view.dart';
+import '../modules/zoho_crm/views/zoho_crm_view.dart';
 import '../modules/dashboard/controllers/dashboard_controller.dart';
 import '../modules/templates/controllers/templates_controller.dart';
 import '../modules/templates/controllers/create_template_controller.dart';
@@ -33,6 +36,7 @@ import '../modules/business_profile/controllers/business_profile_controller.dart
 import '../modules/contacts/controllers/contacts_controller.dart';
 import '../modules/admins/controllers/admins_controller.dart';
 import '../modules/roles/controllers/roles_controller.dart';
+import '../modules/charges/controllers/charges_controller.dart';
 import '../routes/app_pages.dart';
 
 class MainShellView extends StatefulWidget {
@@ -115,6 +119,11 @@ class _MainShellViewState extends State<MainShellView> {
     // Roles Controller
     if (!Get.isRegistered<RolesController>()) {
       Get.put<RolesController>(RolesController());
+    }
+
+    // Charges Controller
+    if (!Get.isRegistered<ChargesController>()) {
+      Get.put<ChargesController>(ChargesController());
     }
 
     // Let Add controllers be created on demand to avoid conflicts
@@ -259,6 +268,12 @@ class _MainShellViewState extends State<MainShellView> {
         return CreateCustomNotificationView(
           key: ValueKey(Routes.CREATE_CUSTOM_NOTIFICATION),
         );
+      case Routes.CHARGES:
+        return ChargesView(key: ValueKey(Routes.CHARGES));
+      case Routes.AUTOMATION:
+        return AutomationView(key: ValueKey(Routes.AUTOMATION));
+      case Routes.ZOHO_CRM:
+        return ZohoCrmView(key: ValueKey(Routes.ZOHO_CRM));
       default:
         return DashboardView(key: ValueKey(Routes.DASHBOARD));
     }

@@ -1,19 +1,19 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:business_whatsapp/app/Utilities/network_utilities.dart';
-import 'package:business_whatsapp/app/Utilities/utilities.dart';
-import 'package:business_whatsapp/app/Utilities/media_utils.dart';
-import 'package:business_whatsapp/app/common%20widgets/common_snackbar.dart';
-import 'package:business_whatsapp/app/data/services/template_firebase_service.dart';
-import 'package:business_whatsapp/app/data/services/broadcast_service.dart';
-import 'package:business_whatsapp/app/modules/chats/controllers/chats_controller.dart';
-import 'package:business_whatsapp/app/core/theme/app_colors.dart';
-import 'package:business_whatsapp/main.dart';
-import 'package:business_whatsapp/app/data/models/template_params.dart';
-import 'package:business_whatsapp/app/data/models/interactive_model.dart';
+import 'package:adminpanel/app/Utilities/network_utilities.dart';
+import 'package:adminpanel/app/Utilities/utilities.dart';
+import 'package:adminpanel/app/Utilities/media_utils.dart';
+import 'package:adminpanel/app/common%20widgets/common_snackbar.dart';
+import 'package:adminpanel/app/data/services/template_firebase_service.dart';
+import 'package:adminpanel/app/data/services/broadcast_service.dart';
+import 'package:adminpanel/app/modules/chats/controllers/chats_controller.dart';
+import 'package:adminpanel/app/core/theme/app_colors.dart';
+import 'package:adminpanel/main.dart';
+import 'package:adminpanel/app/data/models/template_params.dart';
+import 'package:adminpanel/app/data/models/interactive_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:business_whatsapp/app/common%20widgets/shimmer_widgets.dart';
+import 'package:adminpanel/app/common%20widgets/shimmer_widgets.dart';
 
 class SendTemplateDialog extends StatefulWidget {
   final String chatId;
@@ -72,7 +72,7 @@ class _SendTemplateDialogState extends State<SendTemplateDialog> {
     try {
       final dio = NetworkUtilities.getDioClient();
       final response = await dio.get(
-        'https://bw.serwex.in/getapprovedtemplates',
+        'https://getapprovedtemplates-d3b4t36f7q-uc.a.run.app',
         queryParameters: {'clientId': clientID},
       );
 
@@ -309,7 +309,7 @@ class _SendTemplateDialogState extends State<SendTemplateDialog> {
       // API Call
       final dio = NetworkUtilities.getDioClient();
       final response = await dio.post(
-        'https://bw.serwex.in/sendwhatsapptemplatemessage',
+        'https://sendwhatsapptemplatemessage-d3b4t36f7q-uc.a.run.app',
         data: {
           'clientId': clientID,
           'mobileNo': widget.phoneNumber,

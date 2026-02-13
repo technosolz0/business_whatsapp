@@ -1,19 +1,19 @@
 import 'dart:convert';
 import 'dart:developer';
 
-import 'package:business_whatsapp/main.dart';
+import 'package:adminpanel/app/modules/chats/models/chat_model.dart';
+import 'package:adminpanel/main.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
-import 'package:business_whatsapp/app/common%20widgets/common_snackbar.dart';
-import 'package:business_whatsapp/app/modules/roles/models/roles_model.dart';
-import 'package:business_whatsapp/app/routes/app_pages.dart';
-import 'package:business_whatsapp/app/utilities/utilities.dart';
-import 'package:business_whatsapp/app/data/models/client_model.dart';
-import 'package:business_whatsapp/app/data/services/clients_service.dart';
-import 'package:business_whatsapp/app/data/models/contact_model.dart';
-import 'package:business_whatsapp/app/modules/add_admins/widgets/admin_contact_assignment_popup.dart';
+import 'package:adminpanel/app/common%20widgets/common_snackbar.dart';
+import 'package:adminpanel/app/modules/roles/models/roles_model.dart';
+import 'package:adminpanel/app/routes/app_pages.dart';
+import 'package:adminpanel/app/utilities/utilities.dart';
+import 'package:adminpanel/app/data/models/client_model.dart';
+import 'package:adminpanel/app/data/services/clients_service.dart';
+import 'package:adminpanel/app/modules/add_admins/widgets/admin_contact_assignment_popup.dart';
 
 class AddAdminsController extends GetxController {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
@@ -72,7 +72,7 @@ class AddAdminsController extends GetxController {
     } catch (e) {
       Utilities.dPrint('--->parsing id: $e');
     }
-    log("adminID : $adminID and $isEditing");
+    // log("adminID : $adminID and $isEditing");
   }
 
   void togglePasswordVisibility() {
@@ -187,6 +187,7 @@ class AddAdminsController extends GetxController {
         createdDate = data['created_at'] ?? '';
         lastLoggedIn = data['last_logged_in'] ?? '';
         originalEmail = emailController.text.trim().toLowerCase();
+        isAllChats.value = data['isAllChats'] ?? false;
 
         // Fetch roles for this client so the dropdown has valid items
         if (cId != null && cId.isNotEmpty) {
@@ -201,21 +202,7 @@ class AddAdminsController extends GetxController {
           List<dynamic> ids = data['assigned_contacts'];
           segmentContacts.assignAll(
             ids
-                .map(
-                  (id) => ContactModel(
-                    id: id,
-                    fName: '',
-                    lName: '',
-                    phoneNumber: '',
-                    countryCode: '',
-                    email: '',
-                    company: '',
-                    tags: [],
-                    notes: '',
-                    createdAt: DateTime.now(),
-                    updatedAt: DateTime.now(),
-                  ),
-                )
+                .map((id) => ChatModel(id: id, name: id, phoneNumber: ''))
                 .toList(),
           );
         }
@@ -420,9 +407,8 @@ class AddAdminsController extends GetxController {
 
   // Contact Assignment Logic Helpers
   RxString contactSearch = "".obs;
-  RxList<ContactModel> allContacts = <ContactModel>[].obs;
-  RxList<ContactModel> segmentContacts =
-      <ContactModel>[].obs; // assigned contacts
+  RxList<ChatModel> allContacts = <ChatModel>[].obs;
+  RxList<ChatModel> segmentContacts = <ChatModel>[].obs; // assigned contacts
   RxList<String> availableTags = <String>[].obs;
   RxList<String> selectedTags = <String>[].obs;
 
@@ -432,7 +418,6 @@ class AddAdminsController extends GetxController {
   RxBool isLoadingMoreContacts = false.obs;
   int currentContactsPage = 1;
   static const int contactsPageSize = 20;
-  DocumentSnapshot? _lastDocument;
 
   String get _targetClientId {
     if (isSuperUser.value &&
@@ -447,57 +432,29 @@ class AddAdminsController extends GetxController {
     contactSearch.value = value;
   }
 
-  void toggleTag(String tag) {
-    if (selectedTags.contains(tag)) {
-      selectedTags.remove(tag);
-      segmentContacts.removeWhere((c) {
-        final belongsToThisTag = c.tags.contains(tag);
-        final stillMatchesOtherTags = c.tags.any(
-          (t) => selectedTags.contains(t),
-        );
-        return belongsToThisTag && !stillMatchesOtherTags;
-      });
-    } else {
-      selectedTags.add(tag);
-      // Add loaded contacts that match this tag
-      final contactsOfTag = allContacts
-          .where((c) => c.tags.contains(tag))
-          .toList();
-
-      for (var c in contactsOfTag) {
-        if (!segmentContacts.any((x) => x.id == c.id)) {
-          segmentContacts.add(c);
-        }
-      }
-    }
-  }
-
   bool tagHasNoContacts(String tag) {
     // Since we are paginating, we can't reliably know if a tag has contacts locally.
     // Better to show all tags than to hide valid ones.
     return false;
   }
 
-  List<ContactModel> get filteredContacts {
-    List<ContactModel> list = allContacts;
+  List<ChatModel> get filteredContacts {
+    List<ChatModel> list = allContacts;
 
     // Filter by Search
     if (contactSearch.value.isNotEmpty) {
       final query = contactSearch.value.toLowerCase();
       list = list.where((c) {
-        final fName = c.fName?.toLowerCase() ?? '';
-        final lName = c.lName?.toLowerCase() ?? '';
+        final name = c.name.toLowerCase();
         final phone = c.phoneNumber;
-        return fName.contains(query) ||
-            lName.contains(query) ||
-            phone.contains(query);
+        return name.contains(query) || phone.contains(query);
       }).toList();
     }
 
     return list;
   }
 
-  void toggleContact(ContactModel contact) {
+  void toggleContact(ChatModel contact) {
     if (segmentContacts.any((c) => c.id == contact.id)) {
       segmentContacts.removeWhere((c) => c.id == contact.id);
     } else {
@@ -509,7 +466,6 @@ class AddAdminsController extends GetxController {
     isLoadingContacts.value = true;
     allContacts.clear();
     currentContactsPage = 1;
-    _lastDocument = null;
 
     try {
       // 1. Fetch Tags
@@ -542,31 +498,19 @@ class AddAdminsController extends GetxController {
   }
 
   Future<void> _fetchContactsPage() async {
-    var query = firestore
-        .collection('contacts')
-        .doc(_targetClientId)
-        .collection("data")
-        .orderBy('createdAt', descending: true)
-        .limit(contactsPageSize);
+    final query = await firestore
+        .collection('chats')
+        .doc(clientID)
+        .collection('data')
+        .where('assigned_admin', arrayContains: adminID)
+        .get();
 
-    if (_lastDocument != null) {
-      query = query.startAfterDocument(_lastDocument!);
-    }
-
-    final snapshot = await query.get();
-
-    if (snapshot.docs.isNotEmpty) {
-      _lastDocument = snapshot.docs.last;
-      final newContacts = snapshot.docs
-          .map((doc) => ContactModel.fromFirestore(doc))
-          .toList();
-      allContacts.addAll(newContacts);
-
-      if (snapshot.docs.length < contactsPageSize) {
-        hasMoreContacts.value = false;
-      }
-    } else {
-      hasMoreContacts.value = false;
+    if (query.docs.isNotEmpty) {
+      allContacts.assignAll(
+        query.docs.map((doc) => ChatModel.fromFirestore(doc)).toList(),
+      );
+      // For viewing purposes, we treat all fetched contacts as the segment
+      segmentContacts.assignAll(allContacts);
     }
   }
 }

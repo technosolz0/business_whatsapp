@@ -1,4 +1,4 @@
-import 'package:business_whatsapp/main.dart';
+import 'package:adminpanel/main.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/contact_model.dart';
 
@@ -75,12 +75,34 @@ class ContactsService {
     return null;
   }
 
+  // Fetch multiple contacts by IDs (with batching to bypass whereIn 30-limit)
+  Future<List<ContactModel>> getContactsByIds(List<String> ids) async {
+    if (ids.isEmpty) return [];
+
+    List<ContactModel> results = [];
+    for (var i = 0; i < ids.length; i += 30) {
+      final chunk = ids.sublist(i, i + 30 > ids.length ? ids.length : i + 30);
+
+      final snap = await _contactsRef
+          .where(FieldPath.documentId, whereIn: chunk)
+          .get();
+
+      results.addAll(
+        snap.docs.map((doc) => ContactModel.fromFirestore(doc)).toList(),
+      );
+    }
+    return results;
+  }
+
   // ---------------------------------------------------------------------------
   // 🔍 NEW: Check if phone exists in DB
   // ---------------------------------------------------------------------------
-  Future<bool> numberExists(String countryCode, String phoneNumber) async {
+  Future<bool> numberExists(
+    String countryCallingCode,
+    String phoneNumber,
+  ) async {
     final snap = await _contactsRef
-        .where('countryCode', isEqualTo: countryCode)
+        .where('countryCallingCode', isEqualTo: countryCallingCode)
         .where('phoneNumber', isEqualTo: phoneNumber)
         .limit(1)
         .get();
@@ -109,6 +131,7 @@ class ContactsService {
     try {
       // Duplicate phone check
       final duplicatePhone = await _contactsRef
+          .where('countryCallingCode', isEqualTo: contact.countryCallingCode)
           .where('phoneNumber', isEqualTo: contact.phoneNumber)
           .limit(1)
           .get();
@@ -148,7 +171,7 @@ class ContactsService {
           .collection('data')
           .where(
             'phoneNumber',
-            isEqualTo: '${contact.countryCode}${contact.phoneNumber}',
+            isEqualTo: '${contact.countryCallingCode}${contact.phoneNumber}',
           )
           .limit(1)
           .get();
@@ -163,7 +186,6 @@ class ContactsService {
       }
     } catch (e) {
       // Log error but don't fail the contact update
-      print('Error updating chat name: $e');
     }
   }
 

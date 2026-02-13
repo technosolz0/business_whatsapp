@@ -1,6 +1,6 @@
-import 'package:business_whatsapp/app/common widgets/common_pagination.dart';
-import 'package:business_whatsapp/app/common widgets/no_data_found.dart';
-import 'package:business_whatsapp/app/data/models/template_model.dart';
+import 'package:adminpanel/app/common widgets/common_pagination.dart';
+import 'package:adminpanel/app/common widgets/no_data_found.dart';
+import 'package:adminpanel/app/data/models/template_model.dart';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../common widgets/custom_chip.dart';

@@ -1,4 +1,4 @@
-import 'package:business_whatsapp/main.dart';
+import 'package:adminpanel/main.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class DashboardService {

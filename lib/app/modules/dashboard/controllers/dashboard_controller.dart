@@ -1,17 +1,17 @@
-import 'package:business_whatsapp/app/Utilities/constants/app_constants.dart';
-import 'package:business_whatsapp/app/controllers/navigation_controller.dart';
-import 'package:business_whatsapp/app/data/models/broadcast_status.dart';
-import 'package:business_whatsapp/app/data/models/recent_broadcast_model.dart';
-import 'package:business_whatsapp/app/data/services/subscription_service.dart';
-import 'package:business_whatsapp/app/routes/app_pages.dart';
-import 'package:business_whatsapp/main.dart';
+import 'package:adminpanel/app/Utilities/constants/app_constants.dart';
+import 'package:adminpanel/app/controllers/navigation_controller.dart';
+import 'package:adminpanel/app/data/models/broadcast_status.dart';
+import 'package:adminpanel/app/data/models/recent_broadcast_model.dart';
+import 'package:adminpanel/app/data/services/subscription_service.dart';
+import 'package:adminpanel/app/routes/app_pages.dart';
+import 'package:adminpanel/main.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:business_whatsapp/app/Utilities/network_utilities.dart';
+import 'package:adminpanel/app/Utilities/network_utilities.dart';
 import 'package:dio/dio.dart';
 import 'package:get_storage/get_storage.dart';
-import 'package:business_whatsapp/app/modules/broadcasts/controllers/create_broadcast_controller.dart';
+import 'package:adminpanel/app/modules/broadcasts/controllers/create_broadcast_controller.dart';
 
 import 'package:intl/intl.dart';
 import '../../../data/models/custom_notification_model.dart';
@@ -61,7 +61,8 @@ class DashboardController extends GetxController {
   RxList<String>? _hiddenNotificationIds;
 
   // Your Cloud Function URL
-  final String analyticsApiUrl = 'https://bw.serwex.in/getconversationanalytics';
+  final String analyticsApiUrl =
+      'https://getconversationanalytics-d3b4t36f7q-uc.a.run.app';
 
   @override
   void onInit() {
@@ -79,7 +80,7 @@ class DashboardController extends GetxController {
   void loadSubscription() {
     SubscriptionService.instance.subscription.listen((sub) {
       if (sub != null) {
-        print('subscription: $sub');
+     
       }
     });
   }
@@ -420,9 +421,7 @@ class DashboardController extends GetxController {
 
     // Divide range across 5 intervals
     final interval = range / 5.0;
-    print(
-      'Calculated chart interval: $interval (min: $chartMinimum, max: $chartMaximum, range: $range)',
-    );
+
 
     return interval;
   }
@@ -555,8 +554,7 @@ class DashboardController extends GetxController {
     final todayString =
         '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
 
-    print('Loading quota data for date: $todayString');
-
+ 
     FirebaseFirestore.instance
         .collection('quota')
         .doc(clientID)
@@ -565,17 +563,12 @@ class DashboardController extends GetxController {
         .snapshots()
         .listen(
           (snapshot) {
-            print('Quota snapshot received. Exists: ${snapshot.exists}');
             if (snapshot.exists) {
               final data = snapshot.data()!;
-              print('Quota data: $data');
               final used = (data['usedQuota'] as num?)?.toInt() ?? 0;
-              print('Parsed usedQuota: $used');
               usedQuota.value = used;
               availableQuota.value = totalQuota.value - used;
-              print(
-                'Updated quota - Used: ${usedQuota.value}, Available: ${availableQuota.value}',
-              );
+            
             } else {
               print('Quota document does not exist, setting defaults');
               // If today's document doesn't exist, set defaults
@@ -603,19 +596,15 @@ class DashboardController extends GetxController {
         .snapshots()
         .listen(
           (snapshot) {
-            print('Wallet snapshot received. Exists: ${snapshot.exists}');
             if (snapshot.exists) {
               final data = snapshot.data()!;
-              print('Wallet data: $data');
 
               // Parse balance as int
               final balance = (data['balance']) ?? 0;
-              print('Parsed wallet balance: $balance');
               walletBalance.value = balance;
 
               // Parse last recharge amount as int
               final lastRechargeAmtValue = (data['last_recharge_amt']) ?? 0;
-              print('Parsed last recharge amount: $lastRechargeAmtValue');
               lastRechargeAmt.value = lastRechargeAmtValue;
 
               // Parse last recharge date as formatted string
@@ -623,13 +612,11 @@ class DashboardController extends GetxController {
               if (timestamp != null) {
                 final dateTime = timestamp.toDate();
                 final formattedDate = _formatDate(dateTime);
-                print('Parsed last recharge date: $formattedDate');
                 lastRechargeDate.value = formattedDate;
               } else {
                 lastRechargeDate.value = '';
               }
             } else {
-              print('Wallet document does not exist, setting defaults');
               walletBalance.value = 0;
               lastRechargeAmt.value = 0;
               lastRechargeDate.value = '';

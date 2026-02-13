@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:business_whatsapp/app/common%20widgets/shimmer_widgets.dart';
+import 'package:adminpanel/app/common%20widgets/shimmer_widgets.dart';
 
 enum ButtonType { primary, secondary, success, danger, warning }
 

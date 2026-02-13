@@ -1,7 +1,7 @@
-import 'package:business_whatsapp/app/core/theme/app_colors.dart';
-import 'package:business_whatsapp/app/Utilities/utilities.dart';
-import 'package:business_whatsapp/app/common%20widgets/common_snackbar.dart';
-import 'package:business_whatsapp/app/utilities/responsive.dart';
+import 'package:adminpanel/app/core/theme/app_colors.dart';
+import 'package:adminpanel/app/Utilities/utilities.dart';
+import 'package:adminpanel/app/common%20widgets/common_snackbar.dart';
+import 'package:adminpanel/app/utilities/responsive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -11,7 +11,7 @@ import '../models/message_model.dart';
 import 'package:get/get.dart';
 import '../controllers/chats_controller.dart';
 import 'send_template_dialog.dart';
-import 'package:business_whatsapp/app/common%20widgets/shimmer_widgets.dart';
+import 'package:adminpanel/app/common%20widgets/shimmer_widgets.dart';
 
 class MessageBubbleWidget extends StatelessWidget {
   final MessageModel message;
@@ -125,7 +125,10 @@ class MessageBubbleWidget extends StatelessWidget {
                                   else if (message.isMediaMessage)
                                     _buildMediaContent(context)
                                   else if (message.content.isNotEmpty)
-                                    Text(
+                                    SelectableText(
+                                      selectionColor: isMe
+                                          ? Colors.white.withOpacity(0.5)
+                                          : Colors.black.withOpacity(0.5),
                                       message.content,
                                       style: TextStyle(
                                         color: textColor,
@@ -227,30 +230,50 @@ class MessageBubbleWidget extends StatelessWidget {
         if (message.content.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: Text(
-              message.content,
-              style: TextStyle(
-                color: isMe
-                    ? AppColors.waTextPrimaryDark
-                    : AppColors.waTextPrimaryLight,
-                fontSize: 15,
-              ),
-            ),
+            child:
+                // Text(
+                //   message.content,
+                //   style: TextStyle(
+                //     color: isMe
+                //         ? AppColors.waTextPrimaryDark
+                //         : AppColors.waTextPrimaryLight,
+                //     fontSize: 15,
+                //   ),
+                // ),
+                SelectableText(
+                  message.content,
+                  style: TextStyle(
+                    color: isMe
+                        ? AppColors.waTextPrimaryDark
+                        : AppColors.waTextPrimaryLight,
+                    fontSize: 15,
+                  ),
+                ),
           ),
 
         // Footer (if exists)
         if (message.footer != null && message.footer!.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
-            child: Text(
-              message.footer!,
-              style: TextStyle(
-                color: isMe
-                    ? AppColors.waTextSecondaryDark
-                    : AppColors.waTextSecondaryLight,
-                fontSize: 13,
-              ),
-            ),
+            child:
+                // Text(
+                //   message.footer!,
+                //   style: TextStyle(
+                //     color: isMe
+                //         ? AppColors.waTextSecondaryDark
+                //         : AppColors.waTextSecondaryLight,
+                //     fontSize: 13,
+                //   ),
+                // ),
+                SelectableText(
+                  message.footer!,
+                  style: TextStyle(
+                    color: isMe
+                        ? AppColors.waTextSecondaryDark
+                        : AppColors.waTextSecondaryLight,
+                    fontSize: 13,
+                  ),
+                ),
           ),
 
         // Buttons

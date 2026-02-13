@@ -1,13 +1,14 @@
-import 'package:business_whatsapp/app/common%20widgets/common_snackbar.dart';
-import 'package:business_whatsapp/app/data/services/subscription_service.dart';
-import 'package:business_whatsapp/app/data/services/upload_file_firebase.dart';
-import 'package:business_whatsapp/app/utilities/utilities.dart';
-import 'package:business_whatsapp/main.dart';
+import 'package:adminpanel/app/common%20widgets/common_snackbar.dart';
+import 'package:adminpanel/app/data/services/subscription_service.dart';
+import 'package:adminpanel/app/data/services/upload_file_firebase.dart';
+import 'package:adminpanel/app/utilities/utilities.dart';
+import 'package:adminpanel/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:get/get.dart';
-import 'package:business_whatsapp/app/common%20widgets/shimmer_widgets.dart';
+import 'package:adminpanel/app/common%20widgets/shimmer_widgets.dart';
 import 'package:country_code_picker/country_code_picker.dart';
+import 'package:dio/dio.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'dart:typed_data';
@@ -40,6 +41,7 @@ class _AddContactFormWidgetState extends State<AddContactFormWidget> {
 
   int? _selectedStatus;
   String _countryCode = '+91';
+  String _isoCountryCode = 'IN';
   List<String> _selectedTags = [];
 
   // New fields
@@ -82,7 +84,6 @@ class _AddContactFormWidgetState extends State<AddContactFormWidget> {
       _fNameController.text = contact.fName!;
       _lNameController.text = contact.lName!;
       _phoneController.text = contact.phoneNumber;
-      _countryCode = contact.countryCode;
       _emailController.text = contact.email ?? '';
       _companyController.text = contact.company ?? '';
       _selectedTags = List.from(contact.tags);
@@ -100,6 +101,13 @@ class _AddContactFormWidgetState extends State<AddContactFormWidget> {
       _isBirthdateActive = contact.isBirthdateActive;
       _isAnniversaryActive = contact.isAnniversaryActive;
       _isWorkAnniversaryActive = contact.isWorkAnniversaryActive;
+
+      // Load ISO country code and dial code
+      _isoCountryCode = contact.isoCountryCode ?? 'IN';
+      _countryCode = contact.countryCallingCode!;
+      if (!_countryCode.startsWith('+')) {
+        _countryCode = '+$_countryCode';
+      }
     } else {
       // ADD MODE — reset values
       _fNameController.clear();
@@ -169,9 +177,9 @@ class _AddContactFormWidgetState extends State<AddContactFormWidget> {
     if (!RegExp(r'^[0-9]+$').hasMatch(value.trim())) {
       return "Phone number must be numeric";
     }
-    if (value.trim().length < 10 || value.trim().length > 15) {
-      return "Phone number must be between 10 and 15 digits";
-    }
+    // if (value.trim().length < 10 || value.trim().length > 15) {
+    //   // return "Phone number must be between 10 and 15 digits";
+    // }
     return null;
   }
 
@@ -323,6 +331,58 @@ class _AddContactFormWidgetState extends State<AddContactFormWidget> {
       }
     }
 
+    // Extract calling code and national number using Cloud Function API
+    String countryCallingCode = _countryCode.replaceAll('+', '');
+    String nationalNumber = _phoneController.text.trim();
+    String isoCountryCode = _isoCountryCode;
+
+    try {
+      final dio = Dio();
+      final fullNumber = '$countryCallingCode$nationalNumber';
+      final response = await dio.get(
+        'https://us-central1-whatsapp-test-panel.cloudfunctions.net/getPhoneNumber',
+        queryParameters: {'phoneNumber': fullNumber},
+      );
+
+      if (response.statusCode == 200 && response.data != null) {
+        final data = response.data;
+        countryCallingCode =
+            data['countryCallingCode']?.toString() ?? countryCallingCode;
+        isoCountryCode = data['countryCode']?.toString() ?? isoCountryCode;
+        nationalNumber = data['phoneNumber']?.toString() ?? nationalNumber;
+      }
+    } catch (e) {
+      if (e is DioException && e.response?.statusCode == 400) {
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Invalid Number'),
+              content: const Text(
+                'The phone number you entered is invalid. Please check and try again.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          );
+        }
+        return;
+      }
+
+      // Fallback: If API fails for other reasons, try to remove dial code manually
+      if (nationalNumber.startsWith(_countryCode)) {
+        nationalNumber = nationalNumber.substring(_countryCode.length).trim();
+      } else if (nationalNumber.startsWith(countryCallingCode)) {
+        nationalNumber = nationalNumber
+            .substring(countryCallingCode.length)
+            .trim();
+      }
+    }
+
     final isEditing = controller.isEditingContact.value;
     final existing = controller.contactToEdit.value;
 
@@ -331,8 +391,7 @@ class _AddContactFormWidgetState extends State<AddContactFormWidget> {
       final updated = existing.copyWith(
         fName: _fNameController.text.trim(),
         lName: _lNameController.text.trim(),
-        phoneNumber: _phoneController.text.trim(),
-        countryCode: _countryCode,
+        phoneNumber: nationalNumber,
         email: _emailController.text.trim().isEmpty
             ? null
             : _emailController.text.trim(),
@@ -356,6 +415,8 @@ class _AddContactFormWidgetState extends State<AddContactFormWidget> {
         isBirthdateActive: _isBirthdateActive,
         isAnniversaryActive: _isAnniversaryActive,
         isWorkAnniversaryActive: _isWorkAnniversaryActive,
+        isoCountryCode: isoCountryCode,
+        countryCallingCode: countryCallingCode,
         updatedAt: now,
       );
 
@@ -373,8 +434,8 @@ class _AddContactFormWidgetState extends State<AddContactFormWidget> {
     } else {
       // CREATE NEW CONTACT
       bool isExist = await _contactService.numberExists(
-        _countryCode,
-        _phoneController.text.trim(),
+        countryCallingCode,
+        nationalNumber,
       );
 
       if (isExist) {
@@ -386,8 +447,7 @@ class _AddContactFormWidgetState extends State<AddContactFormWidget> {
         id: '',
         fName: _fNameController.text.trim(),
         lName: _lNameController.text.trim(),
-        phoneNumber: _phoneController.text.trim(),
-        countryCode: _countryCode,
+        phoneNumber: nationalNumber,
         email: _emailController.text.trim().isEmpty
             ? null
             : _emailController.text.trim(),
@@ -411,6 +471,8 @@ class _AddContactFormWidgetState extends State<AddContactFormWidget> {
         isBirthdateActive: _isBirthdateActive,
         isAnniversaryActive: _isAnniversaryActive,
         isWorkAnniversaryActive: _isWorkAnniversaryActive,
+        isoCountryCode: isoCountryCode,
+        countryCallingCode: countryCallingCode,
         lastContacted: null,
         createdAt: now,
         updatedAt: now,
@@ -493,79 +555,6 @@ class _AddContactFormWidgetState extends State<AddContactFormWidget> {
       Icons.person,
       size: 60,
       color: isDark ? AppColors.gray500 : Colors.grey[400],
-    );
-  }
-
-  Widget _buildDateField({
-    required String label,
-    required DateTime? date,
-    required VoidCallback onTap,
-    required VoidCallback? onClear,
-  }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: isDark ? AppColors.textPrimaryDark : const Color(0xFF1a1a1a),
-          ),
-        ),
-        const SizedBox(height: 8),
-        InkWell(
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.borderDark : Colors.grey[50],
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: isDark ? AppColors.gray700 : Colors.grey[300]!,
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.calendar_today,
-                  size: 18,
-                  color: isDark ? AppColors.gray400 : Colors.grey[600],
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    date != null
-                        ? '${date.day}/${date.month}/${date.year}'
-                        : (label == 'DOB' ? 'DD/MM/YYYY' : 'Select $label'),
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: date != null
-                          ? (isDark
-                                ? AppColors.textPrimaryDark
-                                : const Color(0xFF1a1a1a))
-                          : (isDark ? AppColors.gray400 : Colors.grey[600]),
-                    ),
-                  ),
-                ),
-                if (date != null)
-                  IconButton(
-                    icon: Icon(
-                      Icons.clear,
-                      size: 18,
-                      color: isDark ? AppColors.gray400 : Colors.grey[600],
-                    ),
-                    onPressed: onClear,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ],
     );
   }
 
@@ -707,6 +696,7 @@ class _AddContactFormWidgetState extends State<AddContactFormWidget> {
     final isMobile = Responsive.isMobile(context);
     final isTablet = Responsive.isTablet(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isEditing = controller.isEditingContact;
 
     return Padding(
       padding: EdgeInsets.symmetric(
@@ -793,21 +783,30 @@ class _AddContactFormWidgetState extends State<AddContactFormWidget> {
                   validator: validateLastName,
                 ),
                 const SizedBox(height: 20),
-                CustomTextField(
-                  label: 'Phone Number',
-                  hint: '98765 43210',
-                  controller: _phoneController,
-                  prefixIcon: CountryCodePicker(
-                    onChanged: (code) => _countryCode = code.dialCode ?? '+91',
-                    initialSelection: 'IN',
-                    countryFilter: const ['IN'], // Only show India
-                    showCountryOnly: true,
-                    showOnlyCountryWhenClosed: true,
-                    alignLeft: false,
+
+                Obx(
+                  () => CustomTextField(
+                    readOnly: isEditing.value,
+                    label: 'Phone Number',
+                    hint: ' 98765 43210',
+                    controller: _phoneController,
+                    prefixIcon: CountryCodePicker(
+                      onChanged: (code) {
+                        setState(() {
+                          _countryCode = code.dialCode ?? '+91';
+                          _isoCountryCode = code.code ?? 'IN';
+                        });
+                      },
+                      initialSelection: _isoCountryCode,
+                      showCountryOnly: true,
+                      showOnlyCountryWhenClosed: true,
+                      alignLeft: false,
+                    ),
+                    prefixText: _countryCode,
+                    keyboardType: TextInputType.phone,
+                    required: true,
+                    validator: _validatePhone,
                   ),
-                  keyboardType: TextInputType.phone,
-                  required: true,
-                  validator: _validatePhone,
                 ),
               ] else
                 Row(
@@ -887,22 +886,29 @@ class _AddContactFormWidgetState extends State<AddContactFormWidget> {
                     const SizedBox(width: 20),
                     Expanded(
                       flex: 2,
-                      child: CustomTextField(
-                        label: 'Phone Number',
-                        hint: '98765 43210',
-                        controller: _phoneController,
-                        prefixIcon: CountryCodePicker(
-                          onChanged: (code) =>
-                              _countryCode = code.dialCode ?? '+91',
-                          initialSelection: 'IN',
-                          countryFilter: const ['IN'], // Only show India
-                          showCountryOnly: true,
-                          showOnlyCountryWhenClosed: true,
-                          alignLeft: false,
+                      child: Obx(
+                        () => CustomTextField(
+                          readOnly: isEditing.value,
+                          label: 'Phone Number',
+                          hint: ' 98765 43210',
+                          controller: _phoneController,
+                          prefixIcon: CountryCodePicker(
+                            onChanged: (code) {
+                              setState(() {
+                                _countryCode = code.dialCode ?? '+91';
+                                _isoCountryCode = code.code ?? 'IN';
+                              });
+                            },
+                            initialSelection: _isoCountryCode,
+                            showCountryOnly: true,
+                            showOnlyCountryWhenClosed: true,
+                            alignLeft: false,
+                          ),
+                          prefixText: _countryCode,
+                          required: true,
+                          keyboardType: TextInputType.phone,
+                          validator: _validatePhone,
                         ),
-                        required: true,
-                        keyboardType: TextInputType.phone,
-                        validator: _validatePhone,
                       ),
                     ),
                   ],

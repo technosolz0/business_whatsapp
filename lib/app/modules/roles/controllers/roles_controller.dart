@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'dart:developer';
-import 'package:business_whatsapp/app/Utilities/utilities.dart' show Utilities;
-import 'package:business_whatsapp/main.dart';
+import 'package:adminpanel/app/Utilities/utilities.dart' show Utilities;
+import 'package:adminpanel/main.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:business_whatsapp/app/common%20widgets/common_snackbar.dart';
-import 'package:business_whatsapp/app/modules/roles/models/roles_model.dart';
+import 'package:adminpanel/app/common%20widgets/common_snackbar.dart';
+import 'package:adminpanel/app/modules/roles/models/roles_model.dart';
 
 class RolesController extends GetxController {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;

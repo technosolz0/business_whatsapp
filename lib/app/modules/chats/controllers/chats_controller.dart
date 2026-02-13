@@ -1,10 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:business_whatsapp/app/Utilities/responsive.dart';
+import 'package:adminpanel/app/Utilities/responsive.dart';
+import 'package:adminpanel/app/modules/chats/widgets/chat_admin_assignment_popup.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
-import 'package:business_whatsapp/app/Utilities/network_utilities.dart';
+import 'package:adminpanel/app/Utilities/network_utilities.dart';
 import 'package:dio/dio.dart';
 
 import 'package:file_picker/file_picker.dart';
@@ -15,6 +16,7 @@ import '../../../../main.dart';
 import '../models/chat_model.dart';
 import '../models/message_model.dart';
 import '../../../../app/Utilities/subscription_guard.dart';
+import '../../../data/models/admins_model.dart';
 
 class ChatsController extends GetxController {
   ScrollController scrollController = ScrollController();
@@ -68,6 +70,7 @@ class ChatsController extends GetxController {
   void onInit() {
     super.onInit();
     chatListScrollController.addListener(_chatListScrollListener);
+    
     _initChatAccess();
   }
 
@@ -82,14 +85,13 @@ class ChatsController extends GetxController {
     if (adminID.isEmpty) return;
     try {
       final doc = await FirebaseFirestore.instance
-          .collection('admins')
-          .doc(adminID)
+          .collection('chats')
+          .doc(clientID)
+          .collection('data')
+          .where('assigned_admin', arrayContains: adminID)
           .get();
-      if (doc.exists) {
-        final data = doc.data();
-        if (data != null && data['assigned_contacts'] != null) {
-          assignedContactIds = List<String>.from(data['assigned_contacts']);
-        }
+      if (doc.docs.isNotEmpty) {
+        assignedContactIds = doc.docs.map((doc) => doc.id).toList();
       }
     } catch (e) {
       debugPrint('Error fetching assigned contacts: $e');
@@ -511,7 +513,7 @@ class ChatsController extends GetxController {
 
       final dio = NetworkUtilities.getDioClient();
       final response = await dio.post(
-        'https://bw.serwex.in/sendwhatsappmessagev1',
+        'https://sendwhatsappmessagev1-d3b4t36f7q-uc.a.run.app',
         data: {
           'clientId': clientID,
           'phoneNumber': chat.phoneNumber,
@@ -1334,7 +1336,7 @@ class ChatsController extends GetxController {
 
       final dio = NetworkUtilities.getDioClient();
       final uploadResponse = await dio.post(
-        'https://bw.serwex.in/uploadmediaforchat',
+        'https://uploadmediaforchat-d3b4t36f7q-uc.a.run.app',
         data: {
           'clientId': clientID,
           'fileName': fileName,
@@ -1373,7 +1375,7 @@ class ChatsController extends GetxController {
       }
 
       final response = await dio.post(
-        'https://bw.serwex.in/sendwhatsappmessage',
+        'https://sendwhatsappmessage-d3b4t36f7q-uc.a.run.app',
         data: {
           'clientId': clientID,
           'phoneNumber': chat.phoneNumber,
@@ -1460,7 +1462,7 @@ class ChatsController extends GetxController {
       final fullName =
           '${contactData['fName'] ?? ''} ${contactData['lName'] ?? ''}'.trim();
       final phoneNumber =
-          '${contactData['countryCode'] ?? ''}${contactData['phoneNumber'] ?? ''}';
+          '${contactData['countryCallingCode'] ?? contactData['countryCode'] ?? ''}${contactData['phoneNumber'] ?? ''}';
 
       final existingChat = chats.firstWhereOrNull(
         (chat) => chat.phoneNumber == phoneNumber,
@@ -1746,12 +1748,194 @@ class ChatsController extends GetxController {
 
     // Only reset limit when returning to 'all'
     if (filter == 'all') {
-      chatLimit.value = 15;
+      chatLimit.value = 100;
       hasMoreChats.value = true;
     }
 
     chats.clear();
     isLoadingMoreChats.value = true;
     listenToChats();
+  }
+
+  bool validateAdminSelection() {
+    return true;
+  }
+
+  void assignContacts() {
+    if (!validateAdminSelection()) return;
+
+    Get.dialog(
+      ChatAdminAssignmentPopup(controller: this),
+      barrierDismissible: false,
+    );
+  }
+
+  // Admin Assignment Logic Helpers
+  RxString adminSearch = "".obs;
+  RxList<AdminsModel> allAdmins = <AdminsModel>[].obs;
+  RxList<AdminsModel> selectedChatAdmins = <AdminsModel>[].obs;
+  RxList<String> availableTags = <String>[].obs;
+  RxList<String> selectedTags = <String>[].obs;
+
+  // Pagination for admins
+  RxBool isLoadingAdmins = false.obs;
+  RxBool hasMoreAdmins = true.obs;
+  RxBool isLoadingMoreAdmins = false.obs;
+  int currentAdminsPage = 1;
+  static const int adminsPageSize = 50;
+  DocumentSnapshot? _lastAdminDoc;
+
+  void updateAdminSearch(String value) {
+    adminSearch.value = value;
+  }
+
+  List<AdminsModel> get filteredAdmins {
+    List<AdminsModel> list = allAdmins;
+    if (adminSearch.value.isNotEmpty) {
+      final query = adminSearch.value.toLowerCase();
+      list = list.where((a) {
+        final fName = a.firstName?.toLowerCase() ?? '';
+        final lName = a.lastName?.toLowerCase() ?? '';
+        final email = a.email?.toLowerCase() ?? '';
+        return fName.contains(query) ||
+            lName.contains(query) ||
+            email.contains(query);
+      }).toList();
+    }
+    return list;
+  }
+
+  void toggleAdminSelection(AdminsModel admin) {
+    if (selectedChatAdmins.any((a) => a.id == admin.id)) {
+      selectedChatAdmins.removeWhere((a) => a.id == admin.id);
+    } else {
+      selectedChatAdmins.add(admin);
+    }
+  }
+
+  Future<void> loadAdminsForAssignment() async {
+    isLoadingAdmins.value = true;
+    allAdmins.clear();
+    currentAdminsPage = 1;
+    _lastAdminDoc = null;
+
+    try {
+      // Initialize selectedAdmins from current chat's assignedAdmin IDs
+      final chat = selectedChat.value;
+      if (chat != null && chat.assignedAdmin != null) {
+        selectedChatAdmins.assignAll(
+          chat.assignedAdmin!.map(
+            (id) => AdminsModel(id, null, null, null, null, null, 1, null),
+          ),
+        );
+      } else {
+        selectedChatAdmins.clear();
+      }
+
+      await _fetchAdminsPage();
+    } catch (e) {
+      debugPrint('Failed to load admins: $e');
+      Utilities.showSnackbar(SnackType.ERROR, "Failed to load admins: $e");
+    } finally {
+      isLoadingAdmins.value = false;
+    }
+  }
+
+  Future<void> loadMoreAdmins() async {
+    if (!hasMoreAdmins.value || isLoadingMoreAdmins.value) return;
+    isLoadingMoreAdmins.value = true;
+    try {
+      await _fetchAdminsPage();
+    } finally {
+      isLoadingMoreAdmins.value = false;
+    }
+  }
+
+  Future<void> _fetchAdminsPage() async {
+    var query = FirebaseFirestore.instance
+        .collection('admins')
+        .where('client_id', isEqualTo: clientID)
+        .where('isAllChats', isEqualTo: false);
+
+    if (_lastAdminDoc != null) {
+      query = query.startAfterDocument(_lastAdminDoc!);
+    }
+
+    final snapshot = await query.get();
+
+    if (snapshot.docs.isNotEmpty) {
+      _lastAdminDoc = snapshot.docs.last;
+      allAdmins.addAll(
+        snapshot.docs.map((doc) => AdminsModel.fromFirestore(doc)).toList(),
+      );
+      if (snapshot.docs.length < adminsPageSize) {
+        hasMoreAdmins.value = false;
+      }
+    } else {
+      hasMoreAdmins.value = false;
+    }
+  }
+
+  Future<void> updateChatAdmins() async {
+    final chat = selectedChat.value;
+    if (chat == null) return;
+
+    try {
+      Utilities.showOverlayLoadingDialog();
+
+      final newAdminIds = selectedChatAdmins.map((e) => e.id!).toList();
+      final oldAdminIds = chat.assignedAdmin ?? [];
+
+      final batch = FirebaseFirestore.instance.batch();
+
+      // 1. Update Chat document's assigned_admin array
+      final chatRef = FirebaseFirestore.instance
+          .collection('chats')
+          .doc(clientID)
+          .collection('data')
+          .doc(chat.id);
+      batch.update(chatRef, {'assigned_admin': newAdminIds});
+
+      // 2. Identify admins to add/remove this chat from
+      final toAdd = newAdminIds
+          .where((id) => !oldAdminIds.contains(id))
+          .toList();
+      final toRemove = oldAdminIds
+          .where((id) => !newAdminIds.contains(id))
+          .toList();
+
+      // 3. Update each Admin's assigned_contacts array
+      for (var adminId in toAdd) {
+        final adminRef = FirebaseFirestore.instance
+            .collection('admins')
+            .doc(adminId);
+        batch.update(adminRef, {
+          'assigned_contacts': FieldValue.arrayUnion([chat.id]),
+        });
+      }
+
+      for (var adminId in toRemove) {
+        final adminRef = FirebaseFirestore.instance
+            .collection('admins')
+            .doc(adminId);
+        batch.update(adminRef, {
+          'assigned_contacts': FieldValue.arrayRemove([chat.id]),
+        });
+      }
+
+      await batch.commit();
+
+      // Update local chat object
+      selectedChat.value = chat.copyWith(assignedAdmin: newAdminIds);
+
+      Utilities.hideCustomLoader(Get.context!);
+      Utilities.showSnackbar(
+        SnackType.SUCCESS,
+        "Admins assigned to chat successfully",
+      );
+    } catch (e) {
+      Utilities.hideCustomLoader(Get.context!);
+      Utilities.showSnackbar(SnackType.ERROR, "Failed to assign admins: $e");
+    }
   }
 }

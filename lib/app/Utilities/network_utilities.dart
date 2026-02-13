@@ -1,5 +1,5 @@
-import 'package:business_whatsapp/app/Utilities/utilities.dart';
-import 'package:business_whatsapp/app/common%20widgets/common_snackbar.dart';
+import 'package:adminpanel/app/Utilities/utilities.dart';
+import 'package:adminpanel/app/common%20widgets/common_snackbar.dart';
 import 'package:dio/dio.dart';
 
 import 'package:flutter/foundation.dart';
@@ -41,6 +41,19 @@ class NetworkUtilities {
         },
       ),
     );
+
+    //to avoid 'CERTIFICATE_VERIFY_FAILED: Hostname mismatch' error
+    // dioClient.httpClientAdapter = IOHttpClientAdapter(
+    //   createHttpClient: () {
+    //     // Don't trust any certificate just because their root cert is trusted.
+    //     final HttpClient client =
+    //         HttpClient(context: SecurityContext(withTrustedRoots: false));
+    //     // You can test the intermediate / root cert here. We just ignore it.
+    //     client.badCertificateCallback =
+    //         ((X509Certificate cert, String host, int port) => true);
+    //     return client;
+    //   },
+    // );
 
     return dioClient;
   }

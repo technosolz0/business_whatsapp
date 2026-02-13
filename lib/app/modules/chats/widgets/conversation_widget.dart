@@ -1,12 +1,17 @@
-import 'package:business_whatsapp/app/core/theme/app_colors.dart';
-import 'package:business_whatsapp/app/Utilities/responsive.dart';
-import 'package:business_whatsapp/app/modules/chats/models/message_model.dart';
+import 'package:adminpanel/app/common%20widgets/common_filled_button.dart';
+import 'package:adminpanel/app/common%20widgets/common_outline_button.dart';
+import 'package:adminpanel/app/core/theme/app_colors.dart';
+import 'package:adminpanel/app/Utilities/responsive.dart';
+import 'package:adminpanel/app/modules/chats/models/message_model.dart';
+import 'package:adminpanel/main.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import '../controllers/chats_controller.dart';
 import 'message_bubble_widget.dart';
 import 'message_input_widget.dart';
-import 'package:business_whatsapp/app/common%20widgets/shimmer_widgets.dart';
+import 'package:adminpanel/app/common%20widgets/shimmer_widgets.dart';
+import 'export_to_zoho_dialog.dart';
 
 class ConversationWidget extends GetView<ChatsController> {
   const ConversationWidget({super.key});
@@ -155,17 +160,89 @@ class ConversationWidget extends GetView<ChatsController> {
                     ),
                   ),
 
-                  // Actions
-                  // IconButton(
-                  //   icon: const Icon(Icons.search),
-                  //   color: subTitleColor,
-                  //   onPressed: () {},
-                  // ),
-                  // IconButton(
-                  //   icon: const Icon(Icons.more_vert),
-                  //   color: subTitleColor,
-                  //   onPressed: () {},
-                  // ),
+                  if (chat.assignedAdmin != null &&
+                      chat.assignedAdmin!.isNotEmpty) ...[
+                    isAllChats.value == true
+                        ? CommonFilledButton(
+                            onPressed: () {
+                              controller.assignContacts();
+                            },
+                            child: Row(
+                              children: [
+                                SvgPicture.asset(
+                                  "assets/icons/chats/assigned.svg",
+                                  width: 20,
+                                  height: 20,
+                                ),
+                                const SizedBox(width: 5),
+                                const Text("Assigned"),
+                              ],
+                            ),
+                          )
+                        : const SizedBox(),
+                  ] else ...[
+                    isAllChats.value == true
+                        ? CommonOutlineButton(
+                            onPressed: () {
+                              controller.assignContacts();
+                            },
+                            child: Row(
+                              children: [
+                                SvgPicture.asset(
+                                  "assets/icons/chats/unassigned.svg",
+                                  width: 20,
+                                  height: 20,
+                                ),
+                                const SizedBox(width: 5),
+                                const Text("Assign"),
+                              ],
+                            ),
+                          )
+                        : const SizedBox(),
+                  ],
+
+                  const SizedBox(width: 10),
+
+                  if (isConnected.value == true) ...[
+                    if (chat.leadRecordId != null &&
+                        chat.leadRecordId!.isNotEmpty) ...[
+                      CommonFilledButton(
+                        onPressed: () {
+                          Get.dialog(ExportToZohoDialog(chatId: chat.id));
+                        },
+
+                        child: Row(
+                          children: [
+                            SvgPicture.asset(
+                              "assets/icons/chats/uploaded.svg",
+                              width: 20,
+                              height: 20,
+                            ),
+                            const SizedBox(width: 5),
+                            const Text('Export'),
+                          ],
+                        ),
+                      ),
+                    ] else ...[
+                      CommonOutlineButton(
+                        onPressed: () {
+                          Get.dialog(ExportToZohoDialog(chatId: chat.id));
+                        },
+
+                        child: Row(
+                          children: [
+                            SvgPicture.asset(
+                              "assets/icons/chats/upload.svg",
+                              width: 20,
+                              height: 20,
+                            ),
+                            const SizedBox(width: 5),
+                            const Text('Export'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
                 ],
               ),
             ),
@@ -195,6 +272,7 @@ class ConversationWidget extends GetView<ChatsController> {
                 }
 
                 return ListView.builder(
+                  key: ValueKey(chat.id),
                   reverse: true,
                   controller: controller.scrollController,
                   physics: const AlwaysScrollableScrollPhysics(),

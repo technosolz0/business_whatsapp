@@ -1,13 +1,13 @@
 import 'dart:convert';
 import 'dart:developer';
-import 'package:business_whatsapp/app/data/models/admins_model.dart';
-import 'package:business_whatsapp/main.dart';
+import 'package:adminpanel/app/data/models/admins_model.dart';
+import 'package:adminpanel/main.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:business_whatsapp/app/common%20widgets/common_snackbar.dart';
-import 'package:business_whatsapp/app/utilities/utilities.dart';
+import 'package:adminpanel/app/common%20widgets/common_snackbar.dart';
+import 'package:adminpanel/app/utilities/utilities.dart';
 
 class AdminsController extends GetxController {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;

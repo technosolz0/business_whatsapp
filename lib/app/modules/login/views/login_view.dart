@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:business_whatsapp/app/core/theme/app_colors.dart';
+import 'package:adminpanel/app/core/theme/app_colors.dart';
 
 import 'package:get/get.dart';
-import 'package:business_whatsapp/app/modules/login/widgets/desktop_login_screen.dart';
-import 'package:business_whatsapp/app/modules/login/widgets/phone_login_screen.dart';
+import 'package:adminpanel/app/modules/login/widgets/desktop_login_screen.dart';
+import 'package:adminpanel/app/modules/login/widgets/phone_login_screen.dart';
 
 import '../controllers/login_controller.dart';
 

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:business_whatsapp/app/core/theme/app_colors.dart';
+import 'package:adminpanel/app/core/theme/app_colors.dart';
 import 'message_details_dialog.dart';
 
 enum StatCardType { dashboard, broadcast }

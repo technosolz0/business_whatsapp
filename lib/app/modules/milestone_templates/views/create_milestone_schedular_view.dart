@@ -1,11 +1,11 @@
-import 'package:business_whatsapp/app/routes/app_pages.dart';
+import 'package:adminpanel/app/routes/app_pages.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flex_color_picker/flex_color_picker.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../controllers/create_milestone_schedular_controller.dart';
-import 'package:business_whatsapp/app/data/models/milestone_element.dart';
+import 'package:adminpanel/app/data/models/milestone_element.dart';
 import './widgets/milestone_variable_input.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../Utilities/responsive.dart';

@@ -1,4 +1,4 @@
-import 'package:business_whatsapp/app/core/theme/app_colors.dart';
+import 'package:adminpanel/app/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -18,6 +18,7 @@ class CommonDropdownTextfield<T> extends StatelessWidget {
   final Color? enabledBorderColor;
   final Color? focusedBorderColor;
   final T? initialValue;
+  final T? value;
   final String? hintText;
   final bool enabled;
 
@@ -38,6 +39,7 @@ class CommonDropdownTextfield<T> extends StatelessWidget {
     this.enabledBorderColor = const Color(0xFFE0E0E0),
     this.focusedBorderColor = AppColors.primary,
     this.initialValue,
+    this.value,
     this.hintText,
     this.enabled = true,
   });
@@ -99,7 +101,7 @@ class CommonDropdownTextfield<T> extends StatelessWidget {
           absorbing: !enabled,
           child: DropdownButtonFormField<T>(
             menuMaxHeight: 400,
-            initialValue: initialValue,
+            initialValue: value ?? initialValue,
             dropdownColor: dropdownBgColor, // 🌙 Dark mode dropdown menu
             isExpanded: true,
 

@@ -5,7 +5,6 @@ class ContactModel {
   final String? fName;
   final String? lName;
   final String phoneNumber;
-  final String countryCode;
   final String? email;
   final String? company;
   final List<String> tags;
@@ -27,6 +26,11 @@ class ContactModel {
   final String? anniversaryDateMonth;
   final String? workAnniversaryDateMonth;
 
+  // ISO country code and dial code
+  final String? isoCountryCode; // e.g., 'in', 'us'
+
+  final String? countryCallingCode; // e.g., '91', '1'
+
   // Active status for milestones
   final bool isBirthdateActive;
   final bool isAnniversaryActive;
@@ -38,7 +42,6 @@ class ContactModel {
     required this.fName,
     required this.lName,
     required this.phoneNumber,
-    required this.countryCode,
     this.email,
     this.company,
     required this.tags,
@@ -55,6 +58,8 @@ class ContactModel {
     this.birthdateMonth,
     this.anniversaryDateMonth,
     this.workAnniversaryDateMonth,
+    this.isoCountryCode,
+    this.countryCallingCode,
     this.isBirthdateActive = true,
     this.isAnniversaryActive = true,
     this.isWorkAnniversaryActive = true,
@@ -75,7 +80,6 @@ class ContactModel {
       fName: data['fName'] as String? ?? '',
       lName: data['lName'] as String? ?? '',
       phoneNumber: data['phoneNumber'] as String? ?? '',
-      countryCode: data['countryCode'] as String? ?? '+91',
       email: data['email'] as String?,
       clientId: data['clientId'] as String?,
       company: data['company'] as String?,
@@ -120,6 +124,12 @@ class ContactModel {
       birthdateMonth: data['birthdateMonth'] as String?,
       anniversaryDateMonth: data['anniversaryDateMonth'] as String?,
       workAnniversaryDateMonth: data['workAnniversaryDateMonth'] as String?,
+
+      // ISO country code and dial code
+      isoCountryCode: data['country_code'] as String?,
+
+      countryCallingCode: data['countryCallingCode'] as String?,
+
       isBirthdateActive: data['isBirthdateActive'] as bool? ?? false,
       isAnniversaryActive: data['isAnniversaryActive'] as bool? ?? false,
       isWorkAnniversaryActive:
@@ -135,7 +145,6 @@ class ContactModel {
       fName: json['fName'] as String? ?? '',
       lName: json['lName'] as String? ?? '',
       phoneNumber: json['phoneNumber'] as String? ?? '',
-      countryCode: json['countryCode'] as String? ?? '+91',
       email: json['email'] as String?,
       clientId: json['clientId'] as String?,
       company: json['company'] as String?,
@@ -168,6 +177,12 @@ class ContactModel {
       birthdateMonth: json['birthdateMonth'] as String?,
       anniversaryDateMonth: json['anniversaryDateMonth'] as String?,
       workAnniversaryDateMonth: json['workAnniversaryDateMonth'] as String?,
+
+      // ISO country code and dial code
+      isoCountryCode: json['country_code'] as String?,
+
+      countryCallingCode: json['countryCallingCode'] as String?,
+
       isBirthdateActive: json['isBirthdateActive'] as bool? ?? false,
       isAnniversaryActive: json['isAnniversaryActive'] as bool? ?? false,
       isWorkAnniversaryActive:
@@ -183,7 +198,6 @@ class ContactModel {
       'fName': fName,
       'lName': lName,
       'phoneNumber': phoneNumber,
-      'countryCode': countryCode,
       'email': email,
       'clientId': clientId,
       'company': company,
@@ -202,6 +216,10 @@ class ContactModel {
       'birthdateMonth': birthdateMonth,
       'anniversaryDateMonth': anniversaryDateMonth,
       'workAnniversaryDateMonth': workAnniversaryDateMonth,
+
+      'country_code': isoCountryCode,
+      'countryCallingCode': countryCallingCode,
+
       'isBirthdateActive': isBirthdateActive,
       'isAnniversaryActive': isAnniversaryActive,
       'isWorkAnniversaryActive': isWorkAnniversaryActive,
@@ -215,7 +233,6 @@ class ContactModel {
       'fName': fName,
       'lName': lName,
       'phoneNumber': phoneNumber,
-      'countryCode': countryCode,
       'email': email,
       'company': company,
       'tags': tags,
@@ -233,6 +250,10 @@ class ContactModel {
       'birthdateMonth': birthdateMonth,
       'anniversaryDateMonth': anniversaryDateMonth,
       'workAnniversaryDateMonth': workAnniversaryDateMonth,
+
+      'country_code': isoCountryCode,
+      'countryCallingCode': countryCallingCode,
+
       'isBirthdateActive': isBirthdateActive,
       'isAnniversaryActive': isAnniversaryActive,
       'isWorkAnniversaryActive': isWorkAnniversaryActive,
@@ -246,7 +267,6 @@ class ContactModel {
     String? fName,
     String? lName,
     String? phoneNumber,
-    String? countryCode,
     String? email,
     String? clientId,
     String? company,
@@ -263,9 +283,10 @@ class ContactModel {
     String? birthdateMonth,
     String? anniversaryDateMonth,
     String? workAnniversaryDateMonth,
+    String? isoCountryCode,
+    String? countryCallingCode,
     bool? isBirthdateActive,
     bool? isAnniversaryActive,
-
     bool? isWorkAnniversaryActive,
     Map<String, dynamic>? customAttributes,
   }) {
@@ -274,7 +295,6 @@ class ContactModel {
       fName: fName ?? this.fName,
       lName: lName ?? this.lName,
       phoneNumber: phoneNumber ?? this.phoneNumber,
-      countryCode: countryCode ?? this.countryCode,
       email: email ?? this.email,
       clientId: clientId ?? this.clientId,
       company: company ?? this.company,
@@ -292,6 +312,8 @@ class ContactModel {
       anniversaryDateMonth: anniversaryDateMonth ?? this.anniversaryDateMonth,
       workAnniversaryDateMonth:
           workAnniversaryDateMonth ?? this.workAnniversaryDateMonth,
+      isoCountryCode: isoCountryCode ?? this.isoCountryCode,
+      countryCallingCode: countryCallingCode ?? this.countryCallingCode,
       isBirthdateActive: isBirthdateActive ?? this.isBirthdateActive,
       isAnniversaryActive: isAnniversaryActive ?? this.isAnniversaryActive,
       isWorkAnniversaryActive:

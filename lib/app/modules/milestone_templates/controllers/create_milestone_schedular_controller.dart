@@ -1,24 +1,24 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
-import 'package:business_whatsapp/app/common%20widgets/common_snackbar.dart';
-import 'package:business_whatsapp/app/data/services/template_service.dart';
-import 'package:business_whatsapp/app/routes/app_pages.dart';
-import 'package:business_whatsapp/main.dart';
+import 'package:adminpanel/app/common%20widgets/common_snackbar.dart';
+import 'package:adminpanel/app/data/services/template_service.dart';
+import 'package:adminpanel/app/routes/app_pages.dart';
+import 'package:adminpanel/main.dart';
 import 'package:flutter/material.dart';
-import 'package:business_whatsapp/app/Utilities/network_utilities.dart';
-import 'package:business_whatsapp/app/Utilities/utilities.dart' show Utilities;
-import 'package:business_whatsapp/app/controllers/navigation_controller.dart';
+import 'package:adminpanel/app/Utilities/network_utilities.dart';
+import 'package:adminpanel/app/Utilities/utilities.dart' show Utilities;
+import 'package:adminpanel/app/controllers/navigation_controller.dart';
 import 'package:get/get.dart';
-import 'package:business_whatsapp/app/common%20widgets/shimmer_widgets.dart';
+import 'package:adminpanel/app/common%20widgets/shimmer_widgets.dart';
 import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:business_whatsapp/app/data/models/template_params.dart';
-import 'package:business_whatsapp/app/data/services/template_firebase_service.dart';
-import 'package:business_whatsapp/app/data/models/milestone_element.dart';
-import 'package:business_whatsapp/app/modules/milestone_templates/controllers/milestone_schedulars_controller.dart';
+import 'package:adminpanel/app/data/models/template_params.dart';
+import 'package:adminpanel/app/data/services/template_firebase_service.dart';
+import 'package:adminpanel/app/data/models/milestone_element.dart';
+import 'package:adminpanel/app/modules/milestone_templates/controllers/milestone_schedulars_controller.dart';
 
 class CreateMilestoneSchedularController extends GetxController {
   // ===========================================================================
@@ -191,7 +191,7 @@ class CreateMilestoneSchedularController extends GetxController {
     try {
       final dio = NetworkUtilities.getDioClient();
       final response = await dio.get(
-        'https://bw.serwex.in/getapprovedmediatemplates',
+        'https://getapprovedmediatemplates-d3b4t36f7q-uc.a.run.app',
         queryParameters: {'clientId': clientID},
       );
 
@@ -1076,16 +1076,14 @@ class CreateMilestoneSchedularController extends GetxController {
     String schedulerId,
     String scheduleTime,
   ) async {
-    print(
-      '🔄 Creating milestone cron job for scheduler: $schedulerId at $scheduleTime',
-    );
+  
     try {
       final scheduleTime =
           "${DateTime.now().year}-01-01 ${this.scheduleTime.value}:00";
 
       final dio = NetworkUtilities.getDioClient();
       final response = await dio.post(
-        'https://bw.serwex.in/createmilestonecronjob',
+        'https://createmilestonecronjob-d3b4t36f7q-uc.a.run.app',
         data: {
           'clientId': clientID,
           'schedulerId': schedulerId,
@@ -1117,16 +1115,14 @@ class CreateMilestoneSchedularController extends GetxController {
     String schedulerId,
     String scheduleTime,
   ) async {
-    print(
-      '🔄 Updating milestone cron job for scheduler: $schedulerId at $scheduleTime',
-    );
+   
     try {
       final scheduleTime =
           "${DateTime.now().year}-01-01 ${this.scheduleTime.value}:00";
 
       final dio = NetworkUtilities.getDioClient();
       final response = await dio.post(
-        'https://bw.serwex.in/updatemilestonecronjob',
+        'https://updatemilestonecronjob-d3b4t36f7q-uc.a.run.app',
         data: {
           'clientId': clientID,
           'schedulerId': schedulerId,

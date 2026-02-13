@@ -1,7 +1,7 @@
-import 'package:business_whatsapp/app/Utilities/network_utilities.dart';
-import 'package:business_whatsapp/app/common%20widgets/common_snackbar.dart';
-import 'package:business_whatsapp/app/modules/contacts/services/import_service.dart';
-import 'package:business_whatsapp/app/utilities/utilities.dart';
+import 'package:adminpanel/app/Utilities/network_utilities.dart';
+import 'package:adminpanel/app/common%20widgets/common_snackbar.dart';
+import 'package:adminpanel/app/modules/contacts/services/import_service.dart';
+import 'package:adminpanel/app/utilities/utilities.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -13,7 +13,7 @@ import '../../../data/models/contact_model.dart';
 import '../../../data/models/tag_model.dart';
 import '../../../data/services/contact_service.dart';
 import '../../../data/services/tag_service.dart';
-import 'package:business_whatsapp/app/Utilities/webutils.dart';
+import 'package:adminpanel/app/Utilities/webutils.dart';
 
 import 'package:file_saver/file_saver.dart';
 
@@ -162,7 +162,7 @@ class ContactsController extends GetxController {
         url,
         queryParameters: {
           'q': trimmedQuery,
-          'query_by': 'fName,lName,countryCode,phoneNumber',
+          'query_by': 'fName,lName,countryCode,countryCallingCode,phoneNumber',
         },
         options: Options(
           headers: {'X-TYPESENSE-API-KEY': 'AIS.Typesense@2026'},
@@ -444,7 +444,8 @@ class ContactsController extends GetxController {
       [
         "First Name",
         "Last Name",
-        "Country Code",
+        "Country Code", // ISO
+        "Calling Code", // +91, +1
         "Phone Number",
         "Email",
         "Company",
@@ -461,6 +462,7 @@ class ContactsController extends GetxController {
       [
         "Ritika",
         "Sharma",
+        "IN",
         "+91",
         "9876543210",
         "ritika.sharma@test.com",
@@ -477,6 +479,7 @@ class ContactsController extends GetxController {
       [
         "Amit",
         "Verma",
+        "IN",
         "+91",
         "9123456789",
         "amit.verma@test.com",
@@ -491,8 +494,26 @@ class ContactsController extends GetxController {
         "15 08",
       ],
       [
+        "John",
+        "Doe",
+        "US",
+        "+1",
+        "2025550123",
+        "john.doe@test.com",
+        "Global Tech",
+        "international",
+        "US Lead",
+        "1990-01-01",
+        "",
+        "",
+        "01 01",
+        "",
+        "",
+      ],
+      [
         "Pooja",
         "Mehta",
+        "IN",
         "+91",
         "9988776655",
         "pooja.mehta@infomatrix.in",
@@ -504,70 +525,6 @@ class ContactsController extends GetxController {
         "",
         "25 01",
         "12 12",
-        "",
-      ],
-      [
-        "Saurabh",
-        "Gupta",
-        "+91",
-        "9012345678",
-        "saurabh.gupta@techvista.co",
-        "TechVista Innovations",
-        "imp",
-        "Follow-up call scheduled for Monday",
-        "",
-        "2018-03-22",
-        "2020-06-10",
-        "",
-        "22 03",
-        "10 06",
-      ],
-      [
-        "Nidhi",
-        "Singh",
-        "+91",
-        "9345678901",
-        "nidhi.singh@brightworks.ai",
-        "BrightWorks AI",
-        "priority",
-        "Evaluating enterprise subscription",
-        "1996-11-30",
-        "",
-        "",
-        "30 11",
-        "",
-        "",
-      ],
-      [
-        "Vikram",
-        "Joshi",
-        "+91",
-        "8899001122",
-        "vikram.j@globexdigital.com",
-        "Globex Digital",
-        "new",
-        "Added through LinkedIn outreach",
-        "1988-07-09",
-        "2015-10-18",
-        "2016-02-01",
-        "09 07",
-        "18 10",
-        "01 02",
-      ],
-      [
-        "Anjali",
-        "Kulkarni",
-        "+91",
-        "9765432109",
-        "anjali.k@everestsolutions.in",
-        "Everest Solutions",
-        "head",
-        "Decision maker – requires proposal",
-        "1993-05-14",
-        "2019-09-05",
-        "",
-        "14 05",
-        "05 09",
         "",
       ],
     ];
@@ -586,15 +543,21 @@ class ContactsController extends GetxController {
   // Simple one-line import
   void importContacts() {
     CsvImportService.importContactsFromCsv(
+      requireNames: true,
       onLoadingChanged: (loading) => isLoading.value = loading,
       onContactsParsed: (contacts) async {
         for (var data in contacts) {
-          await _addContactFromImport(data);
+          try {
+            await _addContactFromImport(data);
+          } catch (e) {
+            continue;
+          }
         }
       },
       onComplete: (imported, skipped) {
-        // Optional: Do something after import completes
-        //print('Import finished: $imported imported, $skipped skipped');
+        imported = imported;
+        skipped = skipped;
+      
       },
     );
   }
@@ -612,7 +575,8 @@ class ContactsController extends GetxController {
       fName: data.firstName,
       lName: data.lastName,
       phoneNumber: data.phoneNumber,
-      countryCode: data.countryCode,
+      isoCountryCode: data.isoCountryCode,
+      countryCallingCode: data.countryCallingCode,
       email: data.email,
       company: data.company,
       tags: data.tags,
@@ -629,6 +593,5 @@ class ContactsController extends GetxController {
     );
 
     await _contactService.addContact(contact);
-    print('Imported contact: $contact');
   }
 }

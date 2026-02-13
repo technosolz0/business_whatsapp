@@ -1,11 +1,10 @@
 import 'dart:convert';
-import 'package:business_whatsapp/app/modules/contacts/widgets/contact_import_confirmation_dialog.dart';
-import 'package:business_whatsapp/app/Utilities/utilities.dart';
-import 'package:business_whatsapp/app/common%20widgets/common_snackbar.dart';
+import 'package:adminpanel/app/modules/contacts/widgets/contact_import_confirmation_dialog.dart';
+import 'package:adminpanel/app/Utilities/utilities.dart';
+import 'package:adminpanel/app/common%20widgets/common_snackbar.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:csv/csv.dart';
 import 'package:get/get.dart';
-import 'package:flutter/material.dart';
 
 class CsvImportService {
   /// Pick and parse CSV file
@@ -22,35 +21,41 @@ class CsvImportService {
       }
 
       final fileBytes = result.files.first.bytes!;
-      final csv = utf8.decode(fileBytes);
+      String csv;
+      try {
+        csv = utf8.decode(fileBytes);
+      } catch (e) {
+        try {
+          csv = latin1.decode(fileBytes);
+        } catch (e) {
+          csv = utf8.decode(fileBytes, allowMalformed: true);
+        }
+      }
       final csvData = const CsvToListConverter().convert(csv);
 
       if (csvData.isEmpty) {
-        Get.snackbar(
-          "Error",
-          "CSV is empty",
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.red.shade50,
-          colorText: Colors.red.shade900,
-        );
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (Get.overlayContext != null) {
+            Utilities.showSnackbar(SnackType.ERROR, "CSV is empty");
+          }
+        });
         return null;
       }
 
       return csvData;
     } catch (e) {
-      Get.snackbar(
-        "Error",
-        "Failed to read CSV: $e",
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red.shade50,
-        colorText: Colors.red.shade900,
-      );
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (Get.overlayContext != null) {
+          Utilities.showSnackbar(SnackType.ERROR, "Failed to read CSV: $e");
+        }
+      });
       return null;
     }
   }
 
   /// Import contacts from CSV with callbacks
   static Future<void> importContactsFromCsv({
+    bool requireNames = false,
     Function(bool isLoading)? onLoadingChanged,
     Function(int imported, int skipped)? onComplete,
     Future<void> Function(List<ContactImportData> contacts)? onContactsParsed,
@@ -62,8 +67,10 @@ class CsvImportService {
     // Step 2: Show confirmation dialog
     ImportConfirmationDialog.show(
       csvData: csvData,
+      requireNames: requireNames,
       processImport: (data) => _processImport(
         csvData: data,
+        requireNames: requireNames,
         onLoadingChanged: onLoadingChanged,
         onComplete: onComplete,
         onContactsParsed: onContactsParsed,
@@ -128,6 +135,7 @@ class CsvImportService {
   /// Process the CSV import
   static Future<void> _processImport({
     required List<List<dynamic>> csvData,
+    bool requireNames = false,
     Function(bool isLoading)? onLoadingChanged,
     Function(int imported, int skipped)? onComplete,
     Future<void> Function(List<ContactImportData> contacts)? onContactsParsed,
@@ -160,6 +168,12 @@ class CsvImportService {
       final tagsIndex = headers.indexOf('tags');
       final notesIndex = headers.indexOf('notes');
 
+      // ISO Country Code and Calling Code
+      final isoCountryCodeIndex = headers.indexOf('countrycode');
+      final callingCodeIndex = headers.contains('callingcode')
+          ? headers.indexOf('callingcode')
+          : headers.indexOf('dialcode');
+
       // New date field indexes
       final birthdateIndex = headers.indexOf('birthdate');
       final anniversaryIndex = headers.indexOf('anniversary');
@@ -167,48 +181,14 @@ class CsvImportService {
 
       // Validate mandatory columns
       if (phoneIndex == -1) {
-        Get.snackbar(
-          'Error',
-          'CSV must contain Phone Number column',
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.red.shade50,
-          colorText: Colors.red.shade900,
-        );
-        return;
-      }
-
-      // First pass: Validate country codes
-      bool hasInvalidCountryCode = false;
-      for (final row in rows) {
-        if (row.length <= phoneIndex) continue;
-
-        // Country code with fallback
-        String countryCode = '+91';
-        if (countryCodeIndex != -1 && countryCodeIndex < row.length) {
-          final cc = row[countryCodeIndex].toString().trim();
-          if (cc.isNotEmpty) {
-            countryCode = cc.startsWith('+') ? cc : '+$cc';
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (Get.overlayContext != null) {
+            Utilities.showSnackbar(
+              SnackType.ERROR,
+              'CSV must contain Phone Number column',
+            );
           }
-        }
-
-        // Check if country code is allowed (only India +91)
-        if (countryCode != '+91') {
-          hasInvalidCountryCode = true;
-          break;
-        }
-      }
-
-      // If any invalid country code found, show error and stop import
-      if (hasInvalidCountryCode) {
-        // Small delay to ensure overlay is available
-        await Future.delayed(const Duration(milliseconds: 500));
-        if (Get.overlayContext != null) {
-          Utilities.showSnackbar(
-            SnackType.ERROR,
-            'Country code validation failed. Only India (+91) is allowed for contact imports.',
-          );
-        }
-        onLoadingChanged?.call(false);
+        });
         return;
       }
 
@@ -236,21 +216,70 @@ class CsvImportService {
               (lastNameIndex != -1 && lastNameIndex < row.length)
               ? row[lastNameIndex].toString().trim()
               : '';
+
+          // Skip if names are missing (optional based on requireNames flag)
+          if (requireNames && (firstNameRaw.isEmpty || lastNameRaw.isEmpty)) {
+            skipped++;
+            continue;
+          }
+
           final firstName = firstNameRaw.isNotEmpty ? firstNameRaw : null;
           final lastName = lastNameRaw.isNotEmpty ? lastNameRaw : null;
           final phone = row[phoneIndex].toString().trim();
 
-          // Country code with fallback
-          String countryCode = '+91';
-          if (countryCodeIndex != -1 && countryCodeIndex < row.length) {
+          // Calling code with fallback to existing countryCode column if callingCode missing
+          String countryCallingCode = '';
+          if (callingCodeIndex != -1 && callingCodeIndex < row.length) {
+            final dc = row[callingCodeIndex].toString().trim();
+            if (dc.isNotEmpty) {
+              countryCallingCode = dc.startsWith('+') ? dc : '+$dc';
+            }
+          } else if (countryCodeIndex != -1 && countryCodeIndex < row.length) {
+            // Fallback for older CSV format where dial code might be in countryCode column
             final cc = row[countryCodeIndex].toString().trim();
             if (cc.isNotEmpty) {
-              countryCode = cc.startsWith('+') ? cc : '+$cc';
+              countryCallingCode = cc.startsWith('+') ? cc : '+$cc';
             }
           }
 
+          // ISO Country Code
+          String? isoCountryCode;
+          if (isoCountryCodeIndex != -1 && isoCountryCodeIndex < row.length) {
+            final icc = row[isoCountryCodeIndex]
+                .toString()
+                .trim()
+                .toUpperCase();
+            if (icc.isNotEmpty) {
+              isoCountryCode = icc;
+            }
+          }
+
+          // Skip if ISO Country Code is invalid (length must be 2)
+          if (isoCountryCode == null || isoCountryCode.length != 2) {
+            skipped++;
+            continue;
+          }
+
+          // Skip if Calling Code or Phone is missing
+          if (countryCallingCode.isEmpty || phone.isEmpty) {
+            skipped++;
+            continue;
+          }
+
+          // Validate Calling Code format (starts with +, numeric)
+          if (!RegExp(r'^\+[0-9]+$').hasMatch(countryCallingCode)) {
+            skipped++;
+            continue;
+          }
+
+          // Validate Phone number format (numeric only)
+          if (!RegExp(r'^[0-9]+$').hasMatch(phone)) {
+            skipped++;
+            continue;
+          }
+
           // Check for duplicate in this batch
-          final key = '$countryCode-$phone';
+          final key = '$countryCallingCode-$phone';
           if (processedNumbers.contains(key)) {
             skipped++;
             continue;
@@ -318,7 +347,12 @@ class CsvImportService {
 
           // Custom Attributes extraction
           final Map<String, dynamic> customAttributes = {};
-          final knownIndexes = {phoneIndex, countryCodeIndex};
+          final knownIndexes = {
+            phoneIndex,
+            countryCodeIndex,
+            callingCodeIndex,
+            isoCountryCodeIndex,
+          };
 
           for (int i = 0; i < row.length; i++) {
             if (knownIndexes.contains(i)) continue;
@@ -337,7 +371,8 @@ class CsvImportService {
             firstName: firstName,
             lastName: lastName,
             phoneNumber: phone,
-            countryCode: countryCode,
+            countryCallingCode: countryCallingCode,
+            isoCountryCode: isoCountryCode,
             email: email,
             company: company,
             tags: tags,
@@ -369,7 +404,9 @@ class CsvImportService {
       if (Get.overlayContext != null) {
         Utilities.showSnackbar(
           SnackType.SUCCESS,
-          'Imported: $imported • Skipped: $skipped',
+          'Import Successful',
+
+          // 'Imported: $imported • Skipped: $skipped',
         );
       }
 
@@ -391,7 +428,8 @@ class ContactImportData {
   final String? firstName;
   final String? lastName;
   final String phoneNumber;
-  final String countryCode;
+  final String countryCallingCode;
+  final String? isoCountryCode;
   final String? email;
   final String? company;
   final List<String> tags;
@@ -405,7 +443,8 @@ class ContactImportData {
     this.firstName,
     this.lastName,
     required this.phoneNumber,
-    required this.countryCode,
+    required this.countryCallingCode,
+    this.isoCountryCode,
     this.email,
     this.company,
     required this.tags,
@@ -422,7 +461,8 @@ class ContactImportData {
       'fName': firstName,
       'lName': lastName,
       'phoneNumber': phoneNumber,
-      'countryCode': countryCode,
+      'countryCallingCode': countryCallingCode,
+      'country_code': isoCountryCode,
       'email': email,
       'company': company,
       'tags': tags,

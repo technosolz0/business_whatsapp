@@ -1,6 +1,6 @@
-import 'package:business_whatsapp/app/Utilities/constants/app_constants.dart';
-import 'package:business_whatsapp/app/Utilities/webutils.dart';
-import 'package:business_whatsapp/main.dart';
+import 'package:adminpanel/app/Utilities/constants/app_constants.dart';
+import 'package:adminpanel/app/Utilities/webutils.dart';
+import 'package:adminpanel/main.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 
@@ -81,16 +81,23 @@ class AppInitializer {
           )
         : '';
 
-    print('--- DEBUG: Global Variables Initialized (AppInitializer) ---');
-    print('gJwtToken: $gJwtToken');
-    print('adminName: $adminName');
-    print('adminID: $adminID');
-    print('clientID: $clientID');
-    print('isSuperUser: $isSuperUser');
-    print('isAllChats: $isAllChats');
-    print('clientName: $clientName');
-    print('clientLogo: $clientLogo');
-    print('-----------------------------------------');
+    String encryptedIsCRMEnabled = getCookieValue('isCRMEnabled');
+    isCRMEnabled.value = encryptedIsCRMEnabled.isNotEmpty
+        ? WebUtils.decryptData(
+                data: encryptedIsCRMEnabled,
+                secretKey: AppConstants.menuItemsSecret,
+              ) ==
+              'true'
+        : false;
+
+    String encryptedIsConnected = getCookieValue('isConnected');
+    isConnected.value = encryptedIsConnected.isNotEmpty
+        ? WebUtils.decryptData(
+                data: encryptedIsConnected,
+                secretKey: AppConstants.menuItemsSecret,
+              ) ==
+              'true'
+        : false;
 
     if (gJwtToken.isNotEmpty) {
       try {

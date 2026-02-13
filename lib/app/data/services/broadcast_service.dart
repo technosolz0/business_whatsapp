@@ -1,7 +1,7 @@
 import 'dart:typed_data';
-import 'package:business_whatsapp/main.dart';
+import 'package:adminpanel/main.dart';
 
-import 'package:business_whatsapp/app/Utilities/network_utilities.dart';
+import 'package:adminpanel/app/Utilities/network_utilities.dart';
 import 'package:dio/dio.dart';
 import 'package:http_parser/http_parser.dart';
 
@@ -9,8 +9,10 @@ class BroadcastService {
   BroadcastService._();
   static final instance = BroadcastService._();
 
-  final String cloudFunctionUrl = "https://uploadbroadcastmedia ";
-  final String sendTemplateUrl = "https://sendwhatsapptemplatemessage ";
+  final String cloudFunctionUrl =
+      "https://uploadbroadcastmedia-d3b4t36f7q-uc.a.run.app";
+  final String sendTemplateUrl =
+      "https://sendwhatsapptemplatemessage-d3b4t36f7q-uc.a.run.app";
   final _dio = NetworkUtilities.getDioClient();
 
   /// ------------------------------------------------------------------

@@ -1,19 +1,19 @@
 import 'dart:convert';
 import 'dart:developer';
 
-import 'package:business_whatsapp/app/Utilities/constants/app_constants.dart';
-import 'package:business_whatsapp/app/Utilities/webutils.dart';
+import 'package:adminpanel/app/Utilities/constants/app_constants.dart';
+import 'package:adminpanel/app/Utilities/webutils.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:business_whatsapp/app/common%20widgets/common_snackbar.dart';
-import 'package:business_whatsapp/app/routes/app_pages.dart';
-import 'package:business_whatsapp/app/utilities/utilities.dart';
-import 'package:business_whatsapp/main.dart';
+import 'package:adminpanel/app/common%20widgets/common_snackbar.dart';
+import 'package:adminpanel/app/routes/app_pages.dart';
+import 'package:adminpanel/app/utilities/utilities.dart';
+import 'package:adminpanel/main.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:business_whatsapp/app/data/services/subscription_service.dart';
+import 'package:adminpanel/app/data/services/subscription_service.dart';
 
 class LoginController extends GetxController {
   GlobalKey<FormState> loginKey = GlobalKey<FormState>();
@@ -163,16 +163,19 @@ class LoginController extends GetxController {
               .get();
           String cName = 'Messaging Portal';
           String cLogo = '';
+          bool crmEnabled = false;
 
           if (clientDoc.exists && clientDoc.data() != null) {
             final data = clientDoc.data()!;
             if (data['name'] != null) cName = data['name'];
             if (data['logoUrl'] != null) cLogo = data['logoUrl'];
+            crmEnabled = data['isCRMEnabled'] == true;
           }
 
           // Update Globals
           clientName.value = cName;
           clientLogo.value = cLogo;
+          isCRMEnabled.value = crmEnabled;
 
           // Store in Cookies
           WebUtils.addCookie(
@@ -189,21 +192,41 @@ class LoginController extends GetxController {
               secretKey: AppConstants.menuItemsSecret,
             ),
           );
+          WebUtils.addCookie(
+            key: 'isCRMEnabled_$clientId',
+            value: WebUtils.encryptData(
+              data: crmEnabled.toString(),
+              secretKey: AppConstants.menuItemsSecret,
+            ),
+          );
         } catch (e) {
           print('Error fetching client details: $e');
         }
+
+        // --- Fetch and Store Charges Collection for Local Storage ---
+        try {
+          final chargesSnapshot = await firestore.collection('charges').get();
+          Map<String, dynamic> chargesData = {};
+          for (var doc in chargesSnapshot.docs) {
+            chargesData[doc.id] = doc.data();
+          }
+          WebUtils.saveToLocalStorage('charges', jsonEncode(chargesData));
+          // print('Charges data stored in local storage');
+          // print('chargesData: ******************************  $chargesData');
+        } catch (e) {
+          print('Error fetching or storing charges: $e');
+        }
         // -----------------------------------------------------
 
-        print('Login successful for Client ID: $clientId');
-        print('Admin ID: $adminId');
-        print('Admin Name: ${adminName.value}');
-        print('Admin Email: ${adminData['email']}');
+        // print('Login successful for Client ID: $clientId');
+        // print('Admin ID: $adminId');
+        // print('Admin Name: ${adminName.value}');
+        // print('Admin Email: ${adminData['email']}');
 
         try {
           await firestore.collection('admins').doc(adminId).update({
             "last_logged_in": DateTime.now().toIso8601String(),
           });
-          print('Firestore update successful');
         } catch (e) {
           print('Firestore update failed: $e');
         }
@@ -213,7 +236,7 @@ class LoginController extends GetxController {
         // Start listening to subscription updates now that we have clientID
         SubscriptionService.instance.startListening();
 
-        print('Navigating to dashboard...');
+        // print('Navigating to dashboard...');
 
         // Use WidgetsBinding to ensure navigation happens after the current frame
         // This prevents the TextEditingController disposal error
@@ -226,7 +249,7 @@ class LoginController extends GetxController {
       }
     } catch (e) {
       showLoading.value = false;
-      log('$e');
+      // log('$e');
     }
   }
 

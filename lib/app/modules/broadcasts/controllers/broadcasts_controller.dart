@@ -1,9 +1,9 @@
-import 'package:business_whatsapp/app/Utilities/utilities.dart';
-import 'package:business_whatsapp/app/common%20widgets/common_snackbar.dart';
-import 'package:business_whatsapp/app/controllers/navigation_controller.dart';
-import 'package:business_whatsapp/app/data/models/broadcast_model.dart';
-import 'package:business_whatsapp/app/data/services/broadcast_firebase_service.dart';
-import 'package:business_whatsapp/app/routes/app_pages.dart';
+import 'package:adminpanel/app/Utilities/utilities.dart';
+import 'package:adminpanel/app/common%20widgets/common_snackbar.dart';
+import 'package:adminpanel/app/controllers/navigation_controller.dart';
+import 'package:adminpanel/app/data/models/broadcast_model.dart';
+import 'package:adminpanel/app/data/services/broadcast_firebase_service.dart';
+import 'package:adminpanel/app/routes/app_pages.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../common widgets/common_alert_dialog_delete.dart';

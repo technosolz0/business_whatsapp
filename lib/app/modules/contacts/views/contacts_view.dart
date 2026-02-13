@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:business_whatsapp/app/common%20widgets/shimmer_widgets.dart';
+import 'package:adminpanel/app/common%20widgets/shimmer_widgets.dart';
 import 'package:intl/intl.dart';
 import '../../../common widgets/standard_page_layout.dart';
 import '../../../common widgets/custom_button.dart';
@@ -392,9 +392,6 @@ class ContactsView extends GetView<ContactsController> {
       onTap: () {
         // Always select contact first for immediate visual feedback
         controller.selectContact(contact);
-        print(
-          'Contact Selected: ${contact.fName} ${contact.lName} ----------------------***************',
-        );
 
         // Then show bottom sheet on mobile/tablet
         if (isMobile || Responsive.isTablet(context)) {
@@ -477,13 +474,7 @@ class ContactsView extends GetView<ContactsController> {
                     IconButton(
                       icon: const Icon(Icons.close, size: 24),
                       onPressed: () {
-                        print(
-                          'Add Close Clicked*----------------------***************',
-                        );
                         Navigator.pop(context);
-                        print(
-                          'Add Close Clicked*----------------------***************',
-                        );
                       },
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(
@@ -546,7 +537,7 @@ class ContactsView extends GetView<ContactsController> {
               ),
               const SizedBox(height: 4),
               Text(
-                '${contact.countryCode} ${contact.phoneNumber}',
+                '${contact.countryCallingCode} ${contact.phoneNumber}',
                 style: TextStyle(
                   fontSize: 14,
                   color: isDark ? AppColors.gray400 : Colors.grey[600],
@@ -666,7 +657,7 @@ class ContactsView extends GetView<ContactsController> {
         Expanded(
           flex: 2,
           child: Text(
-            '${contact.countryCode} ${contact.phoneNumber}',
+            '${contact.countryCallingCode} ${contact.phoneNumber}',
             style: TextStyle(
               fontSize: 14,
               color: isDark ? AppColors.gray400 : Colors.grey[700],
@@ -857,7 +848,7 @@ class ContactsView extends GetView<ContactsController> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${contact.countryCode} ${contact.phoneNumber}',
+                          '${contact.countryCallingCode} ${contact.phoneNumber}',
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.grey[600],
@@ -886,7 +877,7 @@ class ContactsView extends GetView<ContactsController> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                '${contact.countryCode} ${contact.phoneNumber}',
+                                '${contact.countryCallingCode} ${contact.phoneNumber}',
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: isDark

@@ -147,6 +147,7 @@ class ContactDetailsPopup extends StatelessWidget {
                         controller.selectedAudience.value == "import"
                             ? c.phoneNumber
                             : fullName,
+                        // fullName,
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 15,

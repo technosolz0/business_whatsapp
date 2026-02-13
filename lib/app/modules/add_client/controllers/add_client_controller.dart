@@ -32,6 +32,7 @@ class AddClientController extends GetxController {
   final RxBool isEditMode = false.obs;
   final Rx<DateTime?> subscriptionEndDate = Rx<DateTime?>(null);
   final RxBool isPremium = false.obs;
+  final RxBool isCRMEnabled = false.obs;
   final Rx<File?> logoFile = Rx<File?>(null);
   // final Rx<File?> faviconFile = Rx<File?>(null); // Removed
   final RxString logoFileName = ''.obs;
@@ -87,6 +88,7 @@ class AddClientController extends GetxController {
         wabaIdController.text = client.wabaId;
         webhookVerifyTokenController.text = client.webhookVerifyToken;
         adminLimitController.text = client.adminLimit.toString();
+        isCRMEnabled.value = client.isCRMEnabled;
 
         // Load additional data (Premium, Subscriptions, Wallet)
         _loadAdditionalData(clientId!);
@@ -255,6 +257,7 @@ class AddClientController extends GetxController {
         logoUrl: logoUrl,
         // faviconUrl: faviconUrl, // Removed
         status: existingClient?.status ?? 'Active',
+        isCRMEnabled: isCRMEnabled.value,
         adminLimit: int.tryParse(adminLimitController.text.trim()) ?? 2,
         createdAt: existingClient?.createdAt ?? DateTime.now(),
         updatedAt: DateTime.now(),

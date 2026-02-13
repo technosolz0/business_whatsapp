@@ -1,4 +1,4 @@
-import 'package:business_whatsapp/app/data/models/interactive_model.dart';
+import 'package:adminpanel/app/data/models/interactive_model.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/create_broadcast_controller.dart';

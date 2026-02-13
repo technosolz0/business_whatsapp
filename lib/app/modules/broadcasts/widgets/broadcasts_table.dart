@@ -1,11 +1,11 @@
-import 'package:business_whatsapp/app/Utilities/subscription_guard.dart';
+import 'package:adminpanel/app/Utilities/subscription_guard.dart';
 import 'package:intl/intl.dart';
-import 'package:business_whatsapp/app/common widgets/no_data_found.dart';
-import 'package:business_whatsapp/app/common widgets/common_pagination.dart';
-import 'package:business_whatsapp/app/modules/broadcasts/controllers/broadcasts_controller.dart';
+import 'package:adminpanel/app/common widgets/no_data_found.dart';
+import 'package:adminpanel/app/common widgets/common_pagination.dart';
+import 'package:adminpanel/app/modules/broadcasts/controllers/broadcasts_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:business_whatsapp/app/common%20widgets/shimmer_widgets.dart';
+import 'package:adminpanel/app/common%20widgets/shimmer_widgets.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../data/models/broadcast_status.dart';
 import '../../../data/models/broadcast_table_model.dart';

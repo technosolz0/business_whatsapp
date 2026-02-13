@@ -1,11 +1,14 @@
-import 'package:business_whatsapp/app/common%20widgets/custom_button.dart';
-import 'package:business_whatsapp/app/Utilities/responsive.dart';
+import 'package:adminpanel/app/common%20widgets/custom_button.dart';
+import 'package:adminpanel/app/Utilities/responsive.dart';
+import 'package:adminpanel/app/Utilities/utilities.dart';
+import 'package:adminpanel/app/common%20widgets/common_snackbar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class ImportConfirmationDialog {
   static void show({
     required List<List<dynamic>> csvData,
+    bool requireNames = false,
     required Function(List<List<dynamic>>) processImport,
   }) async {
     // Normalize headers: remove spaces + punctuation, lowercase everything
@@ -18,51 +21,105 @@ class ImportConfirmationDialog {
 
     int valid = 0;
     int duplicateInsideFile = 0;
+    int invalidNames = 0;
+    int invalidPhoneOrCode = 0;
     int invalidCountryCode = 0;
 
     // Identify correct index
+    final firstNameIndex = headers.indexOf("firstname");
+    final lastNameIndex = headers.indexOf("lastname");
     final phoneIndex = headers.indexOf("phonenumber");
-    final ccIndex = headers.indexOf("countrycode");
 
-    if (phoneIndex == -1 || ccIndex == -1) {
-      Get.snackbar(
-        "Error",
-        "CSV must contain Phone Number & Country Code columns",
-        snackPosition: SnackPosition.BOTTOM,
-        backgroundColor: Colors.red.shade50,
-        colorText: Colors.red.shade900,
-        icon: Icon(Icons.error_outline, color: Colors.red.shade700),
-        borderRadius: 12,
-        margin: EdgeInsets.all(16),
-      );
+    // Improve ISO code index detection (avoiding overlap with calling code)
+    int isoCodeIndex = headers.indexOf("countrycode");
+    if (isoCodeIndex == -1) isoCodeIndex = headers.indexOf("isocode");
+
+    // Improve Calling Code index detection
+    int callingCodeIndex = -1;
+    if (headers.contains("callingcode")) {
+      callingCodeIndex = headers.indexOf("callingcode");
+    } else if (headers.contains("countrycallingcode")) {
+      callingCodeIndex = headers.indexOf("countrycallingcode");
+    } else if (headers.contains("dialcode")) {
+      callingCodeIndex = headers.indexOf("dialcode");
+    }
+
+    // If we only have "countrycode" and no separate calling code column,
+    // we might have to use countrycode for both or hope it's the dial code.
+    if (callingCodeIndex == -1 && isoCodeIndex != -1) {
+      callingCodeIndex = isoCodeIndex;
+    }
+
+    if (phoneIndex == -1 || callingCodeIndex == -1 || isoCodeIndex == -1) {
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (Get.overlayContext != null) {
+          Utilities.showSnackbar(
+            SnackType.ERROR,
+            "CSV must contain Phone Number, Calling Code & Country Code columns",
+          );
+        }
+      });
       return;
     }
 
     final map = <String, int>{}; // key = countrycode-phonenumber
 
-    // Check duplicates inside file and validate country codes
+    // Check duplicates inside file and validate data
     for (final row in rows) {
-      if (row.length <= phoneIndex || row.length <= ccIndex) continue;
+      final fName = firstNameIndex != -1 && row.length > firstNameIndex
+          ? row[firstNameIndex].toString().trim()
+          : "";
+      final lName = lastNameIndex != -1 && row.length > lastNameIndex
+          ? row[lastNameIndex].toString().trim()
+          : "";
+      final phone = phoneIndex != -1 && row.length > phoneIndex
+          ? row[phoneIndex].toString().trim()
+          : "";
+      var callingCode = callingCodeIndex != -1 && row.length > callingCodeIndex
+          ? row[callingCodeIndex].toString().trim()
+          : "";
+      final iso = isoCodeIndex != -1 && row.length > isoCodeIndex
+          ? row[isoCodeIndex].toString().trim()
+          : "";
 
-      final phone = row[phoneIndex].toString().trim();
-      var cc = row[ccIndex].toString().trim();
-
-      // Ensure country code has + prefix
-      if (!cc.startsWith('+')) {
-        cc = '+$cc';
+      // Validate required names (conditional)
+      if (requireNames && (fName.isEmpty || lName.isEmpty)) {
+        invalidNames++;
+        continue;
       }
 
-      if (phone.isEmpty || cc.isEmpty) continue;
+      // Validate phone and calling code existence
+      if (phone.isEmpty || callingCode.isEmpty) {
+        invalidPhoneOrCode++;
+        continue;
+      }
 
-      // Check if country code is valid (only +91 allowed)
-      if (cc != '+91') {
+      // Validate ISO Country Code (e.g., 'IN', 'US')
+      if (iso.isEmpty || iso.length != 2) {
         invalidCountryCode++;
-        continue; // Skip this row from further processing
+        continue;
+      }
+
+      // Ensure country code has + prefix for comparison
+      if (!callingCode.startsWith('+')) {
+        callingCode = '+$callingCode';
+      }
+
+      // Skip non-numeric dial codes (like '+IN' if indices overlapped incorrectly)
+      if (!RegExp(r'^\+[0-9]+$').hasMatch(callingCode)) {
+        invalidPhoneOrCode++;
+        continue;
+      }
+
+      // Validate Phone number format (numeric only)
+      if (!RegExp(r'^[0-9]+$').hasMatch(phone)) {
+        invalidPhoneOrCode++;
+        continue;
       }
 
       valid++;
 
-      final key = "$cc-$phone";
+      final key = "$callingCode-$phone";
       map[key] = (map[key] ?? 0) + 1;
     }
 
@@ -84,6 +141,7 @@ class ImportConfirmationDialog {
     // }
 
     final willImport = valid - duplicateInsideFile;
+    print("willImport: $willImport");
 
     // Show modern popup
     Get.dialog(
@@ -202,13 +260,42 @@ class ImportConfirmationDialog {
                     ),
                     const SizedBox(height: 12),
 
+                    if (requireNames) ...[
+                      _buildStatCard(
+                        context: context,
+                        icon: Icons.person_off_outlined,
+                        label: "Missing Names",
+                        value: invalidNames.toString(),
+                        color: Colors.red,
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+
                     _buildStatCard(
                       context: context,
-                      icon: Icons.location_off_outlined,
-                      label: "Invalid Country Code",
+                      icon: Icons.phone_disabled_outlined,
+                      label: "Invalid Numbers",
+                      value: invalidPhoneOrCode.toString(),
+                      color: Colors.red,
+                    ),
+                    const SizedBox(height: 12),
+
+                    _buildStatCard(
+                      context: context,
+                      icon: Icons.public_off_outlined,
+                      label: "Invalid Country Codes",
                       value: invalidCountryCode.toString(),
                       color: Colors.red,
                     ),
+                    const SizedBox(height: 12),
+
+                    // _buildStatCard(
+                    //   context: context,
+                    //   icon: Icons.location_off_outlined,
+                    //   label: "Non +91 Contacts",
+                    //   value: invalidCou.toString(),
+                    //   color: Colors.red,
+                    // ),
                     SizedBox(height: 12),
 
                     SizedBox(height: isMobile ? 20 : 24),
@@ -285,7 +372,11 @@ class ImportConfirmationDialog {
                           SizedBox(width: isMobile ? 10 : 12),
                           Expanded(
                             child: Text(
-                              "Duplicate contacts will be skipped automatically",
+                              ((requireNames && invalidNames > 0) ||
+                                      invalidPhoneOrCode > 0 ||
+                                      invalidCountryCode > 0)
+                                  ? "Invalid or incomplete rows will be skipped automatically."
+                                  : "Duplicate numbers will be skipped automatically.",
                               style: TextStyle(
                                 color: Colors.amber.shade900,
                                 fontSize: subtitleSize,

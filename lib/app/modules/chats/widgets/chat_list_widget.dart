@@ -1,7 +1,7 @@
-import 'package:business_whatsapp/app/core/theme/app_colors.dart';
+import 'package:adminpanel/app/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:business_whatsapp/app/common%20widgets/shimmer_widgets.dart';
+import 'package:adminpanel/app/common%20widgets/shimmer_widgets.dart';
 import '../controllers/chats_controller.dart';
 import '../models/chat_model.dart';
 
@@ -324,7 +324,7 @@ class ChatListItem extends StatelessWidget {
       child: Container(
         color: isSelected ? selectedColor : Colors.transparent,
         padding: const EdgeInsets.symmetric(horizontal: 12),
-        height: 72,
+        constraints: const BoxConstraints(minHeight: 72),
         child: Row(
           children: [
             // Avatar
@@ -428,10 +428,36 @@ class ChatListItem extends StatelessWidget {
                               shape: BoxShape.circle,
                             ),
                             child: Icon(Icons.brightness_1, size: 0.25),
-                            // const SizedBox(width: 0.1, height: 0.1),
                           ),
                       ],
                     ),
+                    if (chat.assignedAdmin != null &&
+                        chat.assignedAdmin!.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Wrap(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: Text(
+                                "Assigned to ${chat.assignedAdmin!.length} Admin",
+                                style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                   ],
                 ),
               ),

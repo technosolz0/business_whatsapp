@@ -3,37 +3,36 @@ import 'dart:typed_data';
 import 'package:csv/csv.dart';
 import 'package:file_saver/file_saver.dart';
 
-import 'package:business_whatsapp/app/Utilities/network_utilities.dart';
-import 'package:dio/dio.dart';
+import 'package:adminpanel/app/Utilities/webutils.dart';
+import 'package:adminpanel/app/Utilities/network_utilities.dart';
+import 'package:adminpanel/app/Utilities/media_utils.dart';
+import 'package:adminpanel/app/Utilities/utilities.dart';
+import 'package:adminpanel/app/common%20widgets/common_snackbar.dart';
+import 'package:adminpanel/app/data/models/broadcast_model.dart';
+import 'package:adminpanel/app/data/models/broadcast_payload.dart';
+import 'package:adminpanel/app/data/models/broadcast_status.dart';
+import 'package:adminpanel/app/data/models/contact_model.dart';
+import 'package:adminpanel/app/data/models/interactive_model.dart';
+import 'package:adminpanel/app/data/models/quota_model.dart';
+import 'package:adminpanel/app/data/models/template_params.dart';
+import 'package:adminpanel/app/data/services/broadcast_firebase_service.dart';
+import 'package:adminpanel/app/data/services/broadcast_queue_service.dart';
+import 'package:adminpanel/app/data/services/broadcast_service.dart';
+import 'package:adminpanel/app/data/services/contact_service.dart';
 
-import 'package:business_whatsapp/app/Utilities/media_utils.dart';
-import 'package:business_whatsapp/app/Utilities/utilities.dart';
-import 'package:business_whatsapp/app/common%20widgets/common_snackbar.dart';
-import 'package:business_whatsapp/app/data/models/broadcast_model.dart';
-import 'package:business_whatsapp/app/data/models/broadcast_payload.dart';
-import 'package:business_whatsapp/app/data/models/broadcast_status.dart';
-import 'package:business_whatsapp/app/data/models/contact_model.dart';
-import 'package:business_whatsapp/app/data/models/interactive_model.dart';
-import 'package:business_whatsapp/app/data/models/quota_model.dart';
-import 'package:business_whatsapp/app/data/models/template_params.dart';
-import 'package:business_whatsapp/app/data/services/broadcast_firebase_service.dart';
-import 'package:business_whatsapp/app/data/services/broadcast_queue_service.dart';
-import 'package:business_whatsapp/app/data/services/broadcast_service.dart';
-import 'package:business_whatsapp/app/data/services/contact_service.dart';
-
-import 'package:business_whatsapp/app/data/services/template_firebase_service.dart';
-import 'package:business_whatsapp/app/data/services/upload_file_firebase.dart';
-import 'package:business_whatsapp/app/modules/broadcasts/views/widgets/segment_filter_popup.dart';
-import 'package:business_whatsapp/app/modules/contacts/services/import_service.dart';
-import 'package:business_whatsapp/app/routes/app_pages.dart';
-import 'package:business_whatsapp/app/utilities/constants/app_constants.dart';
+import 'package:adminpanel/app/data/services/template_firebase_service.dart';
+import 'package:adminpanel/app/data/services/upload_file_firebase.dart';
+import 'package:adminpanel/app/modules/broadcasts/views/widgets/segment_filter_popup.dart';
+import 'package:adminpanel/app/modules/contacts/services/import_service.dart';
+import 'package:adminpanel/app/routes/app_pages.dart';
+import 'package:adminpanel/app/utilities/constants/app_constants.dart';
 import 'package:chips_input_autocomplete/chips_input_autocomplete.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'broadcasts_controller.dart';
 import '../../../data/models/broadcast_table_model.dart';
-import 'package:business_whatsapp/main.dart';
+import 'package:adminpanel/main.dart';
 
 import 'package:intl/intl.dart';
 
@@ -190,6 +189,9 @@ class CreateBroadcastController extends GetxController {
     "Last Name",
     "Email",
     "Company",
+    "Phone Number",
+    "Country Code",
+    "Calling Code",
     "Birth Date",
     "Anniversary",
     "Work Anniversary",
@@ -272,7 +274,7 @@ class CreateBroadcastController extends GetxController {
       // Fetch approved templates from the new API
       final dio = NetworkUtilities.getDioClient();
       final response = await dio.get(
-        'https://bw.serwex.in/getapprovedtemplates',
+        'https://getapprovedtemplates-d3b4t36f7q-uc.a.run.app',
         queryParameters: {'clientId': clientID},
       );
 
@@ -401,10 +403,6 @@ class CreateBroadcastController extends GetxController {
         }
         _disposeParamStates();
         updatePreviewBody();
-
-        print(
-          '✅ Template "${fullTemplate.name}" full details loaded successfully',
-        );
       }
     } catch (e) {
       print('❌ Error loading full template details: $e');
@@ -541,6 +539,7 @@ class CreateBroadcastController extends GetxController {
     final rows = [
       [
         "Country Code",
+        "Calling Code",
         "Phone Number",
         "First Name",
         "Last Name",
@@ -556,6 +555,7 @@ class CreateBroadcastController extends GetxController {
         "Work Anniversary Month",
       ],
       [
+        "IN",
         "+91",
         "9876543210",
         "Ritika",
@@ -572,11 +572,29 @@ class CreateBroadcastController extends GetxController {
         "01 05",
       ],
       [
+        "IN",
         "+91",
         "9123456789",
         "Amit",
         "Verma",
         "amit.verma@test.com",
+        "UrbanEdge",
+        "priority",
+        "Follow-up",
+        "1992-09-07",
+        "",
+        "2019-08-15",
+        "07 09",
+        "",
+        "15 08",
+      ],
+      [
+        "US",
+        "+1",
+        "123456789",
+        "John",
+        "Doe",
+        "john.doe@test.com",
         "UrbanEdge",
         "priority",
         "Follow-up",
@@ -605,6 +623,7 @@ class CreateBroadcastController extends GetxController {
   /// ----------------------------------------------------------------
   Future<void> importContacts() async {
     await CsvImportService.importContactsFromCsv(
+      requireNames: false,
       onLoadingChanged: (loading) => isImporting.value = loading,
       onContactsParsed: (contacts) async {
         // Collect custom keys
@@ -621,14 +640,15 @@ class CreateBroadcastController extends GetxController {
             .map(
               (data) => ContactModel(
                 id: '', // Will be assigned by Firestore
-                fName: '',
-                lName: '',
+                fName: data.firstName ?? '',
+                lName: data.lastName ?? '',
                 phoneNumber: data.phoneNumber,
-                countryCode: data.countryCode,
-                email: '',
-                company: '',
-                tags: [],
-                notes: '',
+                countryCallingCode: data.countryCallingCode,
+                isoCountryCode: data.isoCountryCode,
+                email: data.email ?? '',
+                company: data.company ?? '',
+                tags: data.tags,
+                notes: data.notes ?? '',
                 status: null,
                 createdAt: DateTime.now(),
                 updatedAt: DateTime.now(),
@@ -804,6 +824,7 @@ class CreateBroadcastController extends GetxController {
   RxInt finalRecipientCount = 0.obs;
 
   void updateRecipientCount() {
+    // print("Updating recipient count: ${finalRecipients.length}");
     finalRecipientCount.value = finalRecipients.length;
   }
 
@@ -957,6 +978,35 @@ class CreateBroadcastController extends GetxController {
       );
       return false;
     }
+
+    // 🔥 NEW: Validate contacts details (Phone, Calling Code, ISO)
+    final recipients = finalRecipients;
+    for (var contact in recipients) {
+      if (contact.phoneNumber.trim().isEmpty) {
+        Utilities.showSnackbar(
+          SnackType.ERROR,
+          'Some contacts are missing phone numbers.',
+        );
+        return false;
+      }
+      if (contact.countryCallingCode == null ||
+          contact.countryCallingCode!.trim().isEmpty) {
+        Utilities.showSnackbar(
+          SnackType.ERROR,
+          'Contact ${contact.phoneNumber} is missing a calling code (e.g. +91).',
+        );
+        return false;
+      }
+      if (contact.isoCountryCode == null ||
+          contact.isoCountryCode!.trim().isEmpty) {
+        Utilities.showSnackbar(
+          SnackType.ERROR,
+          'Contact ${contact.phoneNumber} is missing a country code (e.g. IN).',
+        );
+        return false;
+      }
+    }
+
     return true;
   }
 
@@ -1207,22 +1257,31 @@ class CreateBroadcastController extends GetxController {
     if (isPreview && contactIdsList.isNotEmpty) {
       // 🔥 IMPORTANT to avoid duplicates
       estimatedCount.value = contactIdsList.length.toString();
-      for (String phone in contactIdsList) {
-        // Since we now store phone numbers, create a model with the phone number
-        final c = ContactModel(
-          id: '',
-          fName: '',
-          lName: '',
-          phoneNumber: phone,
-          countryCode: '',
-          email: '',
-          company: '',
-          tags: [],
-          notes: '',
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
+
+      if (selectedAudience.value == "import") {
+        for (String phone in contactIdsList) {
+          // Since we now store phone numbers, create a model with the phone number
+          final c = ContactModel(
+            id: '',
+            fName: '',
+            lName: '',
+            phoneNumber: phone,
+            countryCallingCode: '',
+            email: '',
+            company: '',
+            tags: [],
+            notes: '',
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          );
+          contactDetails.add(c);
+        }
+      } else {
+        // Fetch real contacts by ID
+        final fetched = await ContactsService.instance.getContactsByIds(
+          contactIdsList,
         );
-        contactDetails.add(c);
+        contactDetails.assignAll(fetched);
       }
       return;
     }
@@ -1296,29 +1355,29 @@ class CreateBroadcastController extends GetxController {
 
     // 6️⃣ Load selected contacts based on draft.contactIds
     if (draft.contactIds.isNotEmpty) {
-      // Case A: Draft saved WITH contactIds
-      for (String phone in draft.contactIds) {
-        // Create dummy contact from phone number since we don't store them OR find existing
-        // For import case, it's just phone numbers.
-        final ContactModel c = ContactModel(
-          id: '',
-          fName: '',
-          lName: '',
-          phoneNumber: phone,
-          countryCode: '',
-          email: '',
-          company: '',
-          tags: [],
-          notes: '',
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        );
-        segmentContacts.add(c);
-      }
-
-      // If audience = import, treat segmentContacts as imported contacts
       if (selectedAudience.value == "import") {
-        importedContacts.assignAll(segmentContacts);
+        for (String phone in draft.contactIds) {
+          final ContactModel c = ContactModel(
+            id: '',
+            fName: '',
+            lName: '',
+            phoneNumber: phone,
+            countryCallingCode: '',
+            email: '',
+            company: '',
+            tags: [],
+            notes: '',
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          );
+          importedContacts.add(c);
+        }
+      } else {
+        // Fetch real contacts for "all" or "custom"
+        final fetched = await ContactsService.instance.getContactsByIds(
+          draft.contactIds,
+        );
+        segmentContacts.assignAll(fetched);
       }
     } else {
       // Case B: Draft saved WITHOUT contactIds
@@ -1355,9 +1414,6 @@ class CreateBroadcastController extends GetxController {
   /// ----------------------------------------------------------------
   Future<void> viewBroadcast(BroadcastTableModel broadcastModel) async {
     try {
-      print(
-        '🎯 Loading broadcast for viewing: ${broadcastModel.broadcastName}',
-      );
       isPreview = true;
 
       // Ensure loader is shown
@@ -1380,7 +1436,7 @@ class CreateBroadcastController extends GetxController {
         return;
       }
 
-      print("🔄 VIEWING BROADCAST: ${broadcast.broadcastName}");
+      // print("🔄 VIEWING BROADCAST: ${broadcast.broadcastName}");
       completedAt.value = broadcast.completedAt;
 
       // ----------------------------------------------------
@@ -1416,7 +1472,7 @@ class CreateBroadcastController extends GetxController {
         template.headerFormat,
       );
 
-      print("📎 Attachment Type from template: ${attachmentType.value}");
+      // print("📎 Attachment Type from template: ${attachmentType.value}");
 
       // ----------------------------------------------------
       // 3️⃣ LOAD TEMPLATE VARIABLES FROM BROADCAST
@@ -1438,10 +1494,8 @@ class CreateBroadcastController extends GetxController {
       }
 
       // ----------------------------------------------------
-      // 4️⃣ RESTORE MEDIA PREVIEW (from Firebase Storage)
+      // 4️ RESTORE MEDIA PREVIEW (from Firebase Storage)
       // ----------------------------------------------------
-      print("📥 Attempting to load media...");
-      print("   Attachment ID: ${broadcast.attachmentId}");
 
       if (broadcast.attachmentId != null &&
           broadcast.attachmentId!.isNotEmpty) {
@@ -1452,10 +1506,6 @@ class CreateBroadcastController extends GetxController {
         if (media != null) {
           selectedFileBytes.value = media.bytes;
           selectedFileName.value = media.name;
-
-          print("✅ Media loaded successfully!");
-          print("   File name: ${media.name}");
-          print("   File size: ${media.bytes.length} bytes");
         } else {
           print("❌ Media is NULL - failed to load from Firebase");
         }
@@ -1492,16 +1542,16 @@ class CreateBroadcastController extends GetxController {
       // ----------------------------------------------------
       contactIdsList.value = broadcast.contactIds;
 
-      print("👥 Contact Count: ${contactIdsList.length}");
+      // print("👥 Contact Count: ${contactIdsList.length}");
 
       // ----------------------------------------------------
       // 8️⃣ REBUILD PREVIEW BUBBLE
       // ----------------------------------------------------
       updatePreviewBody(); // 🔥 IMPORTANT
 
-      print('✅ Broadcast data loaded successfully for viewing');
+      // print('Broadcast data loaded successfully for viewing');
     } catch (e, stackTrace) {
-      print("❌ ERROR in viewBroadcast(): $e");
+      print("ERROR in viewBroadcast(): $e");
       print("Stack trace: $stackTrace");
       Utilities.showSnackbar(
         SnackType.ERROR,
@@ -1513,18 +1563,18 @@ class CreateBroadcastController extends GetxController {
         try {
           if (Get.isDialogOpen == true) {
             Get.back(); // Close the dialog
-            // print('✅ Loader hidden after viewBroadcast');
+            // print('Loader hidden after viewBroadcast');
           }
         } catch (e) {
-          print('❌ Error hiding loader: $e');
+          print('Error hiding loader: $e');
           // Fallback: try to close any open dialogs
           try {
             if (Get.context != null) {
               Navigator.of(Get.context!, rootNavigator: true).pop();
-              // print('✅ Fallback loader hidden');
+              // print('Fallback loader hidden');
             }
           } catch (e2) {
-            print('❌ Fallback loader hide failed: $e2');
+            print('Fallback loader hide failed: $e2');
           }
         }
       });
@@ -1552,7 +1602,7 @@ class CreateBroadcastController extends GetxController {
         ? finalRecipients
               .map(
                 (c) =>
-                    "${c.countryCode.startsWith('+') ? '' : '+'}${c.countryCode}${c.phoneNumber}",
+                    "${c.countryCallingCode!.startsWith('+') ? '' : '+'}${c.countryCallingCode}${c.phoneNumber}",
               )
               .toList()
         : finalRecipients
@@ -1647,82 +1697,123 @@ class CreateBroadcastController extends GetxController {
         );
   }
 
-  /// Load dynamic charges from Firebase
+  /// Map to store charges data loaded from local storage
+  RxMap<String, dynamic> chargesData = <String, dynamic>{}.obs;
+
+  /// Load dynamic charges from local storage
   void loadCharges() {
-    FirebaseFirestore.instance
-        .collection('charges')
-        .doc('91')
-        .snapshots()
-        .listen(
-          (snapshot) {
-            if (snapshot.exists) {
-              final data = snapshot.data()!;
-              final marketingCost =
-                  (data['marketing'] as num?)?.toDouble() ?? 0.80;
-              final utilityCost = (data['utility'] as num?)?.toDouble() ?? 0.20;
+    try {
+      final String? chargesJson = WebUtils.getFromLocalStorage('charges');
+      if (chargesJson != null && chargesJson.isNotEmpty) {
+        final Map<String, dynamic> decodedData = jsonDecode(chargesJson);
+        chargesData.assignAll(decodedData);
+        print('Loaded ${chargesData.length} charges from local storage');
 
-              marketingCostPerContact.value = marketingCost;
-              utilityCostPerContact.value = utilityCost;
-
-              print(
-                '✅ Loaded dynamic charges: Marketing ₹$marketingCost, Utility ₹$utilityCost',
-              );
-            } else {
-              // Use default values
-              marketingCostPerContact.value = 0.80;
-              utilityCostPerContact.value = 0.20;
-              print('⚠️ Charges document not found, using defaults');
-            }
-          },
-          onError: (error) {
-            print('Error loading charges: $error');
-            // Use default values
-            marketingCostPerContact.value = 0.80;
-            utilityCostPerContact.value = 0.20;
-          },
-        );
+        // Fallback or specific default for 'OTHER' or '(default)'
+        if (chargesData.containsKey('OTHER')) {
+          final dataOther = chargesData['OTHER'];
+          marketingCostPerContact.value =
+              (dataOther['marketing'] as num?)?.toDouble() ?? 0.80;
+          utilityCostPerContact.value =
+              (dataOther['utility'] as num?)?.toDouble() ?? 0.20;
+        } else if (chargesData.containsKey('91')) {
+          final data91 = chargesData['91'];
+          marketingCostPerContact.value =
+              (data91['marketing'] as num?)?.toDouble() ?? 0.80;
+          utilityCostPerContact.value =
+              (data91['utility'] as num?)?.toDouble() ?? 0.20;
+        }
+      } else {
+        print('No charges found in local storage, using hardcoded defaults');
+        marketingCostPerContact.value = 0.80;
+        utilityCostPerContact.value = 0.20;
+      }
+    } catch (e) {
+      print('Error loading charges from local storage: $e');
+      marketingCostPerContact.value = 0.80;
+      utilityCostPerContact.value = 0.20;
+    }
   }
 
-  /// Calculate broadcast cost based on template category and contact count
-  /// Uses dynamic pricing from Firebase charges collection
-  double calculateBroadcastCost() {
-    final contactCount = finalRecipients.length;
+  /// Helper to lookup cost for a specific country and category
+  double getCostForCountry(ContactModel contact, String category) {
+    // 1. Try ISO Country Code (e.g., 'AE', 'AF')
+    if (contact.isoCountryCode != null && contact.isoCountryCode!.isNotEmpty) {
+      String isoCode = contact.isoCountryCode!.toUpperCase();
+      if (chargesData.containsKey(isoCode)) {
+        final data = chargesData[isoCode];
+        if (category.toUpperCase() == 'MARKETING') {
+          return (data['marketing'] as num?)?.toDouble() ?? 0.80;
+        } else {
+          return (data['utility'] as num?)?.toDouble() ?? 0.20;
+        }
+      }
+    }
 
+    // 2. Try Dial Code (e.g., '91', '44')
+    String callingCode = contact.countryCallingCode!.replaceAll('+', '').trim();
+    if (chargesData.containsKey(callingCode)) {
+      final data = chargesData[callingCode];
+      if (category.toUpperCase() == 'MARKETING') {
+        return (data['marketing'] as num?)?.toDouble() ?? 0.80;
+      } else {
+        return (data['utility'] as num?)?.toDouble() ?? 0.20;
+      }
+    }
+
+    // 3. Try "OTHER" or "(default)"
+    if (chargesData.containsKey('OTHER')) {
+      final data = chargesData['OTHER'];
+      if (category.toUpperCase() == 'MARKETING') {
+        return (data['marketing'] as num?)?.toDouble() ?? 0.80;
+      } else {
+        return (data['utility'] as num?)?.toDouble() ?? 0.20;
+      }
+    }
+
+    if (chargesData.containsKey('(default)')) {
+      final data = chargesData['(default)'];
+      if (category.toUpperCase() == 'MARKETING') {
+        return (data['marketing'] as num?)?.toDouble() ?? 0.80;
+      } else {
+        return (data['utility'] as num?)?.toDouble() ?? 0.20;
+      }
+    }
+
+    // Default to '91' if specific country not found
+    if (chargesData.containsKey('91')) {
+      final data91 = chargesData['91'];
+      if (category.toUpperCase() == 'MARKETING') {
+        return (data91['marketing'] as num?)?.toDouble() ?? 0.80;
+      } else {
+        return (data91['utility'] as num?)?.toDouble() ?? 0.20;
+      }
+    }
+
+    // Final hardcoded fallback
+    return category.toUpperCase() == 'MARKETING' ? 0.80 : 0.20;
+  }
+
+  double calculateBroadcastCost() {
     // Get category from selected template
     final category =
         selectedTemplateParams.value?.category.toUpperCase() ?? 'UTILITY';
 
-    double costPerContact = 0.0;
+    double totalCost = 0.0;
 
-    // Use dynamic charges from Firebase
-    if (category == 'MARKETING') {
-      costPerContact = marketingCostPerContact.value;
-    } else if (category == 'UTILITY') {
-      costPerContact = utilityCostPerContact.value;
-    } else {
-      // Default to utility pricing if category is unknown
-      costPerContact = utilityCostPerContact.value;
+    // Iterate through all recipients and calculate cost based on their country
+    for (final contact in finalRecipients) {
+      // Use ContactModel to determine country cost (checks ISO code then Dial code)
+      final cost = getCostForCountry(contact, category);
+      // print('   Cost for ${contact.phoneNumber}: ₹$cost');
+      totalCost += cost;
     }
-
-    final totalCost = contactCount * costPerContact;
-    print('  Cost Calculation:');
-    print('   Category: $category');
-    print('   Contact Count: $contactCount');
-    print('   Cost Per Contact: ₹$costPerContact');
-    print('   Total Cost: ₹$totalCost');
 
     return totalCost;
   }
 
   /// Show insufficient balance popup
   void showInsufficientBalancePopup(double requiredAmount) {
-    print('🚨 Showing insufficient balance popup');
-    print('   Required: ₹$requiredAmount');
-    print('   Current: ₹${walletBalance.value}');
-    print(
-      '   Shortfall: ₹${(requiredAmount - walletBalance.value).toStringAsFixed(2)}',
-    );
-
     // Use Get.dialog with proper delay to ensure it shows
     Future.delayed(const Duration(milliseconds: 300), () {
       Get.dialog(
@@ -1878,15 +1969,6 @@ class CreateBroadcastController extends GetxController {
         // ----------------------------
         final double totalCost = calculateBroadcastCost();
 
-        print('🔍 Wallet Balance Check:');
-        print(
-          '   Template Category: ${selectedTemplateParams.value?.category ?? "UNKNOWN"}',
-        );
-        print('   Contact Count: ${finalRecipients.length}');
-        print('   Total Cost: ₹$totalCost');
-        print('   Wallet Balance: ₹${walletBalance.value}');
-        print('   Sufficient: ${totalCost <= walletBalance.value}');
-
         if (totalCost > walletBalance.value) {
           isSending.value = false;
           showInsufficientBalancePopup(totalCost);
@@ -1953,7 +2035,7 @@ class CreateBroadcastController extends GetxController {
     }
   }
 
-  final DateFormat _uiDateFormat = DateFormat('dd MMM yyyy');
+  final DateFormat uiDateFormat = DateFormat('dd MMM yyyy');
 
   String resolveChipValue(ContactModel contact, String chip) {
     if (selectedAudience.value == "import") {
@@ -1987,21 +2069,23 @@ class CreateBroadcastController extends GetxController {
       case "Phone Number":
         return contact.phoneNumber;
       case "Country Code":
-        return contact.countryCode;
+        return contact.isoCountryCode ?? "-";
+      case "Calling Code":
+        return contact.countryCallingCode ?? "-";
 
       case "Birth Date":
         return contact.birthdate != null
-            ? _uiDateFormat.format(contact.birthdate!)
+            ? uiDateFormat.format(contact.birthdate!)
             : "-";
 
       case "Anniversary":
         return contact.anniversaryDt != null
-            ? _uiDateFormat.format(contact.anniversaryDt!)
+            ? uiDateFormat.format(contact.anniversaryDt!)
             : "-";
 
       case "Work Anniversary":
         return contact.workAnniversaryDt != null
-            ? _uiDateFormat.format(contact.workAnniversaryDt!)
+            ? uiDateFormat.format(contact.workAnniversaryDt!)
             : "-";
     }
     return "-";
@@ -2048,7 +2132,7 @@ class CreateBroadcastController extends GetxController {
       // 👉 Build dynamic variables for THIS contact
       final bodyVars = buildBodyVarsForContact(contact);
 
-      final phone = "${contact.countryCode}${contact.phoneNumber}";
+      final phone = "${contact.countryCallingCode}${contact.phoneNumber}";
       Map<String, dynamic>? headerVars;
 
       if (messageType == "TEXT") {
@@ -2071,12 +2155,10 @@ class CreateBroadcastController extends GetxController {
               };
       }
 
-      // Get cost per contact based on template category
+      // Get cost per contact based on template category and this specific contact's data
       final category =
           selectedTemplateParams.value?.category.toUpperCase() ?? 'UTILITY';
-      final double costPerContactValue = category == 'MARKETING'
-          ? marketingCostPerContact.value
-          : utilityCostPerContact.value;
+      final double costPerContactValue = getCostForCountry(contact, category);
 
       final payload = BroadcastMessagePayload(
         broadcastId: broadcastId,
@@ -2259,7 +2341,7 @@ class CreateBroadcastController extends GetxController {
           ? finalRecipients
                 .map(
                   (c) =>
-                      "${c.countryCode.startsWith('+') ? '' : '+'}${c.countryCode}${c.phoneNumber}",
+                      "${c.countryCallingCode!.startsWith('+') ? '' : '+'}${c.countryCallingCode}${c.phoneNumber}",
                 )
                 .toList()
           : finalRecipients.map((c) => c.id).toList(),
@@ -2330,7 +2412,8 @@ class CreateBroadcastController extends GetxController {
 
     // 👉 Loop through all contacts & send template message
     for (final contact in finalRecipients) {
-      final String phone = "${contact.countryCode}${contact.phoneNumber}";
+      final String phone =
+          "${contact.countryCallingCode}${contact.phoneNumber}";
 
       await BroadcastService.instance.sendTemplateMessage(
         templateName: templateName.value,

@@ -1,4 +1,4 @@
-import 'package:business_whatsapp/app/data/models/interactive_model.dart';
+import 'package:adminpanel/app/data/models/interactive_model.dart';
 
 class TemplateModels {
   final String id;

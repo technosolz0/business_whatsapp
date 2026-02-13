@@ -1,12 +1,12 @@
 import 'dart:typed_data';
 
-import 'package:business_whatsapp/app/Utilities/network_utilities.dart';
+import 'package:adminpanel/app/Utilities/network_utilities.dart';
 
-import 'package:business_whatsapp/app/Utilities/constants/app_constants.dart';
-import 'package:business_whatsapp/app/data/models/broadcast_payload.dart';
-import 'package:business_whatsapp/app/data/models/broadcast_status.dart';
-import 'package:business_whatsapp/app/data/models/quota_model.dart';
-import 'package:business_whatsapp/main.dart';
+import 'package:adminpanel/app/Utilities/constants/app_constants.dart';
+import 'package:adminpanel/app/data/models/broadcast_payload.dart';
+import 'package:adminpanel/app/data/models/broadcast_status.dart';
+import 'package:adminpanel/app/data/models/quota_model.dart';
+import 'package:adminpanel/main.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -369,7 +369,7 @@ class BroadcastFirebaseService {
     try {
       final dio = NetworkUtilities.getDioClient();
       final response = await dio.post(
-        'https://bw.serwex.in/deletescheduledbroadcast',
+        'https://deletescheduledbroadcast-d3b4t36f7q-uc.a.run.app',
         data: {'clientId': clientID, 'broadcastId': broadcastId},
       );
 

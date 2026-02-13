@@ -1,38 +1,38 @@
 import 'dart:convert';
 import 'dart:developer';
 
-import 'package:business_whatsapp/app/Utilities/webutils.dart';
-import 'package:business_whatsapp/app/controllers/navigation_controller.dart';
-import 'package:business_whatsapp/app/controllers/theme_controller.dart';
+import 'package:adminpanel/app/Utilities/webutils.dart';
+import 'package:adminpanel/app/controllers/navigation_controller.dart';
+import 'package:adminpanel/app/controllers/theme_controller.dart';
 import 'package:excel/excel.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
-import 'package:business_whatsapp/app/common%20widgets/webmenu.dart';
-import 'package:business_whatsapp/app/routes/app_pages.dart';
-import 'package:business_whatsapp/main.dart';
-import 'package:business_whatsapp/app/common%20widgets/shimmer_widgets.dart';
+import 'package:adminpanel/app/common%20widgets/webmenu.dart';
+import 'package:adminpanel/app/routes/app_pages.dart';
+import 'package:adminpanel/main.dart';
+import 'package:adminpanel/app/common%20widgets/shimmer_widgets.dart';
 
 import '../common widgets/common_snackbar.dart';
 
-import 'package:business_whatsapp/app/modules/add_admins/controllers/add_admins_controller.dart';
-import 'package:business_whatsapp/app/modules/add_client/controllers/add_client_controller.dart';
-import 'package:business_whatsapp/app/modules/add_roles/controllers/add_roles_controller.dart';
-import 'package:business_whatsapp/app/modules/admins/controllers/admins_controller.dart';
-import 'package:business_whatsapp/app/modules/broadcasts/controllers/broadcasts_controller.dart';
-import 'package:business_whatsapp/app/modules/broadcasts/controllers/create_broadcast_controller.dart';
-import 'package:business_whatsapp/app/modules/business_profile/controllers/business_profile_controller.dart';
-import 'package:business_whatsapp/app/modules/chats/controllers/chats_controller.dart';
-import 'package:business_whatsapp/app/modules/clients/controllers/clients_controller.dart';
-import 'package:business_whatsapp/app/modules/contacts/controllers/contacts_controller.dart';
-import 'package:business_whatsapp/app/modules/dashboard/controllers/dashboard_controller.dart';
-import 'package:business_whatsapp/app/modules/login/controllers/login_controller.dart';
-import 'package:business_whatsapp/app/modules/milestone_templates/controllers/milestone_schedulars_controller.dart';
-import 'package:business_whatsapp/app/modules/roles/controllers/roles_controller.dart';
-import 'package:business_whatsapp/app/modules/settings/controllers/settings_controller.dart';
-import 'package:business_whatsapp/app/modules/templates/controllers/create_template_controller.dart';
-import 'package:business_whatsapp/app/modules/templates/controllers/templates_controller.dart';
+import 'package:adminpanel/app/modules/add_admins/controllers/add_admins_controller.dart';
+import 'package:adminpanel/app/modules/add_client/controllers/add_client_controller.dart';
+import 'package:adminpanel/app/modules/add_roles/controllers/add_roles_controller.dart';
+import 'package:adminpanel/app/modules/admins/controllers/admins_controller.dart';
+import 'package:adminpanel/app/modules/broadcasts/controllers/broadcasts_controller.dart';
+import 'package:adminpanel/app/modules/broadcasts/controllers/create_broadcast_controller.dart';
+import 'package:adminpanel/app/modules/business_profile/controllers/business_profile_controller.dart';
+import 'package:adminpanel/app/modules/chats/controllers/chats_controller.dart';
+import 'package:adminpanel/app/modules/clients/controllers/clients_controller.dart';
+import 'package:adminpanel/app/modules/contacts/controllers/contacts_controller.dart';
+import 'package:adminpanel/app/modules/dashboard/controllers/dashboard_controller.dart';
+import 'package:adminpanel/app/modules/login/controllers/login_controller.dart';
+import 'package:adminpanel/app/modules/milestone_templates/controllers/milestone_schedulars_controller.dart';
+import 'package:adminpanel/app/modules/roles/controllers/roles_controller.dart';
+import 'package:adminpanel/app/modules/settings/controllers/settings_controller.dart';
+import 'package:adminpanel/app/modules/templates/controllers/create_template_controller.dart';
+import 'package:adminpanel/app/modules/templates/controllers/templates_controller.dart';
 
 class Utilities {
   static void dPrint(dynamic data) {
@@ -83,6 +83,7 @@ class Utilities {
     isAllChats.value = false;
     clientName.value = '';
     clientLogo.value = '';
+    isCRMEnabled.value = false;
 
     // 2. Clear Local Storage & Cookies
     await GetStorage().erase();

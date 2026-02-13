@@ -1,7 +1,9 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:get/get.dart';
-import 'package:business_whatsapp/app/core/theme/app_colors.dart';
-import 'package:business_whatsapp/app/Utilities/responsive.dart';
+import 'package:adminpanel/app/core/theme/app_colors.dart';
+import 'package:adminpanel/app/Utilities/responsive.dart';
 import '../../controllers/create_broadcast_controller.dart';
 
 class ImportOptionsDialog extends StatelessWidget {
@@ -55,6 +57,42 @@ class ImportOptionsDialog extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 24),
+            RichText(
+              text: TextSpan(
+                style: TextStyle(
+                  fontSize: 14, // Slightly smaller to look better
+                  fontWeight: FontWeight.w500,
+                  color: isDark ? Colors.white70 : Colors.black87,
+                  fontFamily: 'Inter', // Ensuring consistency if using it
+                ),
+                children: [
+                  const TextSpan(
+                    text: 'For country code please refer this link ',
+                  ),
+                  TextSpan(
+                    text: 'ISO Country Codes',
+                    style: const TextStyle(
+                      color: Colors.blue,
+                      decoration: TextDecoration.underline,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    recognizer: TapGestureRecognizer()
+                      ..onTap = () async {
+                        final uri = Uri.parse(
+                          'https://www.ssl.com/country-codes/',
+                        );
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(
+                            uri,
+                            mode: LaunchMode.externalApplication,
+                          );
+                        }
+                      },
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 24),
             Row(

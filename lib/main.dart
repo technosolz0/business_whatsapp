@@ -1,4 +1,4 @@
-import 'package:business_whatsapp/app_initializer.dart';
+import 'package:adminpanel/app_initializer.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 
 import 'package:flutter/material.dart';
@@ -35,6 +35,8 @@ RxBool isSuperUser = false.obs;
 RxBool isAllChats = false.obs;
 RxString clientName = ''.obs;
 RxString clientLogo = ''.obs;
+RxBool isCRMEnabled = false.obs;
+RxBool isConnected = false.obs;
 
 void main() async {
   // Ensure Flutter binding is initialized
@@ -77,7 +79,7 @@ void main() async {
 
     // Get the value
     isUnderMaintenance = remoteConfig.getBool('is_under_maintenance');
-    print('Remote Config Maintenance Check: $isUnderMaintenance');
+    // print('Remote Config Maintenance Check: $isUnderMaintenance');
   } catch (e) {
     print('Error using Remote Config for maintenance check: $e');
   }

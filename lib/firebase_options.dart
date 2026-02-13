@@ -27,7 +27,10 @@ class DefaultFirebaseOptions {
       case TargetPlatform.macOS:
         return macos;
       case TargetPlatform.windows:
-        return windows;
+        throw UnsupportedError(
+          'DefaultFirebaseOptions have not been configured for windows - '
+          'you can reconfigure this by running the FlutterFire CLI again.',
+        );
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -41,49 +44,38 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBQiOYxn0WHPHAJVfPkvNPhqipDxCHvhzA',
-    appId: '1:96089127226:web:701a46f0860bfd54fcb803',
-    messagingSenderId: '96089127226',
-    projectId: 'business-whatsapp-87b28',
-    authDomain: 'business-whatsapp-87b28.firebaseapp.com',
-    storageBucket: 'business-whatsapp-87b28.firebasestorage.app',
-    measurementId: 'G-QTHHCN6Q77',
+    apiKey: 'AIzaSyDvnaIGM1n4RN3qLrIkVwH5-HONQqATAqc',
+    appId: '1:42834520968:web:5bcc0e23c46d3a2bd7e83d',
+    messagingSenderId: '42834520968',
+    projectId: 'whatsapp-test-panel',
+    authDomain: 'whatsapp-test-panel.firebaseapp.com',
+    storageBucket: 'whatsapp-test-panel.firebasestorage.app',
+    measurementId: 'G-5Q57N3J7W4',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyAvAUq5_uCoQ97JEZVx47MalIsoWApGxOk',
-    appId: '1:96089127226:android:a9ed6194c04a8a1afcb803',
-    messagingSenderId: '96089127226',
-    projectId: 'business-whatsapp-87b28',
-    storageBucket: 'business-whatsapp-87b28.firebasestorage.app',
+    apiKey: 'AIzaSyCzkA-vtCZOXoFGFmNfiEegDQssu7g-an0',
+    appId: '1:42834520968:android:00a0979b3554c326d7e83d',
+    messagingSenderId: '42834520968',
+    projectId: 'whatsapp-test-panel',
+    storageBucket: 'whatsapp-test-panel.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyA4kIZbKW2MQ_-DSkftUfHlyAiCPrITqMI',
-    appId: '1:96089127226:ios:744cf6b1ecdda7e8fcb803',
-    messagingSenderId: '96089127226',
-    projectId: 'business-whatsapp-87b28',
-    storageBucket: 'business-whatsapp-87b28.firebasestorage.app',
-    iosBundleId: 'com.example.businessWhatsapp',
+    apiKey: 'AIzaSyAk_QSJYnOyl_w86fLOpu9Ekb89emfsj7Y',
+    appId: '1:42834520968:ios:ebae56208b5314e4d7e83d',
+    messagingSenderId: '42834520968',
+    projectId: 'whatsapp-test-panel',
+    storageBucket: 'whatsapp-test-panel.firebasestorage.app',
+    iosBundleId: 'com.adminpanel.adminpanel',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyA4kIZbKW2MQ_-DSkftUfHlyAiCPrITqMI',
-    appId: '1:96089127226:ios:744cf6b1ecdda7e8fcb803',
-    messagingSenderId: '96089127226',
-    projectId: 'business-whatsapp-87b28',
-    storageBucket: 'business-whatsapp-87b28.firebasestorage.app',
-    iosBundleId: 'com.example.businessWhatsapp',
+    apiKey: 'AIzaSyAk_QSJYnOyl_w86fLOpu9Ekb89emfsj7Y',
+    appId: '1:42834520968:ios:ebae56208b5314e4d7e83d',
+    messagingSenderId: '42834520968',
+    projectId: 'whatsapp-test-panel',
+    storageBucket: 'whatsapp-test-panel.firebasestorage.app',
+    iosBundleId: 'com.adminpanel.adminpanel',
   );
-
-  static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyBQiOYxn0WHPHAJVfPkvNPhqipDxCHvhzA',
-    appId: '1:96089127226:web:856d3be45eb7209efcb803',
-    messagingSenderId: '96089127226',
-    projectId: 'business-whatsapp-87b28',
-    authDomain: 'business-whatsapp-87b28.firebaseapp.com',
-    storageBucket: 'business-whatsapp-87b28.firebasestorage.app',
-    measurementId: 'G-441C1DKZGP',
-  );
-
 }

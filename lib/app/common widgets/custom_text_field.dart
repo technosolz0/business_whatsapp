@@ -12,6 +12,8 @@ class CustomTextField extends StatelessWidget {
   final void Function(String)? onChanged;
   final Widget? prefixIcon;
   final Widget? suffixIcon;
+  final String? prefixText;
+  final bool readOnly;
 
   const CustomTextField({
     super.key,
@@ -25,6 +27,8 @@ class CustomTextField extends StatelessWidget {
     this.onChanged,
     this.prefixIcon,
     this.suffixIcon,
+    this.prefixText,
+    this.readOnly = false,
   });
 
   @override
@@ -59,6 +63,8 @@ class CustomTextField extends StatelessWidget {
           maxLines: maxLines,
           validator: validator,
           onChanged: onChanged,
+          readOnly: readOnly,
+          enabled: !readOnly,
           style: TextStyle(
             fontSize: 14,
             color: isDark ? AppColors.textPrimaryDark : Color(0xFF1a1a1a),
@@ -70,6 +76,12 @@ class CustomTextField extends StatelessWidget {
               color: isDark ? AppColors.gray500 : Colors.grey[400],
             ),
             prefixIcon: prefixIcon,
+            prefixText: prefixText,
+            prefixStyle: TextStyle(
+              fontSize: 14,
+              color: isDark ? AppColors.textPrimaryDark : Color(0xFF1a1a1a),
+              fontWeight: FontWeight.w500,
+            ),
             suffixIcon: suffixIcon,
             filled: true,
             fillColor: isDark

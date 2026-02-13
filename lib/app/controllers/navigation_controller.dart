@@ -22,6 +22,13 @@ class NavigationController extends GetxController {
   void _updateIndexFromRoute() {
     try {
       final fullRoute = Get.currentRoute;
+      if (fullRoute.isEmpty) {
+        currentRoute.value = Routes.DASHBOARD;
+        selectedIndex.value = 0;
+        routeTrigger.value++;
+        return;
+      }
+
       // Extract route name without parameters
       final route = fullRoute.split('?').first;
       currentRoute.value = route;
@@ -60,6 +67,7 @@ class NavigationController extends GetxController {
           break;
         case Routes.SETTINGS:
         case Routes.BUSINESS_PROFILE:
+        case Routes.ZOHO_CRM:
           selectedIndex.value = 7;
           break;
         case Routes.CLIENTS:
@@ -70,6 +78,9 @@ class NavigationController extends GetxController {
         case Routes.MILESTONE_SCHEDULARS:
         case Routes.CREATE_MILESTONE_SCHEDULARS:
           selectedIndex.value = 8;
+          break;
+        case Routes.AUTOMATION:
+          selectedIndex.value = 12;
           break;
         default:
           selectedIndex.value = 0;
@@ -165,6 +176,9 @@ class NavigationController extends GetxController {
         break;
       case 9:
         Get.toNamed(Routes.CLIENTS);
+        break;
+      case 12:
+        Get.toNamed(Routes.AUTOMATION);
         break;
     }
 

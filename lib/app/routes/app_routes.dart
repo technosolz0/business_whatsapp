@@ -20,6 +20,7 @@ abstract class Routes {
   static const CLIENTS = _Paths.CLIENTS;
   static const ADD_CLIENT = _Paths.ADD_CLIENT;
   static const EDIT_CLIENT = _Paths.EDIT_CLIENT;
+  static const CHARGES = _Paths.CHARGES;
 
   static const ADMINS = _Paths.ADMINS;
   static const ADD_ADMINS = _Paths.ADD_ADMINS;
@@ -33,6 +34,8 @@ abstract class Routes {
   static const BROADCAST_SCHEDULE = _Paths.BROADCAST_SCHEDULE;
   static const CUSTOM_NOTIFICATIONS = _Paths.CUSTOM_NOTIFICATIONS;
   static const CREATE_CUSTOM_NOTIFICATION = _Paths.CREATE_CUSTOM_NOTIFICATION;
+  static const AUTOMATION = _Paths.AUTOMATION;
+  static const ZOHO_CRM = _Paths.ZOHO_CRM;
 }
 
 abstract class _Paths {
@@ -54,6 +57,7 @@ abstract class _Paths {
   static const CLIENTS = '/clients';
   static const ADD_CLIENT = '/add-client';
   static const EDIT_CLIENT = '/edit-client';
+  static const CHARGES = '/charges';
 
   static const ADMINS = '/admins';
   static const ADD_ADMINS = '/add-admins';
@@ -67,4 +71,6 @@ abstract class _Paths {
   static const BROADCAST_SCHEDULE = '/create-broadcast/schedule';
   static const CUSTOM_NOTIFICATIONS = '/custom-notifications';
   static const CREATE_CUSTOM_NOTIFICATION = '/create-custom-notification';
+  static const AUTOMATION = '/automation';
+  static const ZOHO_CRM = '/zoho-crm';
 }

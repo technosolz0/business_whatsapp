@@ -10,6 +10,7 @@ class ClientModel {
   String? logoUrl;
   String status; // "Approved", "Rejected", "Pending"
   int adminLimit;
+  bool isCRMEnabled;
   DateTime createdAt;
   DateTime updatedAt;
 
@@ -23,6 +24,7 @@ class ClientModel {
     this.logoUrl,
     this.status = 'Pending',
     this.adminLimit = 2,
+    this.isCRMEnabled = false,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) : createdAt = createdAt ?? DateTime.now(),
@@ -39,6 +41,7 @@ class ClientModel {
       logoUrl: json['logoUrl'],
       status: json['status'] ?? 'Pending',
       adminLimit: json['admin_limit'] ?? 2,
+      isCRMEnabled: json['isCRMEnabled'] == true,
       createdAt: json['createdAt'] != null
           ? (json['createdAt'] as Timestamp).toDate()
           : DateTime.now(),
@@ -58,6 +61,7 @@ class ClientModel {
       'logoUrl': logoUrl,
       'status': status,
       'admin_limit': adminLimit,
+      'isCRMEnabled': isCRMEnabled,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -73,6 +77,7 @@ class ClientModel {
     String? logoUrl,
     String? status,
     int? adminLimit,
+    bool? isCRMEnabled,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -86,6 +91,7 @@ class ClientModel {
       logoUrl: logoUrl ?? this.logoUrl,
       status: status ?? this.status,
       adminLimit: adminLimit ?? this.adminLimit,
+      isCRMEnabled: isCRMEnabled ?? this.isCRMEnabled,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

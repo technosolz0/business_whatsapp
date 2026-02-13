@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class AdminsModel {
   String? id;
   String? firstName;
@@ -47,6 +49,11 @@ class AdminsModel {
             (json['last_logged_in'] as String).isEmpty
         ? null
         : DateTime.parse(json["last_logged_in"].toString());
+  }
+
+  factory AdminsModel.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return AdminsModel.fromJson({'id': doc.id, ...data});
   }
 
   Map<String, dynamic> toJson() {

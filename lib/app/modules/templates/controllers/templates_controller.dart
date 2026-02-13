@@ -1,10 +1,10 @@
-import 'package:business_whatsapp/app/common%20widgets/common_snackbar.dart';
-import 'package:business_whatsapp/app/controllers/navigation_controller.dart';
-import 'package:business_whatsapp/app/core/constants/language_codes.dart';
-// import 'package:business_whatsapp/app/core/utils/utilities.dart';
-import 'package:business_whatsapp/app/data/models/template_model.dart';
-import 'package:business_whatsapp/app/modules/templates/controllers/create_template_controller.dart';
-import 'package:business_whatsapp/app/routes/app_pages.dart';
+import 'package:adminpanel/app/common%20widgets/common_snackbar.dart';
+import 'package:adminpanel/app/controllers/navigation_controller.dart';
+import 'package:adminpanel/app/core/constants/language_codes.dart';
+// import 'package:adminpanel/app/core/utils/utilities.dart';
+import 'package:adminpanel/app/data/models/template_model.dart';
+import 'package:adminpanel/app/modules/templates/controllers/create_template_controller.dart';
+import 'package:adminpanel/app/routes/app_pages.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 

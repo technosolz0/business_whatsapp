@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:business_whatsapp/app/common%20widgets/shimmer_widgets.dart';
+import 'package:adminpanel/app/common%20widgets/shimmer_widgets.dart';
 import '../../../common widgets/custom_button.dart';
 import '../../../common widgets/common_pagination.dart';
 import '../../../common widgets/custom_chip.dart';
@@ -992,20 +992,20 @@ class RolesView extends GetView<RolesController> {
 
 // import 'dart:convert';
 
-// import 'package:business_whatsapp/app/core/theme/app_colors.dart';
+// import 'package:adminpanel/app/core/theme/app_colors.dart';
 // import 'package:flutter/foundation.dart';
 // import 'package:flutter/material.dart';
 
 // import 'package:get/get.dart';
 // import 'package:google_fonts/google_fonts.dart';
-// import 'package:business_whatsapp/app/common%20widgets/common_action_button.dart';
-// import 'package:business_whatsapp/app/common%20widgets/common_alert_dialog_delete.dart';
-// import 'package:business_whatsapp/app/common%20widgets/common_container.dart';
-// import 'package:business_whatsapp/app/common%20widgets/common_table.dart';
-// import 'package:business_whatsapp/app/data/models/menu_item_model.dart';
-// import 'package:business_whatsapp/app/modules/roles/models/roles_model.dart';
-// import 'package:business_whatsapp/app/routes/app_pages.dart';
-// import 'package:business_whatsapp/app/utilities/extensions.dart';
+// import 'package:adminpanel/app/common%20widgets/common_action_button.dart';
+// import 'package:adminpanel/app/common%20widgets/common_alert_dialog_delete.dart';
+// import 'package:adminpanel/app/common%20widgets/common_container.dart';
+// import 'package:adminpanel/app/common%20widgets/common_table.dart';
+// import 'package:adminpanel/app/data/models/menu_item_model.dart';
+// import 'package:adminpanel/app/modules/roles/models/roles_model.dart';
+// import 'package:adminpanel/app/routes/app_pages.dart';
+// import 'package:adminpanel/app/utilities/extensions.dart';
 
 // import '../../../controllers/navigation_controller.dart';
 // import '../controllers/roles_controller.dart';

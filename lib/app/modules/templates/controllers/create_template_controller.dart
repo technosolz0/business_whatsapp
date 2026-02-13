@@ -1,15 +1,15 @@
 import 'dart:typed_data';
 
-import 'package:business_whatsapp/app/Utilities/media_utils.dart';
-import 'package:business_whatsapp/app/Utilities/utilities.dart';
-import 'package:business_whatsapp/app/controllers/navigation_controller.dart';
-import 'package:business_whatsapp/app/data/models/interactive_model.dart';
-// import 'package:business_whatsapp/app/core/utils/utilities.dart';
-import 'package:business_whatsapp/app/data/models/template_model.dart';
-import 'package:business_whatsapp/app/data/services/template_firebase_service.dart';
-import 'package:business_whatsapp/app/data/services/template_service.dart';
-import 'package:business_whatsapp/app/modules/templates/controllers/templates_controller.dart';
-import 'package:business_whatsapp/app/routes/app_pages.dart';
+import 'package:adminpanel/app/Utilities/media_utils.dart';
+import 'package:adminpanel/app/Utilities/utilities.dart';
+import 'package:adminpanel/app/controllers/navigation_controller.dart';
+import 'package:adminpanel/app/data/models/interactive_model.dart';
+// import 'package:adminpanel/app/core/utils/utilities.dart';
+import 'package:adminpanel/app/data/models/template_model.dart';
+import 'package:adminpanel/app/data/services/template_firebase_service.dart';
+import 'package:adminpanel/app/data/services/template_service.dart';
+import 'package:adminpanel/app/modules/templates/controllers/templates_controller.dart';
+import 'package:adminpanel/app/routes/app_pages.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -992,10 +992,7 @@ class CreateTemplateController extends GetxController {
     Utilities.showOverlayLoadingDialog();
 
     final sampleVals = variableControllers.map((c) => c.text.trim()).toList();
-    //print("Template type: ${templateType.value}");
-    //print(
-    //   "BUTTONS------------> ${jsonEncode(buttons.map((e) => e.toJson()).toList())}",
-    // );
+   
 
     final response = await TemplateService.instance.createInteraktTemplate(
       name: nameCtrl.text.trim(),

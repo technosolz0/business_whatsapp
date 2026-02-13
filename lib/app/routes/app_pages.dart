@@ -1,23 +1,26 @@
-import 'package:business_whatsapp/app/modules/add_roles/bindings/add_roles_binding.dart';
-import 'package:business_whatsapp/app/modules/admins/bindings/admins_binding.dart';
-import 'package:business_whatsapp/app/modules/broadcasts/bindings/broadcasts_binding.dart';
-import 'package:business_whatsapp/app/modules/chats/bindings/chats_binding.dart';
-import 'package:business_whatsapp/app/modules/contacts/bindings/contacts_binding.dart';
-import 'package:business_whatsapp/app/modules/dashboard/bindings/dashboard_binding.dart';
-import 'package:business_whatsapp/app/modules/login/bindings/login_binding.dart';
-import 'package:business_whatsapp/app/modules/login/views/login_view.dart';
-import 'package:business_whatsapp/app/modules/roles/bindings/roles_binding.dart';
-import 'package:business_whatsapp/app/modules/add_admins/bindings/add_admins_binding.dart';
-import 'package:business_whatsapp/app/modules/settings/bindings/settings_binding.dart';
-import 'package:business_whatsapp/app/modules/business_profile/bindings/business_profile_binding.dart';
-import 'package:business_whatsapp/app/modules/templates/bindings/create_template_binding.dart';
-import 'package:business_whatsapp/app/modules/templates/bindings/templates_binding.dart';
-import 'package:business_whatsapp/app/modules/milestone_templates/bindings/milestone_schedulars_binding.dart';
-import 'package:business_whatsapp/app/modules/clients/bindings/clients_binding.dart';
-import 'package:business_whatsapp/app/modules/add_client/bindings/add_client_binding.dart';
-import 'package:business_whatsapp/app/modules/custom_notifications/bindings/custom_notifications_binding.dart';
-import 'package:business_whatsapp/app/routes/route_guard.dart';
-import 'package:business_whatsapp/app/views/main_shell_view.dart';
+import 'package:adminpanel/app/modules/add_roles/bindings/add_roles_binding.dart';
+import 'package:adminpanel/app/modules/admins/bindings/admins_binding.dart';
+import 'package:adminpanel/app/modules/broadcasts/bindings/broadcasts_binding.dart';
+import 'package:adminpanel/app/modules/chats/bindings/chats_binding.dart';
+import 'package:adminpanel/app/modules/contacts/bindings/contacts_binding.dart';
+import 'package:adminpanel/app/modules/dashboard/bindings/dashboard_binding.dart';
+import 'package:adminpanel/app/modules/login/bindings/login_binding.dart';
+import 'package:adminpanel/app/modules/login/views/login_view.dart';
+import 'package:adminpanel/app/modules/roles/bindings/roles_binding.dart';
+import 'package:adminpanel/app/modules/add_admins/bindings/add_admins_binding.dart';
+import 'package:adminpanel/app/modules/settings/bindings/settings_binding.dart';
+import 'package:adminpanel/app/modules/business_profile/bindings/business_profile_binding.dart';
+import 'package:adminpanel/app/modules/templates/bindings/create_template_binding.dart';
+import 'package:adminpanel/app/modules/templates/bindings/templates_binding.dart';
+import 'package:adminpanel/app/modules/milestone_templates/bindings/milestone_schedulars_binding.dart';
+import 'package:adminpanel/app/modules/clients/bindings/clients_binding.dart';
+import 'package:adminpanel/app/modules/add_client/bindings/add_client_binding.dart';
+import 'package:adminpanel/app/modules/custom_notifications/bindings/custom_notifications_binding.dart';
+import 'package:adminpanel/app/modules/charges/bindings/charges_binding.dart';
+import 'package:adminpanel/app/modules/automation/bindings/automation_binding.dart';
+import 'package:adminpanel/app/modules/zoho_crm/bindings/zoho_crm_binding.dart';
+import 'package:adminpanel/app/routes/route_guard.dart';
+import 'package:adminpanel/app/views/main_shell_view.dart';
 
 import 'package:get/get.dart';
 
@@ -177,6 +180,24 @@ class AppPages {
       name: _Paths.CREATE_CUSTOM_NOTIFICATION,
       page: () => MainShellView(),
       binding: CustomNotificationsBinding(),
+      middlewares: [AuthenticatedRoutes()],
+    ),
+    GetPage(
+      name: _Paths.CHARGES,
+      page: () => MainShellView(),
+      binding: ChargesBinding(),
+      middlewares: [AuthenticatedRoutes()],
+    ),
+    GetPage(
+      name: _Paths.AUTOMATION,
+      page: () => MainShellView(),
+      binding: AutomationBinding(),
+      middlewares: [AuthenticatedRoutes()],
+    ),
+    GetPage(
+      name: _Paths.ZOHO_CRM,
+      page: () => MainShellView(),
+      binding: ZohoCrmBinding(),
       middlewares: [AuthenticatedRoutes()],
     ),
   ];

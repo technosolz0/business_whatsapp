@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'package:business_whatsapp/app/data/models/subscription_model.dart';
-import 'package:business_whatsapp/main.dart';
+import 'package:adminpanel/app/data/models/subscription_model.dart';
+import 'package:adminpanel/main.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 
@@ -16,13 +16,10 @@ class SubscriptionService extends GetxService {
   }
 
   void startListening() {
-    print('Starting subscription listener. ClientID: $clientID');
-
     // Always cancel existing listener first
     _subscriptionListener?.cancel();
 
     if (clientID.isEmpty) {
-      print('ClientID is empty, skipping listener.');
       subscription.value = null; // Reset subscription if clientID is empty
       return;
     }
@@ -36,12 +33,10 @@ class SubscriptionService extends GetxService {
         .listen(
           (doc) {
             if (doc.exists && doc.data() != null) {
-              print('Subscription data found: ${doc.data()}');
-              final sub = Subscription.fromFirestore(doc.data()!);
+             final sub = Subscription.fromFirestore(doc.data()!);
               subscription.value = sub;
               validateSubscription(sub);
             } else {
-              print('No subscription document found for client: $clientID');
               subscription.value = null;
             }
           },

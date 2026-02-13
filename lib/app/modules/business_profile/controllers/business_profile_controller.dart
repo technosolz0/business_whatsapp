@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:business_whatsapp/main.dart';
+import 'package:adminpanel/main.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:dio/dio.dart' as dio;
@@ -142,7 +142,7 @@ class BusinessProfileController extends GetxController {
       // debugPrint('📤 Sending form data: ${formData.fields}');
 
       final response = await _dio.post(
-        'https://bw.serwex.in/updatewhatsappbusinessprofile',
+        'https://updatewhatsappbusinessprofile-d3b4t36f7q-uc.a.run.app',
         data: formData,
       );
 
@@ -226,7 +226,7 @@ class BusinessProfileController extends GetxController {
       isLoading.value = true;
 
       final response = await _dio.get(
-        'https://bw.serwex.in/getwhatsappbusinessprofile',
+        'https://getwhatsappbusinessprofile-d3b4t36f7q-uc.a.run.app',
         queryParameters: {"clientId": clientID},
       );
 

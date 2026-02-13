@@ -1,9 +1,9 @@
 import 'dart:typed_data';
-import 'package:business_whatsapp/app/data/models/interactive_model.dart';
-import 'package:business_whatsapp/main.dart';
+import 'package:adminpanel/app/data/models/interactive_model.dart';
+import 'package:adminpanel/main.dart';
 import 'package:http_parser/http_parser.dart';
 
-import 'package:business_whatsapp/app/Utilities/network_utilities.dart';
+import 'package:adminpanel/app/Utilities/network_utilities.dart';
 import 'package:dio/dio.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -14,11 +14,14 @@ class TemplateService {
   final Dio _dio = NetworkUtilities.getDioClient();
 
   /// Cloud Function URLs
-  final String createUrl = "https://bw.serwex.in/createinterakttemplate";
-  final String getUrl = "https://bw.serwex.in/getinterakttemplates";
-  final String deleteUrl = "https://bw.serwex.in/deleteinterakttemplate";
+  final String createUrl =
+      "https://createinterakttemplate-d3b4t36f7q-uc.a.run.app";
+  final String getUrl = "https://getinterakttemplates-d3b4t36f7q-uc.a.run.app";
+  final String deleteUrl =
+      "https://deleteinterakttemplate-d3b4t36f7q-uc.a.run.app";
 
-  final String uploadMediaUrl = 'https://bw.serwex.in/uploadmediatointerakt';
+  final String uploadMediaUrl =
+      'https://uploadmediatointerakt-d3b4t36f7q-uc.a.run.app';
 
   Future<Map<String, dynamic>> createInteraktTemplate({
     required String name,

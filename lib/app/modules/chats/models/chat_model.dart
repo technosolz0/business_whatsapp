@@ -17,6 +17,9 @@ class ChatModel {
   final bool isActive;
   final bool? _isFavourite;
   final DateTime? userLastMessageTime;
+  final List<String>? assignedAdmin;
+  final String? leadRecordId;
+  final bool isLeadGenerated;
 
   bool get isFavourite => _isFavourite ?? false;
 
@@ -54,6 +57,9 @@ class ChatModel {
     this.isActive = false,
     bool? isFavourite,
     this.userLastMessageTime,
+    this.assignedAdmin,
+    this.leadRecordId,
+    this.isLeadGenerated = false,
   }) : _isFavourite = isFavourite;
 
   factory ChatModel.fromFirestore(DocumentSnapshot doc) {
@@ -77,6 +83,11 @@ class ChatModel {
       userLastMessageTime: data['userLastMessageTime'] != null
           ? (data['userLastMessageTime'] as Timestamp).toDate()
           : null,
+      assignedAdmin: data['assigned_admin'] != null
+          ? List<String>.from(data['assigned_admin'])
+          : null,
+      leadRecordId: data['leadRecordId'],
+      isLeadGenerated: data['isLeadGenerated'] == true,
     );
   }
 
@@ -96,6 +107,9 @@ class ChatModel {
       'userLastMessageTime': userLastMessageTime != null
           ? Timestamp.fromDate(userLastMessageTime!)
           : null,
+      'assigned_admin': assignedAdmin,
+      'leadRecordId': leadRecordId,
+      'isLeadGenerated': isLeadGenerated,
     };
   }
 
@@ -112,6 +126,9 @@ class ChatModel {
     bool? isActive,
     bool? isFavourite,
     DateTime? userLastMessageTime,
+    List<String>? assignedAdmin,
+    String? leadRecordId,
+    bool? isLeadGenerated,
   }) {
     return ChatModel(
       id: id ?? this.id,
@@ -126,6 +143,9 @@ class ChatModel {
       isActive: isActive ?? this.isActive,
       isFavourite: isFavourite ?? this.isFavourite,
       userLastMessageTime: userLastMessageTime ?? this.userLastMessageTime,
+      assignedAdmin: assignedAdmin ?? this.assignedAdmin,
+      leadRecordId: leadRecordId ?? this.leadRecordId,
+      isLeadGenerated: isLeadGenerated ?? this.isLeadGenerated,
     );
   }
 }

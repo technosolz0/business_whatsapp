@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:business_whatsapp/app/common%20widgets/shimmer_widgets.dart';
+import 'package:adminpanel/app/common%20widgets/shimmer_widgets.dart';
 import '../controllers/add_admins_controller.dart';
 
 class AdminContactAssignmentPopup extends StatefulWidget {
@@ -73,7 +73,7 @@ class _AdminContactAssignmentPopupState
                 ),
                 const SizedBox(width: 10),
                 Text(
-                  "Assign Contacts",
+                  "Assigned Contacts",
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
@@ -131,88 +131,6 @@ class _AdminContactAssignmentPopupState
 
             const SizedBox(height: 18),
 
-            // ---------------- TAGS ROW ----------------
-            Obx(() {
-              final tagsWithContacts = widget.controller.availableTags;
-              // .where((tag) => !widget.controller.tagHasNoContacts(tag))
-              // .toList();
-
-              if (tagsWithContacts.isEmpty) {
-                return SizedBox(
-                  height: 45,
-                  child: Center(
-                    child: Text(
-                      "No tags available",
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: secondaryText,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ),
-                );
-              }
-
-              return ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 200),
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 10,
-                    children: tagsWithContacts.map((tag) {
-                      final isSelected = widget.controller.selectedTags
-                          .contains(tag);
-
-                      return AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(30),
-                          color: isSelected
-                              ? (isDark
-                                    ? Colors.blue.shade900.withValues(
-                                        alpha: 0.3,
-                                      )
-                                    : Colors.blue.shade100)
-                              : cardColor,
-                          border: Border.all(
-                            color: isSelected
-                                ? (isDark
-                                      ? Colors.blue.shade300
-                                      : Colors.blueAccent)
-                                : borderColor,
-                          ),
-                        ),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(30),
-                          onTap: () => widget.controller.toggleTag(tag),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              vertical: 8,
-                              horizontal: 14,
-                            ),
-                            child: Text(
-                              tag,
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: isSelected
-                                    ? (isDark
-                                          ? Colors.blue.shade300
-                                          : Colors.blueAccent)
-                                    : primaryText,
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              );
-            }),
-
-            const SizedBox(height: 15),
-
             // ---------------- CONTACT LIST ----------------
             Expanded(
               child: Obx(() {
@@ -252,11 +170,11 @@ class _AdminContactAssignmentPopupState
                     }
                     final c = list[index];
 
-                    String f = c.fName?.trim() ?? "";
-                    String l = c.lName?.trim() ?? "";
-                    String fullName = "$f $l".trim();
+                    String fullName = c.name.trim();
                     if (fullName.isEmpty) fullName = "Unknown User";
-                    String initial = f.isNotEmpty ? f[0].toUpperCase() : "U";
+                    String initial = fullName.isNotEmpty
+                        ? fullName[0].toUpperCase()
+                        : "U";
 
                     return Obx(() {
                       final isChecked = widget.controller.segmentContacts.any(
@@ -289,15 +207,15 @@ class _AdminContactAssignmentPopupState
                           c.phoneNumber,
                           style: TextStyle(color: secondaryText),
                         ),
-                        trailing: Checkbox(
-                          value: isChecked,
-                          activeColor: isDark
-                              ? Colors.blue.shade300
-                              : Colors.blueAccent,
-                          checkColor: Colors.white,
-                          onChanged: (_) => widget.controller.toggleContact(c),
-                        ),
-                        onTap: () => widget.controller.toggleContact(c),
+                        // trailing: Checkbox(
+                        //   value: isChecked,
+                        //   activeColor: isDark
+                        //       ? Colors.blue.shade300
+                        //       : Colors.blueAccent,
+                        //   checkColor: Colors.white,
+                        //   onChanged: (_) => widget.controller.toggleContact(c),
+                        // ),
+                        // onTap: () => widget.controller.toggleContact(c),
                       );
                     });
                   },
@@ -307,48 +225,48 @@ class _AdminContactAssignmentPopupState
 
             const SizedBox(height: 10),
 
-            // ---------------- APPLY BUTTON ----------------
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    // Save to assigned_contacts if editing
-                    await widget.controller.updateAssignedContacts();
-                    if (context.mounted) {
-                      Navigator.of(context).pop();
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isDark
-                        ? Colors.blue.shade400
-                        : Colors.blueAccent,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 12,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  icon: const Icon(
-                    Icons.check_circle_outline,
-                    size: 20,
-                    color: Colors.white,
-                  ),
-                  label: Obx(
-                    () => Text(
-                      "Done (${widget.controller.segmentContacts.length} Selected)",
-                      style: const TextStyle(
-                        fontSize: 15,
-                        letterSpacing: 0.3,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            // // ---------------- APPLY BUTTON ----------------
+            // Row(
+            //   mainAxisAlignment: MainAxisAlignment.end,
+            //   children: [
+            //     ElevatedButton.icon(
+            //       onPressed: () async {
+            //         // Save to assigned_contacts if editing
+            //         await widget.controller.updateAssignedContacts();
+            //         if (context.mounted) {
+            //           Navigator.of(context).pop();
+            //         }
+            //       },
+            //       style: ElevatedButton.styleFrom(
+            //         backgroundColor: isDark
+            //             ? Colors.blue.shade400
+            //             : Colors.blueAccent,
+            //         padding: const EdgeInsets.symmetric(
+            //           horizontal: 20,
+            //           vertical: 12,
+            //         ),
+            //         shape: RoundedRectangleBorder(
+            //           borderRadius: BorderRadius.circular(12),
+            //         ),
+            //       ),
+            //       icon: const Icon(
+            //         Icons.check_circle_outline,
+            //         size: 20,
+            //         color: Colors.white,
+            //       ),
+            //       label: Obx(
+            //         () => Text(
+            //           "Done (${widget.controller.segmentContacts.length} Selected)",
+            //           style: const TextStyle(
+            //             fontSize: 15,
+            //             letterSpacing: 0.3,
+            //             color: Colors.white,
+            //           ),
+            //         ),
+            //       ),
+            //     ),
+            //   ],
+            // ),
           ],
         ),
       ),

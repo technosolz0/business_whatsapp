@@ -1,6 +1,8 @@
-import 'package:business_whatsapp/app/data/services/subscription_service.dart';
-import 'package:business_whatsapp/app/utilities/constants/app_constants.dart';
+import 'package:adminpanel/app/data/services/subscription_service.dart';
+import 'package:adminpanel/app/utilities/constants/app_constants.dart';
+import 'package:adminpanel/main.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../controllers/navigation_controller.dart';
@@ -91,8 +93,8 @@ class _SettingsViewState extends State<SettingsView> {
                   ),
                   decoration: BoxDecoration(
                     color: sub.isActive
-                        ? Colors.blue.withValues(alpha: 0.1)
-                        : Colors.red.withValues(alpha: 0.1),
+                        ? Colors.blue.withOpacity(0.1)
+                        : Colors.red.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -175,35 +177,6 @@ class _SettingsViewState extends State<SettingsView> {
             const SizedBox(height: 16),
 
             // // Appearance Card
-
-            // Broadcast stats
-            _SettingsCard(
-              title: "Broadcast",
-              isDark: isDark,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Obx(
-                    () => _StatTile(
-                      label: "Daily message quota",
-                      value:
-                          "${controller.usedQuota.value}/${AppConstants.dailyLimit}",
-                      isDark: isDark,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Obx(
-                    () => _StatTile(
-                      label: "Active Broadcasts",
-                      value:
-                          "${controller.activeBroadcastCount.value}/${AppConstants.activeBroadcastLimit}",
-                      isDark: isDark,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
             const SizedBox(height: 16),
 
             // Appearance Card - Only show if premium is enabled
@@ -227,7 +200,7 @@ class _SettingsViewState extends State<SettingsView> {
                       "Choose your preferred theme",
                       style: TextStyle(
                         fontSize: 12,
-                        color: textSecondary.withValues(alpha: 0.7),
+                        color: textSecondary.withOpacity(0.7),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -306,6 +279,43 @@ class _SettingsViewState extends State<SettingsView> {
                 );
               }),
             ),
+
+            const SizedBox(height: 16),
+
+            // Zoho CRM Integration Cards
+            if (isCRMEnabled.value == true) ...[
+              if (isConnected == false) ...[
+                _IntegrationCard(
+                  title: "Zoho CRM",
+                  subtitle:
+                      "Manage Zoho CRM credentials for contact import and export.",
+
+                  isConnected: false,
+                  isDark: isDark,
+                  onTap: () {
+                    Get.toNamed(Routes.ZOHO_CRM);
+                    final navController = Get.find<NavigationController>();
+                    navController.currentRoute.value = Routes.ZOHO_CRM;
+                    navController.updateRoute();
+                  },
+                ),
+              ] else ...[
+                _IntegrationCard(
+                  title: "Zoho CRM",
+                  subtitle:
+                      "Manage Zoho CRM credentials for contact import and export.",
+
+                  isConnected: true,
+                  isDark: isDark,
+                  onTap: () {
+                    Get.toNamed(Routes.ZOHO_CRM);
+                    final navController = Get.find<NavigationController>();
+                    navController.currentRoute.value = Routes.ZOHO_CRM;
+                    navController.updateRoute();
+                  },
+                ),
+              ],
+            ],
           ],
         ),
       ),
@@ -348,7 +358,7 @@ class _SettingsCard extends StatelessWidget {
         boxShadow: [
           if (!isDark)
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
+              color: Colors.black.withOpacity(0.03),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -452,7 +462,7 @@ class _ToggleOption extends StatelessWidget {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
+                    color: Colors.black.withOpacity(0.05),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
@@ -577,6 +587,183 @@ class _StatTile extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _IntegrationCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  // final String logoPath;
+  final bool isConnected;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  const _IntegrationCard({
+    required this.title,
+    required this.subtitle,
+    // required this.logoPath,
+    required this.isConnected,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cardBg = isDark ? AppColors.cardDark : Colors.white;
+    final borderColor = isDark
+        ? AppColors.waDividerDark
+        : AppColors.waDividerLight;
+    final textPrimary = isDark
+        ? AppColors.waTextPrimaryDark
+        : AppColors.waTextPrimaryLight;
+    final textSecondary = isDark
+        ? AppColors.waTextSecondaryDark
+        : AppColors.waTextSecondaryLight;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        decoration: BoxDecoration(
+          color: cardBg,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: borderColor, width: 1.5),
+          boxShadow: [
+            if (!isDark)
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Logo
+            Container(
+              width: 100,
+              height: 100,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: borderColor.withOpacity(0.5)),
+                // boxShadow: [
+                //   if (!isDark)
+                //     BoxShadow(
+                //       color: Colors.black.withOpacity(0.02),
+                //       blurRadius: 8,
+                //       offset: const Offset(0, 2),
+                //     ),
+                // ],
+              ),
+              child: SvgPicture.asset(
+                colorFilter: ColorFilter.mode(
+                  isDark ? Colors.white : Colors.black,
+                  BlendMode.srcIn,
+                ),
+                "assets/icons/chats/zoho.svg",
+                width: 100,
+                height: 100,
+              ),
+            ),
+            const SizedBox(width: 24),
+            // Text Content
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: textPrimary,
+                        ),
+                      ),
+                      if (isConnected) ...[
+                        const SizedBox(width: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text(
+                            "Connected",
+                            style: TextStyle(
+                              color: Colors.blue,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: textSecondary,
+                      height: 1.5,
+                      letterSpacing: 0.1,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (!isConnected) ...[
+              const SizedBox(width: 24),
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.primary, width: 1.2),
+                ),
+                child: InkWell(
+                  onTap: onTap,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 10,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.add,
+                          size: 18,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          "Connect",
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

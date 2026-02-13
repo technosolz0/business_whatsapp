@@ -1,4 +1,5 @@
 import 'package:flutter/gestures.dart';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -83,6 +84,26 @@ class WebUtils {
     return encrypt.Encrypter(
       encrypt.AES(key),
     ).decrypt(encrypt.Encrypted.fromBase64(data), iv: iv);
+  }
+
+  /// Downloads a file to the user's device
+  static void downloadFile(Uint8List bytes, String fileName, String mimeType) {
+    final blob = html.Blob([bytes], mimeType);
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    html.AnchorElement(href: url)
+      ..setAttribute("download", fileName)
+      ..click();
+    html.Url.revokeObjectUrl(url);
+  }
+
+  /// Saves data to browser's local storage
+  static void saveToLocalStorage(String key, String value) {
+    html.window.localStorage[key] = value;
+  }
+
+  /// Reads data from browser's local storage
+  static String? getFromLocalStorage(String key) {
+    return html.window.localStorage[key];
   }
 }
 

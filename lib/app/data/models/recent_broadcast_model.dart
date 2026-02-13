@@ -1,4 +1,4 @@
-import 'package:business_whatsapp/app/data/models/broadcast_status.dart';
+import 'package:adminpanel/app/data/models/broadcast_status.dart';
 
 class RecentBroadcastModel {
   final String broadcastName;

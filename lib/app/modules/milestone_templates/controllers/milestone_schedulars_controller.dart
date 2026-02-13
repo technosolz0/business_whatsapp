@@ -1,14 +1,14 @@
-import 'package:business_whatsapp/app/common%20widgets/common_snackbar.dart';
-import 'package:business_whatsapp/app/modules/milestone_templates/controllers/create_milestone_schedular_controller.dart';
-import 'package:business_whatsapp/app/routes/app_pages.dart';
-import 'package:business_whatsapp/app/controllers/navigation_controller.dart';
-import 'package:business_whatsapp/main.dart';
+import 'package:adminpanel/app/common%20widgets/common_snackbar.dart';
+import 'package:adminpanel/app/modules/milestone_templates/controllers/create_milestone_schedular_controller.dart';
+import 'package:adminpanel/app/routes/app_pages.dart';
+import 'package:adminpanel/app/controllers/navigation_controller.dart';
+import 'package:adminpanel/main.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:business_whatsapp/app/Utilities/network_utilities.dart';
+import 'package:adminpanel/app/Utilities/network_utilities.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../Utilities/utilities.dart' show Utilities;
-import 'package:business_whatsapp/app/common%20widgets/common_alert_dialog_delete.dart';
+import 'package:adminpanel/app/common%20widgets/common_alert_dialog_delete.dart';
 
 class MilestoneSchedularsController extends GetxController {
   // ---------------------------------------------------------------------------
@@ -281,16 +281,14 @@ class MilestoneSchedularsController extends GetxController {
     try {
       final dio = NetworkUtilities.getDioClient();
       final response = await dio.post(
-        'https://bw.serwex.in/pausemilestonecronjob',
+        'https://pausemilestonecronjob-d3b4t36f7q-uc.a.run.app',
         data: {'clientId': clientID, 'schedulerId': schedulerId},
       );
 
       if (response.statusCode == 200) {
         final data = response.data;
         if (data['success'] == true) {
-          print(
-            '✅ Milestone cron job paused successfully for scheduler: $schedulerId',
-          );
+      
         } else {
           print('❌ Failed to pause milestone cron job: ${data['message']}');
         }
@@ -306,16 +304,14 @@ class MilestoneSchedularsController extends GetxController {
     try {
       final dio = NetworkUtilities.getDioClient();
       final response = await dio.post(
-        'https://bw.serwex.in/resumemilestonecronjob',
+        'https://resumemilestonecronjob-d3b4t36f7q-uc.a.run.app',
         data: {'clientId': clientID, 'schedulerId': schedulerId},
       );
 
       if (response.statusCode == 200) {
         final data = response.data;
         if (data['success'] == true) {
-          print(
-            '✅ Milestone cron job resumed successfully for scheduler: $schedulerId',
-          );
+    
         } else {
           print('❌ Failed to resume milestone cron job: ${data['message']}');
         }
@@ -331,16 +327,14 @@ class MilestoneSchedularsController extends GetxController {
     try {
       final dio = NetworkUtilities.getDioClient();
       final response = await dio.post(
-        'https://bw.serwex.in/deletemilestonecronjob',
+        'https://deletemilestonecronjob-d3b4t36f7q-uc.a.run.app',
         data: {'clientId': clientID, 'schedulerId': schedulerId},
       );
 
       if (response.statusCode == 200) {
         final data = response.data;
         if (data['success'] == true) {
-          print(
-            '✅ Milestone cron job deleted successfully for scheduler: $schedulerId',
-          );
+         
         } else {
           print('❌ Failed to delete milestone cron job: ${data['message']}');
         }
