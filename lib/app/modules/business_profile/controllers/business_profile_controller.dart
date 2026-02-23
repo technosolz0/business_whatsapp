@@ -1,10 +1,11 @@
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:adminpanel/main.dart';
+import 'package:business_whatsapp/main.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:dio/dio.dart' as dio;
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
+import 'package:business_whatsapp/app/Utilities/api_endpoints.dart';
 import '../../../Utilities/utilities.dart';
 import '../../../Utilities/media_utils.dart';
 import '../../../common widgets/common_snackbar.dart';
@@ -142,7 +143,7 @@ class BusinessProfileController extends GetxController {
       // debugPrint('📤 Sending form data: ${formData.fields}');
 
       final response = await _dio.post(
-        'https://updatewhatsappbusinessprofile-d3b4t36f7q-uc.a.run.app',
+        ApiEndpoints.updateProfile,
         data: formData,
       );
 
@@ -226,7 +227,7 @@ class BusinessProfileController extends GetxController {
       isLoading.value = true;
 
       final response = await _dio.get(
-        'https://getwhatsappbusinessprofile-d3b4t36f7q-uc.a.run.app',
+        ApiEndpoints.getProfile,
         queryParameters: {"clientId": clientID},
       );
 

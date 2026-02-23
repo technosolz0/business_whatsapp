@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:adminpanel/app/common%20widgets/shimmer_widgets.dart';
+import 'package:business_whatsapp/app/common%20widgets/shimmer_widgets.dart';
 import 'package:dropdown_button2/dropdown_button2.dart';
 import '../../../Utilities/responsive.dart';
 import '../../../controllers/theme_controller.dart';

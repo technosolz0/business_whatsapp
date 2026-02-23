@@ -1,15 +1,15 @@
 import 'dart:convert';
 
-import 'package:adminpanel/app/common widgets/common_filled_button.dart';
-import 'package:adminpanel/app/common widgets/common_icon_button.dart';
-import 'package:adminpanel/app/core/theme/app_colors.dart';
-import 'package:adminpanel/app/core/constants/app_assets.dart';
+import 'package:business_whatsapp/app/common widgets/common_filled_button.dart';
+import 'package:business_whatsapp/app/common widgets/common_icon_button.dart';
+import 'package:business_whatsapp/app/core/theme/app_colors.dart';
+import 'package:business_whatsapp/app/core/constants/app_assets.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:adminpanel/app/modules/login/controllers/login_controller.dart';
-import 'package:adminpanel/app/common widgets/common_textfield.dart';
-import 'package:adminpanel/app/utilities/validations.dart';
+import 'package:business_whatsapp/app/modules/login/controllers/login_controller.dart';
+import 'package:business_whatsapp/app/common widgets/common_textfield.dart';
+import 'package:business_whatsapp/app/utilities/validations.dart';
 
 class DesktopLoginScreen extends StatelessWidget {
   const DesktopLoginScreen({super.key});

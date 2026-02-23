@@ -1,11 +1,11 @@
-import 'package:adminpanel/app/core/theme/app_colors.dart';
-import 'package:adminpanel/app/routes/app_pages.dart';
+import 'package:business_whatsapp/app/core/theme/app_colors.dart';
+import 'package:business_whatsapp/app/routes/app_pages.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../Utilities/subscription_guard.dart';
 import '../../../Utilities/validations.dart';
 import '../controllers/business_profile_controller.dart';
-import 'package:adminpanel/app/common%20widgets/shimmer_widgets.dart';
+import 'package:business_whatsapp/app/common%20widgets/shimmer_widgets.dart';
 
 class BusinessProfileView extends GetView<BusinessProfileController> {
   const BusinessProfileView({super.key});

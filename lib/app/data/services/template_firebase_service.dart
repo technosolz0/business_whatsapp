@@ -1,6 +1,6 @@
-import 'package:adminpanel/app/data/models/interactive_model.dart';
-import 'package:adminpanel/app/data/models/template_params.dart';
-import 'package:adminpanel/main.dart';
+import 'package:business_whatsapp/app/data/models/interactive_model.dart';
+import 'package:business_whatsapp/app/data/models/template_params.dart';
+import 'package:business_whatsapp/main.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/template_model.dart';

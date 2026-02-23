@@ -1,5 +1,5 @@
-import 'package:adminpanel/app/common%20widgets/common_pagination.dart';
-import 'package:adminpanel/app/common%20widgets/no_data_found.dart';
+import 'package:business_whatsapp/app/common%20widgets/common_pagination.dart';
+import 'package:business_whatsapp/app/common%20widgets/no_data_found.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';

@@ -2,12 +2,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
-import 'package:adminpanel/main.dart';
-import 'package:adminpanel/app/Utilities/network_utilities.dart';
-import 'package:adminpanel/app/Utilities/utilities.dart';
-import 'package:adminpanel/app/common%20widgets/common_snackbar.dart';
-import 'package:adminpanel/app/Utilities/webutils.dart';
-import 'package:adminpanel/app/Utilities/constants/app_constants.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:get/get.dart';
+import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
+import 'package:business_whatsapp/app/Utilities/api_endpoints.dart';
+import 'package:business_whatsapp/main.dart';
+import 'package:business_whatsapp/app/Utilities/network_utilities.dart';
+import 'package:business_whatsapp/app/Utilities/utilities.dart';
+import 'package:business_whatsapp/app/common%20widgets/common_snackbar.dart';
+import 'package:business_whatsapp/app/Utilities/webutils.dart';
+import 'package:business_whatsapp/app/Utilities/constants/app_constants.dart';
 
 class ZohoCrmController extends GetxController {
   final clientIdController = TextEditingController();
@@ -74,7 +79,7 @@ class ZohoCrmController extends GetxController {
 
       final dio = NetworkUtilities.getDioClient();
       final response = await dio.post(
-        "https://generateZohoAccessAndRefreshToken-d3b4t36f7q-uc.a.run.app",
+        ApiEndpoints.generateZohoToken,
         data: {
           "clientId": clientID,
           "zohoCrmClientId": zohoClientId,

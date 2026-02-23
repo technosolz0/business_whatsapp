@@ -1,19 +1,19 @@
 import 'dart:convert';
 import 'dart:developer';
 
-import 'package:adminpanel/app/Utilities/constants/app_constants.dart';
-import 'package:adminpanel/app/Utilities/webutils.dart';
+import 'package:business_whatsapp/app/Utilities/constants/app_constants.dart';
+import 'package:business_whatsapp/app/Utilities/webutils.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:adminpanel/app/common%20widgets/common_snackbar.dart';
-import 'package:adminpanel/app/routes/app_pages.dart';
-import 'package:adminpanel/app/utilities/utilities.dart';
-import 'package:adminpanel/main.dart';
+import 'package:business_whatsapp/app/common%20widgets/common_snackbar.dart';
+import 'package:business_whatsapp/app/routes/app_pages.dart';
+import 'package:business_whatsapp/app/utilities/utilities.dart';
+import 'package:business_whatsapp/main.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:adminpanel/app/data/services/subscription_service.dart';
+import 'package:business_whatsapp/app/data/services/subscription_service.dart';
 
 class LoginController extends GetxController {
   GlobalKey<FormState> loginKey = GlobalKey<FormState>();

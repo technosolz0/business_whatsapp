@@ -1,10 +1,11 @@
-import 'package:adminpanel/app/Utilities/network_utilities.dart';
-import 'package:adminpanel/main.dart';
+import 'package:business_whatsapp/app/Utilities/api_endpoints.dart';
+import 'package:business_whatsapp/app/Utilities/network_utilities.dart';
+import 'package:business_whatsapp/main.dart';
 import 'package:dio/dio.dart';
 
 class BroadcastQueueService {
   static final Dio _dio = NetworkUtilities.getDioClient();
-  static String url = "https://pubmessagestotopic-d3b4t36f7q-uc.a.run.app";
+  static String url = ApiEndpoints.queueBroadcast;
 
   /// 🔥 POST: Trigger message queue
   static Future<Map<String, dynamic>> queueBroadcast({

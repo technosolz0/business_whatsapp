@@ -1,11 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:adminpanel/app/Utilities/responsive.dart';
-import 'package:adminpanel/app/modules/chats/widgets/chat_admin_assignment_popup.dart';
+import 'package:business_whatsapp/app/Utilities/responsive.dart';
+import 'package:business_whatsapp/app/modules/chats/widgets/chat_admin_assignment_popup.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
-import 'package:adminpanel/app/Utilities/network_utilities.dart';
+import 'package:business_whatsapp/app/Utilities/api_endpoints.dart';
+import 'package:business_whatsapp/app/Utilities/network_utilities.dart';
 import 'package:dio/dio.dart';
 
 import 'package:file_picker/file_picker.dart';
@@ -70,7 +71,7 @@ class ChatsController extends GetxController {
   void onInit() {
     super.onInit();
     chatListScrollController.addListener(_chatListScrollListener);
-    
+
     _initChatAccess();
   }
 
@@ -513,7 +514,7 @@ class ChatsController extends GetxController {
 
       final dio = NetworkUtilities.getDioClient();
       final response = await dio.post(
-        'https://sendwhatsappmessagev1-d3b4t36f7q-uc.a.run.app',
+        ApiEndpoints.sendMessage,
         data: {
           'clientId': clientID,
           'phoneNumber': chat.phoneNumber,
@@ -1336,7 +1337,7 @@ class ChatsController extends GetxController {
 
       final dio = NetworkUtilities.getDioClient();
       final uploadResponse = await dio.post(
-        'https://uploadmediaforchat-d3b4t36f7q-uc.a.run.app',
+        ApiEndpoints.uploadMediaForChat,
         data: {
           'clientId': clientID,
           'fileName': fileName,
@@ -1375,7 +1376,7 @@ class ChatsController extends GetxController {
       }
 
       final response = await dio.post(
-        'https://sendwhatsappmessage-d3b4t36f7q-uc.a.run.app',
+        ApiEndpoints.sendMessage,
         data: {
           'clientId': clientID,
           'phoneNumber': chat.phoneNumber,

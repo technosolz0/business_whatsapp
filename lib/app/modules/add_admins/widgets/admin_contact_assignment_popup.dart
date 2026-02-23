@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:adminpanel/app/common%20widgets/shimmer_widgets.dart';
+import 'package:business_whatsapp/app/common%20widgets/shimmer_widgets.dart';
 import '../controllers/add_admins_controller.dart';
 
 class AdminContactAssignmentPopup extends StatefulWidget {

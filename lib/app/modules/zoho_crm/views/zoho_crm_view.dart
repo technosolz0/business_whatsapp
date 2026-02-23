@@ -1,18 +1,18 @@
-import 'package:adminpanel/app/common%20widgets/common_container.dart';
-import 'package:adminpanel/app/common%20widgets/common_dropdown_textfield.dart';
-import 'package:adminpanel/app/common%20widgets/common_outline_button.dart';
-import 'package:adminpanel/app/common%20widgets/common_snackbar.dart';
-import 'package:adminpanel/app/common%20widgets/common_filled_button.dart';
-import 'package:adminpanel/app/common%20widgets/common_textfield.dart';
-import 'package:adminpanel/app/common%20widgets/standard_page_layout.dart';
-import 'package:adminpanel/app/core/theme/app_colors.dart';
-import 'package:adminpanel/app/routes/app_pages.dart';
+import 'package:business_whatsapp/app/common%20widgets/common_container.dart';
+import 'package:business_whatsapp/app/common%20widgets/common_dropdown_textfield.dart';
+import 'package:business_whatsapp/app/common%20widgets/common_outline_button.dart';
+import 'package:business_whatsapp/app/common%20widgets/common_snackbar.dart';
+import 'package:business_whatsapp/app/common%20widgets/common_filled_button.dart';
+import 'package:business_whatsapp/app/common%20widgets/common_textfield.dart';
+import 'package:business_whatsapp/app/common%20widgets/standard_page_layout.dart';
+import 'package:business_whatsapp/app/core/theme/app_colors.dart';
+import 'package:business_whatsapp/app/routes/app_pages.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:adminpanel/main.dart';
+import 'package:business_whatsapp/main.dart';
 import '../controllers/zoho_crm_controller.dart';
 
 class ZohoCrmView extends GetView<ZohoCrmController> {

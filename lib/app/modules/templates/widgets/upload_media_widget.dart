@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../controllers/theme_controller.dart';
 import '../controllers/create_template_controller.dart';
-import 'package:adminpanel/app/common%20widgets/shimmer_widgets.dart';
+import 'package:business_whatsapp/app/common%20widgets/shimmer_widgets.dart';
 
 class DragDropUploadBox extends StatelessWidget {
   DragDropUploadBox({super.key});

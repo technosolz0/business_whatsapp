@@ -1,5 +1,5 @@
-import 'package:adminpanel/app/modules/broadcasts/views/widgets/sample_variable_input.dart';
-import 'package:adminpanel/app/modules/broadcasts/widgets/interactive_widget.dart';
+import 'package:business_whatsapp/app/modules/broadcasts/views/widgets/sample_variable_input.dart';
+import 'package:business_whatsapp/app/modules/broadcasts/widgets/interactive_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/create_broadcast_controller.dart';

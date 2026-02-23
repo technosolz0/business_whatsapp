@@ -1,9 +1,9 @@
-import 'package:adminpanel/app/core/theme/app_colors.dart';
-import 'package:adminpanel/app/Utilities/responsive.dart';
-import 'package:adminpanel/app/modules/broadcasts/widgets/broadcast_preview_widget.dart';
+import 'package:business_whatsapp/app/core/theme/app_colors.dart';
+import 'package:business_whatsapp/app/Utilities/responsive.dart';
+import 'package:business_whatsapp/app/modules/broadcasts/widgets/broadcast_preview_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:adminpanel/app/common%20widgets/shimmer_widgets.dart';
+import 'package:business_whatsapp/app/common%20widgets/shimmer_widgets.dart';
 import '../../controllers/create_broadcast_controller.dart';
 import '../../widgets/broadcast_review_card_widget.dart';
 import '../../widgets/delivery_time_card_widget.dart';

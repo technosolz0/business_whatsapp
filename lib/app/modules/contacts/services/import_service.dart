@@ -1,7 +1,7 @@
 import 'dart:convert';
-import 'package:adminpanel/app/modules/contacts/widgets/contact_import_confirmation_dialog.dart';
-import 'package:adminpanel/app/Utilities/utilities.dart';
-import 'package:adminpanel/app/common%20widgets/common_snackbar.dart';
+import 'package:business_whatsapp/app/modules/contacts/widgets/contact_import_confirmation_dialog.dart';
+import 'package:business_whatsapp/app/Utilities/utilities.dart';
+import 'package:business_whatsapp/app/common%20widgets/common_snackbar.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:csv/csv.dart';
 import 'package:get/get.dart';

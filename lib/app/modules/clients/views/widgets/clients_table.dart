@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import 'package:adminpanel/app/Utilities/responsive.dart';
+import 'package:business_whatsapp/app/Utilities/responsive.dart';
 import '../../../../common widgets/common_pagination.dart';
 import '../../../../common widgets/no_data_found.dart';
 import '../../../../common widgets/custom_chip.dart';

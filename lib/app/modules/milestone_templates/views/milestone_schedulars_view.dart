@@ -1,14 +1,14 @@
-import 'package:adminpanel/app/common%20widgets/custom_button.dart';
-import 'package:adminpanel/app/common%20widgets/common_textfield.dart';
-import 'package:adminpanel/app/common%20widgets/custom_dropdown.dart';
-import 'package:adminpanel/app/core/theme/app_colors.dart';
-import 'package:adminpanel/app/common%20widgets/standard_page_layout.dart';
+import 'package:business_whatsapp/app/common%20widgets/custom_button.dart';
+import 'package:business_whatsapp/app/common%20widgets/common_textfield.dart';
+import 'package:business_whatsapp/app/common%20widgets/custom_dropdown.dart';
+import 'package:business_whatsapp/app/core/theme/app_colors.dart';
+import 'package:business_whatsapp/app/common%20widgets/standard_page_layout.dart';
 import '../../../Utilities/subscription_guard.dart';
 import '../controllers/milestone_schedulars_controller.dart';
 import 'widgets/milestone_schedulars_table.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:adminpanel/app/common%20widgets/shimmer_widgets.dart';
+import 'package:business_whatsapp/app/common%20widgets/shimmer_widgets.dart';
 
 class MilestoneSchedularsView extends GetView<MilestoneSchedularsController> {
   const MilestoneSchedularsView({super.key});

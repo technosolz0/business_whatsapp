@@ -1,6 +1,6 @@
-import 'package:adminpanel/app/data/services/subscription_service.dart';
-import 'package:adminpanel/app/utilities/constants/app_constants.dart';
-import 'package:adminpanel/main.dart';
+import 'package:business_whatsapp/app/data/services/subscription_service.dart';
+import 'package:business_whatsapp/app/utilities/constants/app_constants.dart';
+import 'package:business_whatsapp/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';

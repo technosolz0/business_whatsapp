@@ -1,19 +1,19 @@
 import 'dart:convert';
 import 'dart:developer';
 
-import 'package:adminpanel/app/modules/chats/models/chat_model.dart';
-import 'package:adminpanel/main.dart';
+import 'package:business_whatsapp/app/modules/chats/models/chat_model.dart';
+import 'package:business_whatsapp/main.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
-import 'package:adminpanel/app/common%20widgets/common_snackbar.dart';
-import 'package:adminpanel/app/modules/roles/models/roles_model.dart';
-import 'package:adminpanel/app/routes/app_pages.dart';
-import 'package:adminpanel/app/utilities/utilities.dart';
-import 'package:adminpanel/app/data/models/client_model.dart';
-import 'package:adminpanel/app/data/services/clients_service.dart';
-import 'package:adminpanel/app/modules/add_admins/widgets/admin_contact_assignment_popup.dart';
+import 'package:business_whatsapp/app/common%20widgets/common_snackbar.dart';
+import 'package:business_whatsapp/app/modules/roles/models/roles_model.dart';
+import 'package:business_whatsapp/app/routes/app_pages.dart';
+import 'package:business_whatsapp/app/utilities/utilities.dart';
+import 'package:business_whatsapp/app/data/models/client_model.dart';
+import 'package:business_whatsapp/app/data/services/clients_service.dart';
+import 'package:business_whatsapp/app/modules/add_admins/widgets/admin_contact_assignment_popup.dart';
 
 class AddAdminsController extends GetxController {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;

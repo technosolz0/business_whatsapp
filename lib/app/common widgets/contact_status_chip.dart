@@ -1,5 +1,5 @@
 // Predefined chip variants for common use cases
-import 'package:adminpanel/app/common%20widgets/custom_chip.dart';
+import 'package:business_whatsapp/app/common%20widgets/custom_chip.dart';
 import 'package:flutter/material.dart';
 
 class StatusChip extends StatelessWidget {

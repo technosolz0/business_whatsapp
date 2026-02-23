@@ -1,7 +1,7 @@
 import 'package:get/get.dart';
-import 'package:adminpanel/app/Utilities/utilities.dart';
-import 'package:adminpanel/app/Utilities/webutils.dart';
-import 'package:adminpanel/app/common%20widgets/common_snackbar.dart';
+import 'package:business_whatsapp/app/Utilities/utilities.dart';
+import 'package:business_whatsapp/app/Utilities/webutils.dart';
+import 'package:business_whatsapp/app/common%20widgets/common_snackbar.dart';
 import 'dart:typed_data';
 
 class ChargesController extends GetxController {

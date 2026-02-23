@@ -1,4 +1,4 @@
-import 'package:adminpanel/app/modules/milestone_templates/controllers/create_milestone_schedular_controller.dart';
+import 'package:business_whatsapp/app/modules/milestone_templates/controllers/create_milestone_schedular_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 

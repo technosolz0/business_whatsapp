@@ -1,7 +1,7 @@
-import 'package:adminpanel/app/common%20widgets/custom_button.dart';
-import 'package:adminpanel/app/Utilities/responsive.dart';
-import 'package:adminpanel/app/Utilities/utilities.dart';
-import 'package:adminpanel/app/common%20widgets/common_snackbar.dart';
+import 'package:business_whatsapp/app/common%20widgets/custom_button.dart';
+import 'package:business_whatsapp/app/Utilities/responsive.dart';
+import 'package:business_whatsapp/app/Utilities/utilities.dart';
+import 'package:business_whatsapp/app/common%20widgets/common_snackbar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 

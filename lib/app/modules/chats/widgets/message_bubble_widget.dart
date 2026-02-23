@@ -1,7 +1,7 @@
-import 'package:adminpanel/app/core/theme/app_colors.dart';
-import 'package:adminpanel/app/Utilities/utilities.dart';
-import 'package:adminpanel/app/common%20widgets/common_snackbar.dart';
-import 'package:adminpanel/app/utilities/responsive.dart';
+import 'package:business_whatsapp/app/core/theme/app_colors.dart';
+import 'package:business_whatsapp/app/Utilities/utilities.dart';
+import 'package:business_whatsapp/app/common%20widgets/common_snackbar.dart';
+import 'package:business_whatsapp/app/utilities/responsive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -11,7 +11,7 @@ import '../models/message_model.dart';
 import 'package:get/get.dart';
 import '../controllers/chats_controller.dart';
 import 'send_template_dialog.dart';
-import 'package:adminpanel/app/common%20widgets/shimmer_widgets.dart';
+import 'package:business_whatsapp/app/common%20widgets/shimmer_widgets.dart';
 
 class MessageBubbleWidget extends StatelessWidget {
   final MessageModel message;

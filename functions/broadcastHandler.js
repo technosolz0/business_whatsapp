@@ -7,25 +7,25 @@ const admin = require("firebase-admin");
 const { PubSub } = require('@google-cloud/pubsub');
 const { CloudTasksClient, protos } = require('@google-cloud/tasks');
 const { refundMessageCost } = require("./webhookHandler");
-const { getSecrets } = require("./utils");
 
-// Initialize Firebase Admin if not already initialized
-if (!admin.apps.length) {
-  admin.initializeApp();
-}
+admin.initializeApp();
 setGlobalOptions({ maxInstances: 10 });
 
-const BASE_URL = process.env.BASE_URL;
-const INTERAKT_TOKEN = process.env.INTERAKT_TOKEN;
+const FormData = require("form-data");
+const WABA_ID = process.env.WABA_ID;
+const PHONENUMBERID = process.env.PHONENUMBERID;
+const TOKEN = process.env.INTERAKT_TOKEN;
 const PROJECT_ID = process.env.PROJECT_ID;
 const REGION = process.env.REGION;
-
+const SEND_MESSAGE_URL = `https://amped-express.interakt.ai/api/v24.0/${PHONENUMBERID}/messages`;
 const db = admin.firestore();
 const pubSubClient = new PubSub();
 const cloudTasksClient = new CloudTasksClient();
 
 
-const sendWhatsAppTemplateMessage = onRequest({ cors: true }, async (req, res) => {
+const sendWhatsAppTemplateMessage = onRequest(async (req, res) => {
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Headers", "*");
   if (req.method === "OPTIONS") return res.status(200).end();
 
   try {
@@ -47,10 +47,10 @@ const sendWhatsAppTemplateMessage = onRequest({ cors: true }, async (req, res) =
   }
 })
 
-async function sendWhatsAppTemplateMessageHelper(payload) {
+async function
+  sendWhatsAppTemplateMessageHelper(payload) {
   try {
     const {
-      clientId,
       template,
       language,
       type, // text -> Text, media -> Text & Media
@@ -59,8 +59,6 @@ async function sendWhatsAppTemplateMessageHelper(payload) {
       buttonVariables,
       mobileNo
     } = payload;
-
-    const secrets = await getSecrets(clientId);
 
     switch (type.toUpperCase()) {
       case "TEXT":
@@ -81,10 +79,10 @@ async function sendWhatsAppTemplateMessageHelper(payload) {
 
     logger.info("Sending WhatsApp message:", payload);
 
-    const response = await axios.post(`${BASE_URL}/${secrets.phoneNumberId}/messages`, payload, {
+    const response = await axios.post(SEND_MESSAGE_URL, payload, {
       headers: {
-        "x-access-token": INTERAKT_TOKEN,
-        "x-waba-id": secrets.wabaId,
+        "x-access-token": TOKEN,
+        "x-waba-id": WABA_ID,
         "Content-Type": "application/json",
       },
     });
@@ -295,20 +293,22 @@ function generateInteractiveTemplatePayload(template, mobileNo, language, parame
 
 }
 
-const pubMessagesToTopic = onRequest({ cors: true }, async (req, res) => {
+const pubMessagesToTopic = onRequest(async (req, res) => {
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Headers", "*");
   if (req.method === "OPTIONS") return res.status(200).end();
 
   try {
-    const { clientId, broadcastId, isScheduled, scheduledTimestamp } = req.body;
+    const { broadcastId, isScheduled, scheduledTimestamp } = req.body;
 
-    const broadcast = await db.collection("broadcasts").doc(clientId).collection("data").doc(broadcastId).get();
+    const broadcast = await db.collection("broadcasts").doc(broadcastId).get();
     if (!broadcast.exists) {
       return res.status(404).json({ success: false, message: "Broadcast not found" });
     }
 
     //Updating Wallet
     const broadcastData = broadcast.data();
-    await updateWallet(clientId, broadcastId, broadcastData);
+    await updateWallet(broadcastId, broadcastData);
 
     if (isScheduled) {
       // Schedule 'pubScheduledMessagesToTopic' via Cloud Tasks
@@ -316,7 +316,7 @@ const pubMessagesToTopic = onRequest({ cors: true }, async (req, res) => {
       const secondsSinceEpoch = Math.round(scheduledTime.getTime() / 1000);
 
       const parent = cloudTasksClient.queuePath(PROJECT_ID, REGION, 'broadcast-scheduler');
-      const payload = { clientId, broadcastId }; // Set isScheduled to false for the target function
+      const payload = { broadcastId }; // Set isScheduled to false for the target function
       const taskName = `schedule-broadcast-${broadcastId}-${scheduledTime.getTime()}`;
 
       const task = {
@@ -343,7 +343,7 @@ const pubMessagesToTopic = onRequest({ cors: true }, async (req, res) => {
       });
     }
     else {
-      await pubMessagesToTopicAsync(clientId, broadcastId, false);
+      await pubMessagesToTopicAsync(broadcastId, false);
     }
 
     return res.status(200).json({ success: true, message: "All messages queued." });
@@ -354,12 +354,14 @@ const pubMessagesToTopic = onRequest({ cors: true }, async (req, res) => {
   }
 });
 
-const pubScheduledMessagesToTopic = onRequest({ cors: true }, async (req, res) => {
+const pubScheduledMessagesToTopic = onRequest(async (req, res) => {
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Headers", "*");
   if (req.method === "OPTIONS") return res.status(200).end();
   try {
-    const { clientId, broadcastId } = req.body;
+    const { broadcastId } = req.body;
 
-    await pubMessagesToTopicAsync(clientId, broadcastId, true);
+    await pubMessagesToTopicAsync(broadcastId, true);
 
     return res.status(200).json({ success: true, message: "All messages queued." });
 
@@ -369,14 +371,19 @@ const pubScheduledMessagesToTopic = onRequest({ cors: true }, async (req, res) =
   }
 });
 
-async function pubMessagesToTopicAsync(clientId, broadcastId, isScheduled) {
+async function pubMessagesToTopicAsync(broadcastId, isScheduled) {
   const batchSize = 500;
   let lastDoc = null;
 
   // Configure topic with automatic batching
   const topicName = !isScheduled
-    ? `broadcast_messages_${clientId}`
+    ? "broadcast_messages"
     : `scheduled_broadcast_${broadcastId}`;
+
+
+  if (isScheduled) {
+    await pubSubClient.createTopic(topicName);
+  }
 
   const topic = pubSubClient.topic(topicName, {
     batching: {
@@ -385,21 +392,8 @@ async function pubMessagesToTopicAsync(clientId, broadcastId, isScheduled) {
     },
   });
 
-  const [topicExists] = await topic.exists();
-
-  if (!topicExists) {
-    await topic.create();
-  }
-
-  const subscriptionName = isScheduled
-    ? `send_scheduled_broadcast_message_${broadcastId}`
-    : `send_broadcast_message_${clientId}`;
-
-  const subscription = topic.subscription(subscriptionName);
-  const [subscriptionExists] = await subscription.exists();
-
-  if (!subscriptionExists) {
-    await topic.createSubscription(subscriptionName, {
+  if (isScheduled) {
+    await topic.createSubscription(`send_scheduled_broadcast_message_${broadcastId}`, {
       pushConfig: {
         pushEndpoint: `https://${REGION}-${PROJECT_ID}.cloudfunctions.net/sendBroadcastMessage`
       },
@@ -411,7 +405,7 @@ async function pubMessagesToTopicAsync(clientId, broadcastId, isScheduled) {
 
   // 1️⃣ START delimiter
   await topic.publishMessage({
-    data: Buffer.from(JSON.stringify({ delimiter: "START", clientId, broadcastId, isScheduled })),
+    data: Buffer.from(JSON.stringify({ delimiter: "START", broadcastId, isScheduled })),
   });
   console.info("Published START delimiter");
 
@@ -419,8 +413,6 @@ async function pubMessagesToTopicAsync(clientId, broadcastId, isScheduled) {
   while (true) {
     let query = db
       .collection("broadcasts")
-      .doc(clientId)
-      .collection("data")
       .doc(broadcastId)
       .collection("messages")
       .limit(batchSize);
@@ -432,26 +424,30 @@ async function pubMessagesToTopicAsync(clientId, broadcastId, isScheduled) {
 
     lastDoc = snapshot.docs[snapshot.docs.length - 1];
 
-    console.info(`Fetched ${snapshot.docs.length} messages`);
+    const messages = snapshot.docs.map(doc => ({
+      ...doc.data(),
+    }));
+
+    console.info(`Fetched ${messages.length} messages`);
 
     // Publish messages individually — batching handled automatically
-    for (const doc of snapshot.docs) {
-      const message = doc.data();
-      message.clientId = clientId;
+    for (const msgObj of messages) {
       await topic.publishMessage({
-        data: Buffer.from(JSON.stringify(message)),
+        data: Buffer.from(JSON.stringify(msgObj)),
       });
     }
   }
 
   // 3️⃣ END delimiter
   await topic.publishMessage({
-    data: Buffer.from(JSON.stringify({ delimiter: "END", clientId, broadcastId, isScheduled })),
+    data: Buffer.from(JSON.stringify({ delimiter: "END", broadcastId, isScheduled })),
   });
   console.info("Published END delimiter");
 }
 
-const sendBroadcastMessage = onRequest({ cors: true }, async (req, res) => {
+const sendBroadcastMessage = onRequest(async (req, res) => {
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Headers", "*");
   if (req.method === "OPTIONS") return res.status(200).end();
 
   try {
@@ -459,9 +455,8 @@ const sendBroadcastMessage = onRequest({ cors: true }, async (req, res) => {
 
     const body = JSON.parse(Buffer.from(req.body.message.data, 'base64').toString('utf8'));
 
-    const clientId = body.clientId;
     const broadcastId = body.broadcastId;
-    const broadcastDocRef = db.collection("broadcasts").doc(clientId).collection("data").doc(broadcastId);
+    const broadcastDocRef = db.collection("broadcasts").doc(broadcastId);
 
     logger.info(`Dispatching broadcast messages... ${broadcastId}`);
 
@@ -477,8 +472,8 @@ const sendBroadcastMessage = onRequest({ cors: true }, async (req, res) => {
           logger.info(`Broadcast ${broadcastId} finished dispatching messages.`);
           updates.push(broadcastDocRef.update({ status: 'Sent', completedAt: admin.firestore.FieldValue.serverTimestamp() }));
           if (body.isScheduled) {
-            updates.push(pubSubClient.subscription(`send_scheduled_broadcast_message_${broadcastId}`).delete());
-            updates.push(pubSubClient.topic(`scheduled_broadcast_${broadcastId}`).delete());
+            updates.push(await pubSubClient.subscription(`send_scheduled_broadcast_message_${broadcastId}`).delete());
+            updates.push(await pubSubClient.topic(`scheduled_broadcast_${broadcastId}`).delete());
           }
           break;
         default:
@@ -492,19 +487,16 @@ const sendBroadcastMessage = onRequest({ cors: true }, async (req, res) => {
       const payload = body.payload;
       const cost = body.cost;
 
-      payload.clientId = clientId;
       const response = await sendWhatsAppTemplateMessageHelper(payload);
 
       if (response.success) {
         const wamid = response.data.messages[0].id;
-        await Promise.all([
-          db.collection("wamid_broadcast_message_map").doc(clientId).collection("data").doc(wamid).set({
-            broadcastId: broadcastId,
-            messageId: messageId,
-            createdAt: admin.firestore.FieldValue.serverTimestamp()
-          }),
-          messageDocRef.update({ status: 'invocation_succeeded', invocationSucceededAt: admin.firestore.FieldValue.serverTimestamp(), addedToChat: false, wamId: wamid })
-        ]);
+        updates.push(db.collection("wamid_broadcast_message_map").doc(wamid).set({
+          broadcastId: broadcastId,
+          messageId: messageId,
+          createdAt: admin.firestore.FieldValue.serverTimestamp()
+        }));
+        updates.push(messageDocRef.update({ status: 'invocation_succeeded', invocationSucceededAt: admin.firestore.FieldValue.serverTimestamp(), addedToChat: false, wamId: wamid }));
         updates.push(broadcastDocRef.update({ invocationSuccesses: admin.firestore.FieldValue.increment(1) }));
         logger.info(`Message ${messageId} sent successfully.`);
       } else {
@@ -512,7 +504,7 @@ const sendBroadcastMessage = onRequest({ cors: true }, async (req, res) => {
         updates.push(broadcastDocRef.update({ invocationFailures: admin.firestore.FieldValue.increment(1)/*, totalCost: admin.firestore.FieldValue.increment(-cost)*/ }));
 
         //Refunding Cost of Failed Message
-        updates.push(refundMessageCost(clientId, broadcastId, cost));
+        updates.push(refundMessageCost(broadcastId, cost));
 
         logger.error(`Failed to send message ${messageId}: ${response.message}`);
       }
@@ -523,10 +515,6 @@ const sendBroadcastMessage = onRequest({ cors: true }, async (req, res) => {
       await Promise.all(updates);
       console.log(`Success`);
     }
-
-    // 10 second delay
-    //await new Promise(resolve => setTimeout(resolve, 10000));
-
     return res.sendStatus(200);
   }
   catch (err) {
@@ -538,8 +526,8 @@ const sendBroadcastMessage = onRequest({ cors: true }, async (req, res) => {
   }
 });
 
-async function updateWallet(clientId, broadcastId, broadcastData) {
-  const wallet = db.collection("profile").doc(clientId).collection("data").doc("wallet");
+async function updateWallet(broadcastId, broadcastData) {
+  const wallet = db.collection("profile").doc("wallet");
   await wallet.update({
     balance: admin.firestore.FieldValue.increment(-broadcastData.totalCost)
   });

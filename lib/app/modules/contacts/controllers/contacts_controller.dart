@@ -1,7 +1,7 @@
-import 'package:adminpanel/app/Utilities/network_utilities.dart';
-import 'package:adminpanel/app/common%20widgets/common_snackbar.dart';
-import 'package:adminpanel/app/modules/contacts/services/import_service.dart';
-import 'package:adminpanel/app/utilities/utilities.dart';
+import 'package:business_whatsapp/app/Utilities/network_utilities.dart';
+import 'package:business_whatsapp/app/common%20widgets/common_snackbar.dart';
+import 'package:business_whatsapp/app/modules/contacts/services/import_service.dart';
+import 'package:business_whatsapp/app/utilities/utilities.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -13,7 +13,8 @@ import '../../../data/models/contact_model.dart';
 import '../../../data/models/tag_model.dart';
 import '../../../data/services/contact_service.dart';
 import '../../../data/services/tag_service.dart';
-import 'package:adminpanel/app/Utilities/webutils.dart';
+import 'package:business_whatsapp/app/Utilities/api_endpoints.dart';
+import 'package:business_whatsapp/app/Utilities/webutils.dart';
 
 import 'package:file_saver/file_saver.dart';
 
@@ -155,8 +156,7 @@ class ContactsController extends GetxController {
       isLoading.value = true;
       final dio = NetworkUtilities.getDioClient();
       final collectionName = 'contacts_$currentClientId';
-      final url =
-          'https://typesense.anjitait.com/collections/$collectionName/documents/search';
+      final url = ApiEndpoints.searchContacts(collectionName);
 
       final response = await dio.get(
         url,
@@ -165,7 +165,7 @@ class ContactsController extends GetxController {
           'query_by': 'fName,lName,countryCode,countryCallingCode,phoneNumber',
         },
         options: Options(
-          headers: {'X-TYPESENSE-API-KEY': 'AIS.Typesense@2026'},
+          headers: {'X-TYPESENSE-API-KEY': ApiEndpoints.typesenseApiKey},
         ),
       );
 
@@ -557,7 +557,6 @@ class ContactsController extends GetxController {
       onComplete: (imported, skipped) {
         imported = imported;
         skipped = skipped;
-      
       },
     );
   }

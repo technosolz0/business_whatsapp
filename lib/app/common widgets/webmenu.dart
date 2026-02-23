@@ -2,14 +2,14 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:adminpanel/app/common%20widgets/common_snackbar.dart';
-import 'package:adminpanel/app/core/constants/app_assets.dart';
-import 'package:adminpanel/app/data/models/menu_item_model.dart';
-import 'package:adminpanel/app/routes/app_pages.dart';
-import 'package:adminpanel/app/utilities/constants/app_constants.dart';
-import 'package:adminpanel/app/utilities/utilities.dart';
-import 'package:adminpanel/app/utilities/webutils.dart';
-import 'package:adminpanel/main.dart';
+import 'package:business_whatsapp/app/common%20widgets/common_snackbar.dart';
+import 'package:business_whatsapp/app/core/constants/app_assets.dart';
+import 'package:business_whatsapp/app/data/models/menu_item_model.dart';
+import 'package:business_whatsapp/app/routes/app_pages.dart';
+import 'package:business_whatsapp/app/utilities/constants/app_constants.dart';
+import 'package:business_whatsapp/app/utilities/utilities.dart';
+import 'package:business_whatsapp/app/utilities/webutils.dart';
+import 'package:business_whatsapp/main.dart';
 
 /// Global variable to handle accessible menu
 List<dynamic> menu = [];

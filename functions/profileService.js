@@ -3,11 +3,11 @@ const logger = require("firebase-functions/logger");
 const { onRequest } = require("firebase-functions/v2/https");
 const { parseMultipart } = require("./fileSearchService");
 const { createMediaHandle } = require("./templateHandler");
-const { getSecrets } = require("./utils");
 require("dotenv").config();
 
-const BASE_URL = process.env.BASE_URL;
-const INTERAKT_TOKEN = process.env.INTERAKT_TOKEN;
+const WABA_ID = process.env.WABA_ID;
+const TOKEN = process.env.INTERAKT_TOKEN;
+const PHONE_NUMBER_ID = process.env.PHONENUMBERID;
 
 const getWhatsAppBusinessProfile = onRequest({ cors: true }, async (req, res) => {
     if (req.method !== "GET") {
@@ -17,13 +17,19 @@ const getWhatsAppBusinessProfile = onRequest({ cors: true }, async (req, res) =>
         });
     }
 
-    const secrets = await getSecrets(req.query.clientId);
+    if (!PHONE_NUMBER_ID || !TOKEN || !WABA_ID) {
+        logger.error("Missing environment variables:", { PHONENUMBERID: PHONE_NUMBER_ID, INTERAKT_TOKEN: TOKEN, WABA_ID });
+        return res.status(500).json({
+            success: false,
+            message: "Server configuration error: Missing API credentials"
+        });
+    }
 
     try {
-        const response = await axios.get(`${BASE_URL}/${secrets.phoneNumberId}/whatsapp_business_profile?fields=about,address,description,email,profile_picture_url,websites,vertical`, {
+        const response = await axios.get(`https://amped-express.interakt.ai/api/v24.0/${PHONE_NUMBER_ID}/whatsapp_business_profile?fields=about,address,description,email,profile_picture_url,websites,vertical`, {
             headers: {
-                "x-access-token": INTERAKT_TOKEN,
-                "x-waba-id": secrets.wabaId,
+                "x-access-token": TOKEN,
+                "x-waba-id": WABA_ID,
                 "Content-Type": "application/json",
             },
         });
@@ -95,12 +101,9 @@ const updateWhatsAppBusinessProfile = onRequest({ cors: true }, async (req, res)
  * @returns {Promise<Object>} - The API response data.
  */
 async function updateWhatsAppBusinessProfileHelper(profileData) {
+    const URL = `https://amped-express.interakt.ai/api/v24.0/${PHONE_NUMBER_ID}/whatsapp_business_profile`;
 
-    const secrets = await getSecrets(profileData.clientId);
-
-    const URL = `${BASE_URL}/${secrets.phoneNumberId}/whatsapp_business_profile`;
-
-    logger.info(`Updating WhatsApp Business Profile for WABA ID: ${secrets.wabaId}...`);
+    logger.info(`Updating WhatsApp Business Profile for WABA ID: ${WABA_ID}...`);
 
     try {
         const response = await axios.post(URL, {
@@ -108,8 +111,8 @@ async function updateWhatsAppBusinessProfileHelper(profileData) {
             ...profileData
         }, {
             headers: {
-                "x-access-token": INTERAKT_TOKEN,
-                "x-waba-id": secrets.wabaId,
+                "x-access-token": TOKEN,
+                "x-waba-id": WABA_ID,
                 "Content-Type": "application/json",
             },
         });

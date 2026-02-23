@@ -1,5 +1,5 @@
-import 'package:adminpanel/app/routes/app_pages.dart';
-import 'package:adminpanel/main.dart';
+import 'package:business_whatsapp/app/routes/app_pages.dart';
+import 'package:business_whatsapp/main.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 

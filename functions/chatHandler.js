@@ -4,23 +4,31 @@ const logger = require("firebase-functions/logger");
 const axios = require("axios");
 require("dotenv").config();
 const admin = require("firebase-admin");
-const { getSecrets } = require("./utils");
+const { PubSub } = require('@google-cloud/pubsub');
 
-// Initialize Firebase Admin if not already initialized
-if (!admin.apps.length) {
-  admin.initializeApp();
-}
+admin.initializeApp();
+const webhookHandler = require("./webhookHandler");
+const Busboy = require("busboy");
 setGlobalOptions({ maxInstances: 10 });
 
-const BASE_URL = process.env.BASE_URL;
-const INTERAKT_TOKEN = process.env.INTERAKT_TOKEN;
-
+const FormData = require("form-data");
+const WABA_ID = process.env.WABA_ID;
+const PHONENUMBERID = process.env.PHONENUMBERID;
+const TOKEN = process.env.INTERAKT_TOKEN;
+const BASE_URL = `https://amped-express.interakt.ai/api/v24.0/${WABA_ID}/message_templates`;
+const SEND_MESSAGE_URL = `https://amped-express.interakt.ai/api/v24.0/${PHONENUMBERID}/messages`;
+const UPLOAD_URL = `https://amped-express.interakt.ai/api/v24.0/${PHONENUMBERID}/media_handle`;
+const UPLOAD_BROADCAST_MEDIA = `https://amped-express.interakt.ai/api/v24.0/${PHONENUMBERID}/media`;
 const db = admin.firestore();
+const pubSubClient = new PubSub();
+
 
 // ============================================================
 // 🚀 SEND WHATSAPP MESSAGE (TEXT, IMAGE, DOCUMENT) - WITH STATS
 // ============================================================
-const sendWhatsAppMessage = onRequest({ cors: true }, async (req, res) => {
+const sendWhatsAppMessage = onRequest(async (req, res) => {
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Headers", "*");
   if (req.method === "OPTIONS") return res.status(200).end();
 
   try {
@@ -45,9 +53,7 @@ const sendWhatsAppMessage = onRequest({ cors: true }, async (req, res) => {
 async function sendWhatsAppMessageHelper(requestBody) {
 
   try {
-    const { clientId, phoneNumber, message, chatId, messageType, mediaUrl, fileName, caption } = requestBody;
-
-    const secrets = await getSecrets(clientId);
+    const { phoneNumber, message, chatId, messageType, mediaUrl, fileName, caption } = requestBody;
 
     if (!phoneNumber || (!message && !mediaUrl)) {
       return {
@@ -86,10 +92,10 @@ async function sendWhatsAppMessageHelper(requestBody) {
 
     logger.info("Sending WhatsApp message:", payload);
 
-    const response = await axios.post(`${BASE_URL}/${secrets.phoneNumberId}/messages`, payload, {
+    const response = await axios.post(SEND_MESSAGE_URL, payload, {
       headers: {
-        "x-access-token": INTERAKT_TOKEN,
-        "x-waba-id": secrets.wabaId,
+        "x-access-token": TOKEN,
+        "x-waba-id": WABA_ID,
         "Content-Type": "application/json",
       },
     });
@@ -98,15 +104,13 @@ async function sendWhatsAppMessageHelper(requestBody) {
 
     // 📊 NEW: Increment sent count
     const today = new Date().toISOString().split("T")[0];
-    await incrementDailyStats(clientId, today, "sent");
+    await incrementDailyStats(today, "sent");
     logger.info(`📊 Incremented sent count for ${today}`);
 
     // Store message in Firestore
     if (chatId) {
       const messageRef = db
         .collection("chats")
-        .doc(clientId)
-        .collection("data")
         .doc(chatId)
         .collection("messages")
         .doc();
@@ -125,7 +129,7 @@ async function sendWhatsAppMessageHelper(requestBody) {
         caption: caption || null,
       });
 
-      await db.collection("chats").doc(clientId).collection("data").doc(chatId).update({
+      await db.collection("chats").doc(chatId).update({
         lastMessage: messageContent,
         lastMessageTime: admin.firestore.FieldValue.serverTimestamp(),
       });
@@ -153,11 +157,13 @@ async function sendWhatsAppMessageHelper(requestBody) {
 // ============================================================
 // 📤 UPLOAD MEDIA TO FIREBASE STORAGE
 // ============================================================
-const uploadMediaForChat = onRequest({ cors: true }, async (req, res) => {
+const uploadMediaForChat = onRequest(async (req, res) => {
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Headers", "*");
   if (req.method === "OPTIONS") return res.status(200).end();
 
   try {
-    const { clientId, fileName, mimeType, base64File } = req.body;
+    const { fileName, mimeType, base64File } = req.body;
 
     if (!fileName || !mimeType || !base64File) {
       return res.status(400).json({
@@ -168,7 +174,7 @@ const uploadMediaForChat = onRequest({ cors: true }, async (req, res) => {
 
     const buffer = Buffer.from(base64File, "base64");
     const bucket = admin.storage().bucket();
-    const file = bucket.file(`chat_media/${clientId}/${Date.now()}_${fileName}`);
+    const file = bucket.file(`chat_media/${Date.now()}_${fileName}`);
 
     await file.save(buffer, {
       metadata: { contentType: mimeType },
@@ -194,11 +200,13 @@ const uploadMediaForChat = onRequest({ cors: true }, async (req, res) => {
 // ============================================================
 // 📊 UPDATE MESSAGE STATUS
 // ============================================================
-const updateMessageStatus = onRequest({ cors: true }, async (req, res) => {
+const updateMessageStatus = onRequest(async (req, res) => {
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Headers", "*");
   if (req.method === "OPTIONS") return res.status(200).end();
 
   try {
-    const { clientId, whatsappMessageId, status } = req.body;
+    const { whatsappMessageId, status } = req.body;
 
     if (!whatsappMessageId || !status) {
       return res.status(400).json({
@@ -207,7 +215,7 @@ const updateMessageStatus = onRequest({ cors: true }, async (req, res) => {
       });
     }
 
-    const chatsSnapshot = await db.collection("chats").doc(clientId).collection("data").get();
+    const chatsSnapshot = await db.collection("chats").get();
 
     for (const chatDoc of chatsSnapshot.docs) {
       const messagesQuery = await chatDoc.ref
@@ -237,11 +245,13 @@ const updateMessageStatus = onRequest({ cors: true }, async (req, res) => {
 // ============================================================
 // 📊 NEW: GET DAILY STATS
 // ============================================================
-const getDailyStats = onRequest({ cors: true }, async (req, res) => {
+const getDailyStats = onRequest(async (req, res) => {
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Headers", "*");
   if (req.method === "OPTIONS") return res.status(200).end();
 
   try {
-    const { clientId, date } = req.query;
+    const { date } = req.query;
 
     if (!date) {
       return res.status(400).json({
@@ -250,7 +260,7 @@ const getDailyStats = onRequest({ cors: true }, async (req, res) => {
       });
     }
 
-    const statsDoc = await db.collection("totalSendMsg").doc(clientId).collection("data").doc(date).get();
+    const statsDoc = await db.collection("totalSendMsg").doc(date).get();
 
     if (!statsDoc.exists) {
       return res.json({
@@ -280,9 +290,9 @@ const getDailyStats = onRequest({ cors: true }, async (req, res) => {
 // ============================================================
 // 📊 NEW: INCREMENT DAILY STATISTICS HELPER
 // ============================================================
-async function incrementDailyStats(clientId, date, type) {
+async function incrementDailyStats(date, type) {
   try {
-    const statsRef = db.collection('totalSendMsg').doc(clientId).collection("data").doc(date);
+    const statsRef = db.collection('totalSendMsg').doc(date);
     const increment = admin.firestore.FieldValue.increment(1);
 
     const updateData = {

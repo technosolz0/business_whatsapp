@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'package:get/get.dart';
-import 'package:adminpanel/app/modules/add_admins/widgets/add_admin_desktop.dart';
-import 'package:adminpanel/app/modules/add_admins/widgets/add_admin_phone.dart';
+import 'package:business_whatsapp/app/modules/add_admins/widgets/add_admin_desktop.dart';
+import 'package:business_whatsapp/app/modules/add_admins/widgets/add_admin_phone.dart';
 
 import '../controllers/add_admins_controller.dart';
 

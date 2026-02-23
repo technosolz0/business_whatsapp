@@ -1,10 +1,10 @@
 import 'dart:convert';
 
-import 'package:adminpanel/app/data/services/subscription_service.dart';
+import 'package:business_whatsapp/app/data/services/subscription_service.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:adminpanel/app/common%20widgets/shimmer_widgets.dart';
-import 'package:adminpanel/app/common%20widgets/common_alert_dialog_delete.dart';
+import 'package:business_whatsapp/app/common%20widgets/shimmer_widgets.dart';
+import 'package:business_whatsapp/app/common%20widgets/common_alert_dialog_delete.dart';
 import '../core/theme/app_colors.dart';
 import '../controllers/navigation_controller.dart';
 import '../utilities/constants/app_constants.dart';
@@ -12,7 +12,7 @@ import '../utilities/utilities.dart';
 import '../utilities/webutils.dart';
 import '../utilities/responsive.dart';
 import '../modules/chats/controllers/chats_controller.dart';
-import 'package:adminpanel/main.dart';
+import 'package:business_whatsapp/main.dart';
 
 class SidebarWidget extends StatefulWidget {
   final VoidCallback? onItemTap;

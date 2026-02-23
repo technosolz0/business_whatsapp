@@ -1,4 +1,4 @@
-import 'package:adminpanel/app_initializer.dart';
+import 'package:business_whatsapp/app_initializer.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 
 import 'package:flutter/material.dart';

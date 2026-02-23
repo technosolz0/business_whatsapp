@@ -1,5 +1,5 @@
-import 'package:adminpanel/app/modules/dashboard/widgets/recent_broadcast_table.dart';
-import 'package:adminpanel/app/core/theme/app_colors.dart';
+import 'package:business_whatsapp/app/modules/dashboard/widgets/recent_broadcast_table.dart';
+import 'package:business_whatsapp/app/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -11,7 +11,7 @@ import '../../../Utilities/subscription_guard.dart';
 import '../../../data/services/subscription_service.dart';
 import '../controllers/dashboard_controller.dart';
 
-import 'package:adminpanel/app/core/constants/app_assets.dart';
+import 'package:business_whatsapp/app/core/constants/app_assets.dart';
 
 class DashboardView extends GetView<DashboardController> {
   const DashboardView({super.key});

@@ -1,4 +1,4 @@
-import 'package:adminpanel/app/data/services/subscription_service.dart';
+import 'package:business_whatsapp/app/data/services/subscription_service.dart';
 
 class SubscriptionGuard {
   static bool canEdit() {

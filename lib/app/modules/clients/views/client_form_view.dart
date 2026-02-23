@@ -1,7 +1,7 @@
-import 'package:adminpanel/app/modules/add_client/controllers/add_client_controller.dart';
+import 'package:business_whatsapp/app/modules/add_client/controllers/add_client_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:adminpanel/app/common%20widgets/shimmer_widgets.dart';
+import 'package:business_whatsapp/app/common%20widgets/shimmer_widgets.dart';
 import '../../../common widgets/common_filled_button.dart';
 import '../../../common widgets/custom_button.dart';
 import '../../../core/theme/app_colors.dart';

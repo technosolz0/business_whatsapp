@@ -1,4 +1,4 @@
-import 'package:adminpanel/app/routes/app_pages.dart';
+import 'package:business_whatsapp/app/routes/app_pages.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get/get_rx/src/rx_typedefs/rx_typedefs.dart';

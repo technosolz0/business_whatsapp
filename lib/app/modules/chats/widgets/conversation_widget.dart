@@ -1,16 +1,16 @@
-import 'package:adminpanel/app/common%20widgets/common_filled_button.dart';
-import 'package:adminpanel/app/common%20widgets/common_outline_button.dart';
-import 'package:adminpanel/app/core/theme/app_colors.dart';
-import 'package:adminpanel/app/Utilities/responsive.dart';
-import 'package:adminpanel/app/modules/chats/models/message_model.dart';
-import 'package:adminpanel/main.dart';
+import 'package:business_whatsapp/app/common%20widgets/common_filled_button.dart';
+import 'package:business_whatsapp/app/common%20widgets/common_outline_button.dart';
+import 'package:business_whatsapp/app/core/theme/app_colors.dart';
+import 'package:business_whatsapp/app/Utilities/responsive.dart';
+import 'package:business_whatsapp/app/modules/chats/models/message_model.dart';
+import 'package:business_whatsapp/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
 import '../controllers/chats_controller.dart';
 import 'message_bubble_widget.dart';
 import 'message_input_widget.dart';
-import 'package:adminpanel/app/common%20widgets/shimmer_widgets.dart';
+import 'package:business_whatsapp/app/common%20widgets/shimmer_widgets.dart';
 import 'export_to_zoho_dialog.dart';
 
 class ConversationWidget extends GetView<ChatsController> {

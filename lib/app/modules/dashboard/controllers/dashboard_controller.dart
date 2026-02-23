@@ -1,17 +1,18 @@
-import 'package:adminpanel/app/Utilities/constants/app_constants.dart';
-import 'package:adminpanel/app/controllers/navigation_controller.dart';
-import 'package:adminpanel/app/data/models/broadcast_status.dart';
-import 'package:adminpanel/app/data/models/recent_broadcast_model.dart';
-import 'package:adminpanel/app/data/services/subscription_service.dart';
-import 'package:adminpanel/app/routes/app_pages.dart';
-import 'package:adminpanel/main.dart';
+import 'package:business_whatsapp/app/Utilities/constants/app_constants.dart';
+import 'package:business_whatsapp/app/controllers/navigation_controller.dart';
+import 'package:business_whatsapp/app/data/models/broadcast_status.dart';
+import 'package:business_whatsapp/app/data/models/recent_broadcast_model.dart';
+import 'package:business_whatsapp/app/data/services/subscription_service.dart';
+import 'package:business_whatsapp/app/routes/app_pages.dart';
+import 'package:business_whatsapp/main.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:adminpanel/app/Utilities/network_utilities.dart';
+import 'package:business_whatsapp/app/Utilities/api_endpoints.dart';
+import 'package:business_whatsapp/app/Utilities/network_utilities.dart';
 import 'package:dio/dio.dart';
 import 'package:get_storage/get_storage.dart';
-import 'package:adminpanel/app/modules/broadcasts/controllers/create_broadcast_controller.dart';
+import 'package:business_whatsapp/app/modules/broadcasts/controllers/create_broadcast_controller.dart';
 
 import 'package:intl/intl.dart';
 import '../../../data/models/custom_notification_model.dart';
@@ -61,8 +62,7 @@ class DashboardController extends GetxController {
   RxList<String>? _hiddenNotificationIds;
 
   // Your Cloud Function URL
-  final String analyticsApiUrl =
-      'https://getconversationanalytics-d3b4t36f7q-uc.a.run.app';
+  final String analyticsApiUrl = ApiEndpoints.getAnalytics;
 
   @override
   void onInit() {
@@ -79,9 +79,7 @@ class DashboardController extends GetxController {
 
   void loadSubscription() {
     SubscriptionService.instance.subscription.listen((sub) {
-      if (sub != null) {
-     
-      }
+      if (sub != null) {}
     });
   }
 
@@ -422,7 +420,6 @@ class DashboardController extends GetxController {
     // Divide range across 5 intervals
     final interval = range / 5.0;
 
-
     return interval;
   }
 
@@ -554,7 +551,6 @@ class DashboardController extends GetxController {
     final todayString =
         '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
 
- 
     FirebaseFirestore.instance
         .collection('quota')
         .doc(clientID)
@@ -568,7 +564,6 @@ class DashboardController extends GetxController {
               final used = (data['usedQuota'] as num?)?.toInt() ?? 0;
               usedQuota.value = used;
               availableQuota.value = totalQuota.value - used;
-            
             } else {
               print('Quota document does not exist, setting defaults');
               // If today's document doesn't exist, set defaults

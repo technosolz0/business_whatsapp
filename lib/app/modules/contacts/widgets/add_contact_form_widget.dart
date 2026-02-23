@@ -1,12 +1,12 @@
-import 'package:adminpanel/app/common%20widgets/common_snackbar.dart';
-import 'package:adminpanel/app/data/services/subscription_service.dart';
-import 'package:adminpanel/app/data/services/upload_file_firebase.dart';
-import 'package:adminpanel/app/utilities/utilities.dart';
-import 'package:adminpanel/main.dart';
+import 'package:business_whatsapp/app/common%20widgets/common_snackbar.dart';
+import 'package:business_whatsapp/app/data/services/subscription_service.dart';
+import 'package:business_whatsapp/app/data/services/upload_file_firebase.dart';
+import 'package:business_whatsapp/app/utilities/utilities.dart';
+import 'package:business_whatsapp/main.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:get/get.dart';
-import 'package:adminpanel/app/common%20widgets/shimmer_widgets.dart';
+import 'package:business_whatsapp/app/common%20widgets/shimmer_widgets.dart';
 import 'package:country_code_picker/country_code_picker.dart';
 import 'package:dio/dio.dart';
 import 'package:image_picker/image_picker.dart';
@@ -18,6 +18,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../Utilities/responsive.dart';
 import '../../../data/models/contact_model.dart';
 import '../../../data/services/contact_service.dart';
+import 'package:business_whatsapp/app/Utilities/api_endpoints.dart';
+import 'package:business_whatsapp/app/Utilities/network_utilities.dart';
 import '../controllers/contacts_controller.dart';
 import 'tags_input_field.dart';
 
@@ -337,10 +339,10 @@ class _AddContactFormWidgetState extends State<AddContactFormWidget> {
     String isoCountryCode = _isoCountryCode;
 
     try {
-      final dio = Dio();
+      final dio = NetworkUtilities.getDioClient();
       final fullNumber = '$countryCallingCode$nationalNumber';
       final response = await dio.get(
-        'https://us-central1-whatsapp-test-panel.cloudfunctions.net/getPhoneNumber',
+        ApiEndpoints.getPhoneNumber,
         queryParameters: {'phoneNumber': fullNumber},
       );
 

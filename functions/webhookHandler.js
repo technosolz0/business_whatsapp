@@ -4,27 +4,29 @@ const logger = require("firebase-functions/logger");
 const axios = require("axios");
 const { Filter } = require("firebase-admin/firestore");
 const { sendWhatsAppMessageHelper } = require("./chatHandler");
-const { getSecrets } = require("./utils");
 const { generateContentWithFileSearch } = require("./geminiService");
-const { parsePhoneNumberWithError } = require("libphonenumber-js");
-
 require("dotenv").config();
 
-// Initialize Firebase Admin if not already initialized
-if (!admin.apps.length) {
-  admin.initializeApp();
-}
 const db = admin.firestore();
 const bucket = admin.storage().bucket(); // Firebase Storage bucket
 
-const BASE_URL = process.env.BASE_URL;
-const INTERAKT_TOKEN = process.env.INTERAKT_TOKEN;
-
+const WEBHOOK_VERIFY_TOKEN = process.env.WEBHOOK_VERIFY_TOKEN || "whatsapp-test-panel";
+const TOKEN = process.env.INTERAKT_TOKEN;
+const WABA_ID = process.env.WABA_ID;
+const PHONENUMBERID = process.env.PHONENUMBERID;
+const STORE_ID = process.env.STORE_ID;
+const QNA_STORE_ID = process.env.QNA_STORE_ID;
+const MESSAGES_URL = `https://amped-express.interakt.ai/api/v24.0/${PHONENUMBERID}/messages`;
+const MEDIA_URL = `https://amped-express.interakt.ai/api/v24.0/${PHONENUMBERID}/media`;
+const ANALYTICS_BASE_URL = `https://amped-express.interakt.ai/api/v17.0/${WABA_ID}`;
+const PHONENUMBER = process.env.PHONENUMBER;
 
 // -----------------------------------------------------
 // 🔵 Webhook Handler Export
 // -----------------------------------------------------
-const interaktTemplateWebhook = onRequest({ memory: "2GiB", cors: true }, async (req, res) => {
+const interaktTemplateWebhook = onRequest(async (req, res) => {
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Headers", "*");
 
   // ---------------------------
   // 1️⃣ Verification (GET)
@@ -61,18 +63,17 @@ const interaktTemplateWebhook = onRequest({ memory: "2GiB", cors: true }, async 
         for (const change of entry.changes || []) {
           const field = change.field;
           const value = change.value;
-          const phoneNumberId = value.metadata?.phone_number_id;
 
           switch (field) {
 
             case "message_template_status_update":
-              await logWebhook(phoneNumberId, "status_update", value);
-              await handleStatusUpdate(phoneNumberId, value);
+              await logWebhook("status_update", value);
+              await handleStatusUpdate(value);
               break;
 
             case "template_category_update":
-              await logWebhook(phoneNumberId, "category_update", value);
-              await handleCategoryUpdate(phoneNumberId, value);
+              await logWebhook("category_update", value);
+              await handleCategoryUpdate(value);
               break;
 
             // ============================================
@@ -80,21 +81,21 @@ const interaktTemplateWebhook = onRequest({ memory: "2GiB", cors: true }, async 
             // ============================================
             case "messages":
               if (value.statuses) {
-                //await logWebhook(phoneNumberId, "message_status_update", value);
-                await handleMessageStatusUpdate(phoneNumberId, value);
+                await logWebhook("message_status_update", value);
+                await handleMessageStatusUpdate(value);
               } else {
-                //await logWebhook(phoneNumberId, "chat_message", value);
-                await handleChatMessage(phoneNumberId, value);
+                await logWebhook("chat_message", value);
+                await handleChatMessage(value);
               }
               break;
 
             case "user_preferences":
-              await logWebhook(phoneNumberId, "user_preference", value);
-              await updateUserPreference(phoneNumberId, value)
+              await logWebhook("user_preference", value);
+              await updateUserPreference(value.user_preferences[0])
               break;
 
             default:
-              await logWebhook(phoneNumberId, "unknown_event", { field, value });
+              await logWebhook("unknown_event", { field, value });
           }
         }
       }
@@ -103,6 +104,7 @@ const interaktTemplateWebhook = onRequest({ memory: "2GiB", cors: true }, async 
 
     } catch (err) {
       logger.error("WEBHOOK ERROR:", err);
+      await logWebhook("exception", { error: err.toString() }, "ERROR");
       return res.sendStatus(200);
     }
   }
@@ -111,9 +113,9 @@ const interaktTemplateWebhook = onRequest({ memory: "2GiB", cors: true }, async 
 // -----------------------------------------------------
 // 🟣 Firestore Logging Utility
 // -----------------------------------------------------
-async function logWebhook(clientId, type, payload, status = "SUCCESS") {
+async function logWebhook(type, payload, status = "SUCCESS") {
   try {
-    await db.collection("webhook_logs").doc(clientId).collection("data").add({
+    await db.collection("webhook_logs").add({
       type,
       payload,
       status,
@@ -130,7 +132,7 @@ async function logWebhook(clientId, type, payload, status = "SUCCESS") {
 
 
 
-async function handleStatusUpdate(clientId, value) {
+async function handleStatusUpdate(value) {
   const id = value.message_template_id?.toString();
   if (!id) return;
 
@@ -185,15 +187,15 @@ async function handleStatusUpdate(clientId, value) {
     updateData.reason = reasonBlock;
   }
 
-  await db.collection("templates").doc(clientId).collection("data").doc(id).set(updateData, { merge: true });
+  await db.collection("templates").doc(id).set(updateData, { merge: true });
 }
 
 
-async function handleCategoryUpdate(clientId, value) {
+async function handleCategoryUpdate(value) {
   const id = value.message_template_id?.toString();
   if (!id) return;
 
-  await db.collection("templates").doc(clientId).collection("data").doc(id).set({
+  await db.collection("templates").doc(id).set({
     category: value.new_category || value.correct_category || "",
     updatedAt: admin.firestore.FieldValue.serverTimestamp()
   }, { merge: true });
@@ -202,7 +204,7 @@ async function handleCategoryUpdate(clientId, value) {
 // -----------------------------------------------------
 //  CHAT MESSAGE HANDLER (ENHANCED WITH PERMANENT MEDIA STORAGE)
 // -----------------------------------------------------
-async function handleChatMessage(clientId, value) {
+async function handleChatMessage(value) {
   try {
     const messages = value?.messages;
 
@@ -210,8 +212,6 @@ async function handleChatMessage(clientId, value) {
       logger.info("No messages in webhook value");
       return;
     }
-
-    const secrets = await getSecrets(clientId);
 
     for (const message of messages) {
       const fromPhone = message.from;
@@ -245,8 +245,6 @@ async function handleChatMessage(clientId, value) {
 
         if (message.image?.id) {
           const uploaded = await downloadAndUploadMedia(
-            clientId,
-            secrets,
             message.image.id,
             mimeType,
             null,
@@ -271,8 +269,6 @@ async function handleChatMessage(clientId, value) {
 
         if (doc?.id) {
           const uploaded = await downloadAndUploadMedia(
-            clientId,
-            secrets,
             doc.id,
             mimeType,
             fileName,
@@ -295,8 +291,6 @@ async function handleChatMessage(clientId, value) {
 
         if (message.video?.id) {
           const uploaded = await downloadAndUploadMedia(
-            clientId,
-            secrets,
             message.video.id,
             mimeType,
             null,
@@ -318,8 +312,6 @@ async function handleChatMessage(clientId, value) {
 
         if (message.audio?.id) {
           const uploaded = await downloadAndUploadMedia(
-            clientId,
-            secrets,
             message.audio.id,
             mimeType,
             message.audio?.voice ? `voice_${messageId}.ogg` : null,
@@ -349,8 +341,6 @@ async function handleChatMessage(clientId, value) {
 
       const contactQuery = await db
         .collection("contacts")
-        .doc(clientId)
-        .collection("data")
         .where("phoneNumber", "==", phoneNumber)
         .limit(1)
         .get();
@@ -364,24 +354,13 @@ async function handleChatMessage(clientId, value) {
         const contactData = contactDoc.data();
         contactName = `${contactData.fName || ""} ${contactData.lName || ""}`.trim();
       } else {
-        const newContactRef = db.collection("contacts").doc(clientId).collection("data").doc();
+        const newContactRef = db.collection("contacts").doc();
         contactId = newContactRef.id;
-
-        const profileName = value?.contacts?.[0]?.profile?.name;
-        let fName = "";
-        let lName = "";
-
-        if (profileName) {
-          const nameParts = profileName.split(" ");
-          fName = nameParts[0] || "";
-          lName = nameParts.slice(1).join(" ") || "";
-        }
-
         await newContactRef.set({
           phoneNumber: phoneNumber,
           countryCode: countryCode,
-          fName: fName,
-          lName: lName,
+          fName: "",
+          lName: "",
           email: "",
           company: "",
           notes: "Auto-created from WhatsApp message",
@@ -391,10 +370,10 @@ async function handleChatMessage(clientId, value) {
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
-        contactName = fName || lName ? `${fName} ${lName}`.trim() : phoneNumber;
+        contactName = phoneNumber;
       }
 
-      const chatRef = db.collection("chats").doc(clientId).collection("data").doc(contactId);
+      const chatRef = db.collection("chats").doc(contactId);
       const chatDoc = await chatRef.get();
 
       const fullPhoneNumber = `${countryCode}${phoneNumber}`;
@@ -409,7 +388,7 @@ async function handleChatMessage(clientId, value) {
           campaignName: null,
           isOnline: false,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          aiResponseEnabled: false,
+          aiResponseEnabled: true,
           isActive: false,
           unRead: false
         });
@@ -429,14 +408,13 @@ async function handleChatMessage(clientId, value) {
       // AI Chat Response
       if (chatDoc.data()?.aiResponseEnabled) {
 
-        await markMessageAsRead(secrets, messageId, true);
+        await markMessageAsRead(messageId, true);
 
         if (messageType == 'text') {
           //Send AI Response
           await sendWhatsAppMessageHelper({
-            clientId: clientId,
             phoneNumber: phoneNumber,
-            message: await generateGeminiResponse(clientId, messageText, secrets.googleApiKey, [secrets.storeId, secrets.qnaStoreId], contactId),
+            message: await generateGeminiResponse(messageText, [STORE_ID, QNA_STORE_ID], contactId),
             chatId: contactId,
             messageType: 'text',
           });
@@ -444,7 +422,6 @@ async function handleChatMessage(clientId, value) {
         else {
           //Send Generic Response - Sorry, could not understand your request. Try again later.
           await sendWhatsAppMessageHelper({
-            clientId: clientId,
             phoneNumber: phoneNumber,
             message: "Sorry, could not understand your request. Try again later.",
             chatId: contactId,
@@ -454,12 +431,12 @@ async function handleChatMessage(clientId, value) {
         hasAiResponse = true;
       }
 
-      const broadcastColRef = db.collection("broadcasts").doc(clientId).collection("data");
+      const broadcastColRef = db.collection("broadcasts");
 
-      let { templateChatMessage, messageDocRef } = await broadcastMessageHelper(clientId, broadcastColRef, 'Sending', contactId, fullPhoneNumber);
+      let { templateChatMessage, messageDocRef } = await broadcastMessageHelper(broadcastColRef, 'Sending', contactId, fullPhoneNumber);
 
       if (!templateChatMessage) {
-        ({ templateChatMessage, messageDocRef } = await broadcastMessageHelper(clientId, broadcastColRef, 'Sent', contactId, fullPhoneNumber));
+        ({ templateChatMessage, messageDocRef } = await broadcastMessageHelper(broadcastColRef, 'Sent', contactId, fullPhoneNumber));
       }
 
       if (templateChatMessage) {
@@ -494,7 +471,7 @@ async function handleChatMessage(clientId, value) {
   }
 }
 
-async function broadcastMessageHelper(clientId, broadcastColRef, status, contactId, fullPhoneNumber) {
+async function broadcastMessageHelper(broadcastColRef, status, contactId, fullPhoneNumber) {
   let templateChatMessage = null, messageDocRef = null;
   const broadcastQuery = broadcastColRef
     .where(
@@ -531,18 +508,18 @@ async function broadcastMessageHelper(clientId, broadcastColRef, status, contact
       const messageData = messageDocSnapshot.data();
       messageDocRef = messageDocSnapshot.ref;
 
-      const templateDocRef = db.collection('templates').doc(clientId).collection("data").doc(broadcastData.templateId);
+      const templateDocRef = db.collection('templates').doc(broadcastData.templateId);
       const templateDocSnapshot = await templateDocRef.get();
       const templateData = templateDocSnapshot.data();
 
-      templateChatMessage = await createTemplateChatMessage(clientId, templateData, messageData, broadcastData, messageData.wamId, messageData.status, messageData.status == 'delivered' ? messageData.deliveredAt : messageData.readAt);
+      templateChatMessage = await createTemplateChatMessage(templateData, messageData, broadcastData, messageData.wamId, messageData.status, messageData.status == 'delivered' ? messageData.deliveredAt : messageData.readAt);
     }
   }
   return { templateChatMessage, messageDocRef };
 }
 
-async function generateGeminiResponse(clientId, prompt, apiKey, storeIds, sessionId = null) {
-  return await generateContentWithFileSearch(clientId, prompt, apiKey, storeIds, "gemini-2.5-flash-lite", { maxOutputTokens: 500 }, sessionId, 10); // Limit to ~400-500 words, 10 messages context
+async function generateGeminiResponse(prompt, storeIds, sessionId = null) {
+  return await generateContentWithFileSearch(prompt, storeIds, "gemini-2.5-flash-lite", { maxOutputTokens: 500 }, sessionId, 10); // Limit to ~400-500 words, 10 messages context
 }
 
 function extractPhoneNumber(fullNumber) {
@@ -593,7 +570,7 @@ function extractPhoneNumber(fullNumber) {
 // -----------------------------------------------------
 // 📊 Status Updates with Daily Stats Tracking
 // -----------------------------------------------------
-async function handleMessageStatusUpdate(clientId, value) {
+async function handleMessageStatusUpdate(value) {
   try {
     const statuses = value.statuses;
     if (!statuses || !Array.isArray(statuses)) return;
@@ -604,8 +581,7 @@ async function handleMessageStatusUpdate(clientId, value) {
       const whatsappMessageId = statusObj.id;
       const status = statusObj.status; // "sent" | "delivered" | "read" | "failed"
       const timestamp = statusObj.timestamp;
-      const billable = statusObj.pricing?.billable ?? null;
-
+      const billable = statusObj.pricing ? statusObj.pricing.billable : null;
       if (!whatsappMessageId) continue;
 
       logger.info(`🔄 Updating status for: ${whatsappMessageId} → ${status}`);
@@ -613,15 +589,14 @@ async function handleMessageStatusUpdate(clientId, value) {
       // Get TODAY'S date (when status changed)
       const statusDate = new Date().toISOString().split('T')[0];
 
-      const mapDocSnapshot = await db.collection("wamid_broadcast_message_map").doc(clientId).collection("data").doc(whatsappMessageId).get();
+      const mapDocSnapshot = await db.collection("wamid_broadcast_message_map").doc(whatsappMessageId).get();
 
-      logger.info(`Exists in Broadcast Message Map: ${mapDocSnapshot.exists}, Path: ${mapDocSnapshot.ref.path}`);
       if (mapDocSnapshot.exists) {
         const data = mapDocSnapshot.data();
         const { broadcastId, messageId } = data;
 
         // Get broadcasts document reference and message document
-        const broadcastDocRef = db.collection("broadcasts").doc(clientId).collection("data").doc(broadcastId);
+        const broadcastDocRef = db.collection("broadcasts").doc(broadcastId);
         //const broadcastDocSnapshot = await broadcastDocRef.get();
         const messageDocRef = broadcastDocRef.collection("messages").doc(messageId);
         const messageDocSnapshot = await messageDocRef.get();
@@ -653,38 +628,38 @@ async function handleMessageStatusUpdate(clientId, value) {
             updates.push(broadcastDocRef.update({ failed: admin.firestore.FieldValue.increment(1) }));
 
             //Refunding Cost of Failed Message
-            updates.push(refundMessageCost(clientId, broadcastId, messageData.cost));
+            updates.push(refundMessageCost(broadcastId, messageData.cost));
 
-            updates.push(incrementDailyStats(clientId, statusDate, 'failed'));
+            updates.push(incrementDailyStats(statusDate, 'failed'));
             break;
 
           case 'sent':
-            await messageDocRef.update({ status: 'sent', sentAt: statusTimestamp });
+            updates.push(messageDocRef.update({ status: 'sent', sentAt: statusTimestamp }));
             updates.push(broadcastDocRef.update({ sent: admin.firestore.FieldValue.increment(1) }));
 
             if (!billable) {
               //Refunding Cost of Unbillable Message
-              updates.push(refundMessageCost(clientId, broadcastId, messageData.cost));
+              updates.push(refundMessageCost(broadcastId, messageData.cost));
             }
 
-            updates.push(incrementDailyStats(clientId, statusDate, 'sent'));
+            updates.push(incrementDailyStats(statusDate, 'sent'));
             break;
 
           case 'delivered':
-            await messageDocRef.update({ status: 'delivered', deliveredAt: statusTimestamp });
+            updates.push(messageDocRef.update({ status: 'delivered', deliveredAt: statusTimestamp }));
             updates.push(broadcastDocRef.update({ delivered: admin.firestore.FieldValue.increment(1) }));
-            updates.push(incrementDailyStats(clientId, statusDate, 'delivered'));
+            updates.push(incrementDailyStats(statusDate, 'delivered'));
             break;
 
           case 'read':
             // if (messageData.status === 'sent') {
             //   updates.push(messageDocRef.update({ deliveredAt: statusTimestamp }));
             //   updates.push(broadcastDocRef.update({ delivered: admin.firestore.FieldValue.increment(1) }));
-            //   updates.push(incrementDailyStats(clientId, statusDate, 'delivered'));
+            //   updates.push(incrementDailyStats(statusDate, 'delivered'));
             // }
-            await messageDocRef.update({ status: 'read', readAt: statusTimestamp });
+            updates.push(messageDocRef.update({ status: 'read', readAt: statusTimestamp }));
             updates.push(broadcastDocRef.update({ read: admin.firestore.FieldValue.increment(1) }));
-            updates.push(incrementDailyStats(clientId, statusDate, 'read'));
+            updates.push(incrementDailyStats(statusDate, 'read'));
             break;
 
           default:
@@ -701,7 +676,7 @@ async function handleMessageStatusUpdate(clientId, value) {
       }
 
       // Search across all chats for this message ID
-      const chatsSnapshot = await db.collection("chats").doc(clientId).collection("data").get();
+      const chatsSnapshot = await db.collection("chats").get();
 
       let updated = false;
 
@@ -717,9 +692,9 @@ async function handleMessageStatusUpdate(clientId, value) {
 
           // Only update if new status is "higher priority"
           const currentStatus = messageDoc.data().status || "sent";
-          const statusPriority = { sent: 1, delivered: 2, read: 3, failed: 1 };
-          const newPriority = statusPriority[status] || 1;
-          const currentPriority = statusPriority[currentStatus] || 1;
+          const statusPriority = { sent: 1, delivered: 2, read: 3, failed: 0 };
+          const newPriority = statusPriority[status] || 0;
+          const currentPriority = statusPriority[currentStatus] || 0;
 
           if (newPriority >= currentPriority) {
             const updateData = {
@@ -727,21 +702,15 @@ async function handleMessageStatusUpdate(clientId, value) {
               statusTimestamp: admin.firestore.Timestamp.fromMillis(parseInt(timestamp) * 1000),
             };
 
-            if (status === 'failed') {
-              updateData.errorCode = statusObj.errors[0].code;
-              updateData.errorDescription = statusObj.errors[0].error_data.details;
-              updateData.failedAt = admin.firestore.Timestamp.fromMillis(parseInt(timestamp) * 1000);
-            }
-
             // 📊 Add timestamps and increment daily stats
             if (status === 'delivered') {
               updateData.deliveredAt = admin.firestore.Timestamp.fromMillis(parseInt(timestamp) * 1000);
               logger.info(`✅ Incrementing delivered count for ${statusDate}`);
-              await incrementDailyStats(clientId, statusDate, 'delivered');
+              await incrementDailyStats(statusDate, 'delivered');
             } else if (status === 'read') {
               updateData.readAt = admin.firestore.Timestamp.fromMillis(parseInt(timestamp) * 1000);
               logger.info(`✅ Incrementing read count for ${statusDate}`);
-              await incrementDailyStats(clientId, statusDate, 'read');
+              await incrementDailyStats(statusDate, 'read');
             }
 
             await messageDoc.ref.update(updateData);
@@ -766,9 +735,9 @@ async function handleMessageStatusUpdate(clientId, value) {
 // ============================================================
 // 📊 INCREMENT DAILY STATISTICS HELPER
 // ============================================================
-async function incrementDailyStats(clientId, date, type) {
+async function incrementDailyStats(date, type) {
   try {
-    const statsRef = db.collection('totalSendMsg').doc(clientId).collection("data").doc(date);
+    const statsRef = db.collection('totalSendMsg').doc(date);
     const increment = admin.firestore.FieldValue.increment(1);
 
     const updateData = {
@@ -796,7 +765,7 @@ async function incrementDailyStats(clientId, date, type) {
 // ============================================================
 // 🎬 ENHANCED: Download Media & Upload to Firebase Storage
 // ============================================================
-async function downloadAndUploadMedia(clientId, secrets, mediaId, mimeType, originalFilename = null, messageId) {
+async function downloadAndUploadMedia(mediaId, mimeType, originalFilename = null, messageId) {
   const maxRetries = 2;
   let lastError = null;
 
@@ -805,10 +774,10 @@ async function downloadAndUploadMedia(clientId, secrets, mediaId, mimeType, orig
       logger.info(`[Media ${mediaId}] Attempt ${retry + 1}: Fetching signed URL...`);
 
       // STEP 1: Fetch signed URL
-      const metaRes = await axios.get(`${BASE_URL}/${secrets.phoneNumberId}/media/${mediaId}`, {
+      const metaRes = await axios.get(`${MEDIA_URL}/${mediaId}`, {
         headers: {
-          "x-access-token": INTERAKT_TOKEN,
-          "x-waba-id": secrets.wabaId,
+          "x-access-token": TOKEN,
+          "x-waba-id": WABA_ID,
           "Content-Type": "application/json",
         },
         timeout: 20000 + (retry * 5000),
@@ -822,10 +791,10 @@ async function downloadAndUploadMedia(clientId, secrets, mediaId, mimeType, orig
       logger.info(`[Media ${mediaId}] Signed URL fetched: ${signedUrl.substring(0, 100)}...`);
 
       // STEP 2: Download binary
-      const downloadRes = await axios.get(`${BASE_URL}/${secrets.phoneNumberId}/media?url=${signedUrl}`, {
+      const downloadRes = await axios.get(`${MEDIA_URL}?url=${signedUrl}`, {
         headers: {
-          "x-access-token": INTERAKT_TOKEN,
-          "x-waba-id": secrets.wabaId,
+          "x-access-token": TOKEN,
+          "x-waba-id": WABA_ID,
           "Content-Type": "application/json",
         },
         responseType: "arraybuffer",
@@ -850,7 +819,7 @@ async function downloadAndUploadMedia(clientId, secrets, mediaId, mimeType, orig
 
       const year = new Date().getFullYear();
       const month = String(new Date().getMonth() + 1).padStart(2, "0");
-      const filePath = `whatsapp_media/${clientId}/${year}/${month}/${finalFilename}`;
+      const filePath = `whatsapp_media/${year}/${month}/${finalFilename}`;
 
       const file = bucket.file(filePath);
       await file.save(buffer, {
@@ -916,7 +885,7 @@ async function downloadAndUploadMedia(clientId, secrets, mediaId, mimeType, orig
   return null;
 }
 
-async function createTemplateChatMessage(clientId, templateData, messageData, broadcastData, whatsappMessageId, status, statusTimestamp) {
+async function createTemplateChatMessage(templateData, messageData, broadcastData, whatsappMessageId, status, statusTimestamp) {
   let templateMessage;
   switch (messageData.payload.type.toUpperCase()) {
     case 'TEXT':
@@ -941,7 +910,7 @@ async function createTemplateChatMessage(clientId, templateData, messageData, br
       };
       break;
     case 'MEDIA':
-      const filePath = `broadcasts_media/${clientId}/${broadcastData.attachmentId}/${messageData.payload.headerVariables.data.fileName}`;
+      const filePath = `broadcasts_media/${broadcastData.attachmentId}/${messageData.payload.headerVariables.data.fileName}`;
       templateMessage = {
         caption: null,
         header: null,
@@ -970,7 +939,7 @@ async function createTemplateChatMessage(clientId, templateData, messageData, br
         }
         else {
           fileName = messageData.payload.headerVariables.data.fileName;
-          const filePath = `broadcasts_media/${clientId}/${broadcastData.attachmentId}/${fileName}`;
+          const filePath = `broadcasts_media/${broadcastData.attachmentId}/${fileName}`;
           mediaUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(filePath)}?alt=media`;
         }
       }
@@ -1012,7 +981,7 @@ async function createTemplateChatMessage(clientId, templateData, messageData, br
   return templateMessage;
 }
 
-async function addMessageToChat(clientId, fromPhone, message) {
+async function addMessageToChat(fromPhone, message) {
 
   logger.info(`Adding message to chat for phone: ${JSON.stringify(message)}`);
 
@@ -1020,8 +989,6 @@ async function addMessageToChat(clientId, fromPhone, message) {
 
   const contactQuery = await db
     .collection("contacts")
-    .doc(clientId)
-    .collection("data")
     .where(Filter.and(Filter.where('countryCode', '==', countryCode), Filter.where("phoneNumber", "==", phoneNumber)))
     .limit(1)
     .get();
@@ -1035,7 +1002,7 @@ async function addMessageToChat(clientId, fromPhone, message) {
     const contactData = contactDoc.data();
     contactName = `${contactData.fName || ""} ${contactData.lName || ""}`.trim();
   } else {
-    const newContactRef = db.collection("contacts").doc(clientId).collection("data").doc();
+    const newContactRef = db.collection("contacts").doc();
     contactId = newContactRef.id;
     await newContactRef.set({
       phoneNumber: phoneNumber,
@@ -1054,7 +1021,7 @@ async function addMessageToChat(clientId, fromPhone, message) {
     contactName = phoneNumber;
   }
 
-  const chatRef = db.collection("chats").doc(clientId).collection("data").doc(contactId);
+  const chatRef = db.collection("chats").doc(contactId);
   const chatDoc = await chatRef.get();
 
   const fullPhoneNumber = `${countryCode}${phoneNumber}`;
@@ -1087,8 +1054,9 @@ async function addMessageToChat(clientId, fromPhone, message) {
  * @param {number} customStart - Custom start timestamp (optional)
  * @param {number} customEnd - Custom end timestamp (optional)
  */
-const getConversationAnalytics = onRequest({ cors: true }, async (req, res) => {
-  res.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+const getConversationAnalytics = onRequest(async (req, res) => {
+  res.set("Access-Control-Allow-Origin", "*");
+  res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.set("Access-Control-Allow-Headers", "Content-Type");
 
   if (req.method === "OPTIONS") {
@@ -1096,8 +1064,7 @@ const getConversationAnalytics = onRequest({ cors: true }, async (req, res) => {
   }
 
   try {
-    const { clientId, filter = "This Month", customStart, customEnd } = req.query;
-    const secrets = await getSecrets(clientId);
+    const { filter = "This Month", customStart, customEnd } = req.query;
 
     // Calculate start and end timestamps based on filter
     const { start, end, granularity } = getTimeRangeParams(
@@ -1110,8 +1077,8 @@ const getConversationAnalytics = onRequest({ cors: true }, async (req, res) => {
 
     // Fetch both analytics in parallel
     const [conversationData, messagesData] = await Promise.all([
-      fetchConversationAnalytics(secrets, start, end, granularity),
-      fetchMessagesAnalytics(secrets, start, end, granularity)
+      fetchConversationAnalytics(start, end, granularity),
+      fetchMessagesAnalytics(start, end, granularity)
     ]);
 
     // Process data to calculate card metrics
@@ -1151,16 +1118,16 @@ const getConversationAnalytics = onRequest({ cors: true }, async (req, res) => {
 /**
  * Fetch conversation analytics from API
  */
-async function fetchConversationAnalytics(secrets, start, end, granularity) {
+async function fetchConversationAnalytics(start, end, granularity) {
   // Always use DAILY granularity for conversation analytics to avoid monthly limitations
   const conversationGranularity = granularity === "DAY" ? "DAILY" : "MONTHLY";
 
-  const analyticsUrl = `${BASE_URL}/${secrets.wabaId}?fields=conversation_analytics.start(${start}).end(${end}).granularity(${conversationGranularity}).phone_numbers([${secrets.phoneNumber}]).metric_types(['COST','CONVERSATION']).conversation_categories(['MARKETING','SERVICE','UTILITY']).conversation_types(['FREE_ENTRY_POINT','FREE_TIER','REGULAR','UNKNOWN']).conversation_directions(['BUSINESS_INITIATED','UNKNOWN']).dimensions(['CONVERSATION_TYPE','CONVERSATION_DIRECTION','CONVERSATION_CATEGORY'])`;
+  const analyticsUrl = `${ANALYTICS_BASE_URL}?fields=conversation_analytics.start(${start}).end(${end}).granularity(${conversationGranularity}).phone_numbers([${PHONENUMBER}]).metric_types(['COST','CONVERSATION']).conversation_categories(['MARKETING','SERVICE','UTILITY']).conversation_types(['FREE_ENTRY_POINT','FREE_TIER','REGULAR','UNKNOWN']).conversation_directions(['BUSINESS_INITIATED','UNKNOWN']).dimensions(['CONVERSATION_TYPE','CONVERSATION_DIRECTION','CONVERSATION_CATEGORY'])`;
 
   const response = await axios.get(analyticsUrl, {
     headers: {
-      "x-access-token": INTERAKT_TOKEN,
-      "x-waba-id": secrets.wabaId,
+      "x-access-token": TOKEN,
+      "x-waba-id": WABA_ID,
       "Content-Type": "application/json",
     },
     timeout: 30000,
@@ -1172,18 +1139,18 @@ async function fetchConversationAnalytics(secrets, start, end, granularity) {
 /**
  * Fetch messages analytics from API
  */
-async function fetchMessagesAnalytics(secrets, start, end, granularity) {
+async function fetchMessagesAnalytics(start, end, granularity) {
   // Messages API uses DAY/MONTH and requires product_types
   const messagesGranularity = granularity;
 
-  const analyticsUrl = `${BASE_URL}/${secrets.wabaId}?fields=analytics.start(${start}).end(${end}).granularity(${messagesGranularity}).phone_numbers([${secrets.phoneNumber}]).product_types([0,2])`;
+  const analyticsUrl = `${ANALYTICS_BASE_URL}?fields=analytics.start(${start}).end(${end}).granularity(${messagesGranularity}).phone_numbers([${PHONENUMBER}]).product_types([0,2])`;
   logger.info("Using Messages Analytics URL:", analyticsUrl);
 
 
   const response = await axios.get(analyticsUrl, {
     headers: {
-      "x-access-token": INTERAKT_TOKEN,
-      "x-waba-id": secrets.wabaId,
+      "x-access-token": TOKEN,
+      "x-waba-id": WABA_ID,
       "Content-Type": "application/json",
     },
     timeout: 30000,
@@ -1397,24 +1364,24 @@ function processAnalyticsData(conversationDataPoints, allMessagesDataPoints) {
   };
 }
 
-async function updateUserPreference(clientId, value) {
-  const user_preference = value.user_preferences[0];
+async function updateUserPreference(user_preference) {
+  const value = user_preference.value;
   let status;
-  switch (user_preference.value.toLowerCase()) {
+  switch (value.toLowerCase()) {
     case 'stop': status = 0; break;
     case 'resume': status = 1; break;
     default: return;
   }
   const { phoneNumber, countryCode } = extractPhoneNumber(user_preference.wa_id);
   const timestamp = admin.firestore.Timestamp.fromMillis(parseInt(user_preference.timestamp) * 1000);
-  const contactsColSnapshot = await db.collection('contacts').doc(clientId).collection("data").where(Filter.and(Filter.where('countryCode', '==', countryCode), Filter.where('phoneNumber', '==', phoneNumber))).limit(1).get();
+  const contactsColSnapshot = await db.collection('contacts').where(Filter.and(Filter.where('countryCode', '==', countryCode), Filter.where('phoneNumber', '==', phoneNumber))).limit(1).get();
   if (contactsColSnapshot.empty) {
     return;
   }
   await contactsColSnapshot.docs[0].ref.update({ 'status': status, 'statusUpdatedAt': timestamp });
 }
 
-async function markMessageAsRead(secrets, messageId, addTypingIndicator) {
+async function markMessageAsRead(messageId, addTypingIndicator) {
   try {
     const payload = {
       messaging_product: "whatsapp",
@@ -1426,10 +1393,10 @@ async function markMessageAsRead(secrets, messageId, addTypingIndicator) {
         type: "text"
       };
     }
-    await axios.post(`${BASE_URL}/${secrets.phoneNumberId}/messages`, payload, {
+    await axios.post(MESSAGES_URL, payload, {
       headers: {
-        "x-access-token": INTERAKT_TOKEN,
-        "x-waba-id": secrets.wabaId,
+        "x-access-token": TOKEN,
+        "x-waba-id": WABA_ID,
         "Content-Type": "application/json",
       },
     });
@@ -1440,8 +1407,8 @@ async function markMessageAsRead(secrets, messageId, addTypingIndicator) {
   }
 }
 
-async function refundMessageCost(clientId, broadcastId, cost) {
-  const wallet = db.collection("profile").doc(clientId).collection("data").doc("wallet");
+async function refundMessageCost(broadcastId, cost) {
+  const wallet = db.collection("profile").doc("wallet");
   await wallet.update({
     balance: admin.firestore.FieldValue.increment(cost)
   });
@@ -1451,73 +1418,8 @@ async function refundMessageCost(clientId, broadcastId, cost) {
   });
 }
 
-const getPhoneNumber = onRequest({ cors: true }, (req, res) => {
-  if (req.method === "OPTIONS") {
-    return res.status(200).send();
-  }
-
-  if (req.method !== "GET") {
-    return res.status(405).send({ error: "Method not allowed" });
-  }
-
-  try {
-    const phoneParam = req.query.phoneNumber;
-    if (!phoneParam) {
-      return res.status(400).send({ error: "Missing phoneNumber query parameter" });
-    }
-
-    let phoneNumber;
-    let errorToThrow;
-
-    // 1. Try parsing as international (prepend + if missing)
-    try {
-      const internationalParam = phoneParam.startsWith('+') ? phoneParam : `+${phoneParam}`;
-      const parsedParams = parsePhoneNumberWithError(internationalParam);
-      if (parsedParams.isValid()) {
-        phoneNumber = parsedParams;
-      }
-    } catch (e) {
-      errorToThrow = e;
-    }
-
-    // 2. If not valid international, try parsing with default country 'IN'
-    if (!phoneNumber && !phoneParam.startsWith('+')) {
-      try {
-        const localParsed = parsePhoneNumberWithError(phoneParam, 'IN');
-        if (localParsed.isValid()) {
-          phoneNumber = localParsed;
-        }
-      } catch (e) {
-        if (!errorToThrow) errorToThrow = e; // Keep first error if explicit
-      }
-    }
-
-    // 3. Fallback: If neither is strictly "valid", but we had a successful parse, use it?
-    // Or just throw if no valid number found. 
-    // For now, if we still don't have phoneNumber, we try to use the one from International attempt if it parsed but was invalid?
-    // No, better to return error if invalid.
-
-    if (!phoneNumber) {
-      // Re-throw the error or a generic invalid error
-      throw errorToThrow || new Error("Invalid phone number");
-    }
-
-    res.send({
-      countryCallingCode: phoneNumber.countryCallingCode,
-      nationalNumber: phoneNumber.nationalNumber,
-      number: phoneNumber.number, // full number
-      country: phoneNumber.country
-    });
-  } catch (error) {
-    logger.error("Error parsing phone number:", error);
-    res.status(400).send({ error: "Invalid phone number format", details: error.message });
-  }
-});
-
 module.exports = {
-  getSecrets,
   interaktTemplateWebhook,
   getConversationAnalytics,
-  refundMessageCost,
-  getPhoneNumber
+  refundMessageCost
 }

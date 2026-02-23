@@ -1,18 +1,18 @@
-import 'package:adminpanel/app/core/theme/app_colors.dart';
-import 'package:adminpanel/app/common%20widgets/shimmer_widgets.dart';
-import 'package:adminpanel/main.dart';
+import 'package:business_whatsapp/app/core/theme/app_colors.dart';
+import 'package:business_whatsapp/app/common%20widgets/shimmer_widgets.dart';
+import 'package:business_whatsapp/main.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get/get_connect/http/src/utils/utils.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:adminpanel/app/common%20widgets/common_container.dart';
-import 'package:adminpanel/app/common%20widgets/common_filled_button.dart';
-import 'package:adminpanel/app/common%20widgets/common_textfield.dart';
-import 'package:adminpanel/app/common%20widgets/common_white_bg_button.dart';
-import 'package:adminpanel/app/common%20widgets/common_dropdown_textfield.dart';
-import 'package:adminpanel/app/modules/add_admins/controllers/add_admins_controller.dart';
-import 'package:adminpanel/app/routes/app_pages.dart';
-import 'package:adminpanel/app/utilities/validations.dart';
+import 'package:business_whatsapp/app/common%20widgets/common_container.dart';
+import 'package:business_whatsapp/app/common%20widgets/common_filled_button.dart';
+import 'package:business_whatsapp/app/common%20widgets/common_textfield.dart';
+import 'package:business_whatsapp/app/common%20widgets/common_white_bg_button.dart';
+import 'package:business_whatsapp/app/common%20widgets/common_dropdown_textfield.dart';
+import 'package:business_whatsapp/app/modules/add_admins/controllers/add_admins_controller.dart';
+import 'package:business_whatsapp/app/routes/app_pages.dart';
+import 'package:business_whatsapp/app/utilities/validations.dart';
 import '../../../controllers/navigation_controller.dart';
 
 class AddAdminDesktop extends GetView<AddAdminsController> {

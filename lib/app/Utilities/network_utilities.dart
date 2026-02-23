@@ -1,5 +1,6 @@
-import 'package:adminpanel/app/Utilities/utilities.dart';
-import 'package:adminpanel/app/common%20widgets/common_snackbar.dart';
+import 'package:business_whatsapp/app/Utilities/api_endpoints.dart';
+import 'package:business_whatsapp/app/Utilities/utilities.dart';
+import 'package:business_whatsapp/app/common%20widgets/common_snackbar.dart';
 import 'package:dio/dio.dart';
 
 import 'package:flutter/foundation.dart';
@@ -9,7 +10,7 @@ class NetworkUtilities {
   /// returns Dio client with enabled certificate verification for APIs,
   /// a logging inspector and basic configurations
   ///
-  static String baseUrl = 'https://amped-express.interakt.ai/api/v17.0/';
+  static String baseUrl = ApiEndpoints.serverUrl;
   static Dio getDioClient() {
     Dio dioClient = Dio(
       BaseOptions(

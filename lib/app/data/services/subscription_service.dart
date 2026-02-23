@@ -1,6 +1,6 @@
 import 'dart:async';
-import 'package:adminpanel/app/data/models/subscription_model.dart';
-import 'package:adminpanel/main.dart';
+import 'package:business_whatsapp/app/data/models/subscription_model.dart';
+import 'package:business_whatsapp/main.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 

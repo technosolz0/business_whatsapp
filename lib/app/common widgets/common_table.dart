@@ -1,13 +1,13 @@
-import 'package:adminpanel/app/common%20widgets/common_filled_button.dart';
-import 'package:adminpanel/app/common%20widgets/common_white_bg_button.dart';
-import 'package:adminpanel/app/core/theme/app_colors.dart';
+import 'package:business_whatsapp/app/common%20widgets/common_filled_button.dart';
+import 'package:business_whatsapp/app/common%20widgets/common_white_bg_button.dart';
+import 'package:business_whatsapp/app/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:adminpanel/app/common%20widgets/custom_table_contents.dart';
+import 'package:business_whatsapp/app/common%20widgets/custom_table_contents.dart';
 
-import 'package:adminpanel/app/common%20widgets/common_pagination.dart';
-import 'package:adminpanel/app/utilities/webutils.dart';
+import 'package:business_whatsapp/app/common%20widgets/common_pagination.dart';
+import 'package:business_whatsapp/app/utilities/webutils.dart';
 
 class CustomTable extends StatelessWidget {
   CustomTable({

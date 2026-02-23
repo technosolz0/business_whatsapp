@@ -1,10 +1,10 @@
-import 'package:adminpanel/app/core/theme/app_colors.dart';
+import 'package:business_whatsapp/app/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:adminpanel/app/data/models/menu_item_model.dart';
-import 'package:adminpanel/app/routes/app_pages.dart';
-import 'package:adminpanel/app/utilities/webutils.dart';
+import 'package:business_whatsapp/app/data/models/menu_item_model.dart';
+import 'package:business_whatsapp/app/routes/app_pages.dart';
+import 'package:business_whatsapp/app/utilities/webutils.dart';
 
 // Made For the UI of Menu
 

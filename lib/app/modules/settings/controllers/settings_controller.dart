@@ -1,6 +1,6 @@
-import 'package:adminpanel/app/data/models/subscription_model.dart';
-import 'package:adminpanel/app/data/services/subscription_service.dart';
-import 'package:adminpanel/app/data/services/broadcast_firebase_service.dart';
+import 'package:business_whatsapp/app/data/models/subscription_model.dart';
+import 'package:business_whatsapp/app/data/services/subscription_service.dart';
+import 'package:business_whatsapp/app/data/services/broadcast_firebase_service.dart';
 import 'package:get/get.dart';
 
 class SettingsController extends GetxController {

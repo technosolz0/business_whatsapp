@@ -1,5 +1,5 @@
-import 'package:adminpanel/app/data/models/broadcast_table_model.dart';
-import 'package:adminpanel/app/modules/broadcasts/controllers/broadcasts_controller.dart';
+import 'package:business_whatsapp/app/data/models/broadcast_table_model.dart';
+import 'package:business_whatsapp/app/modules/broadcasts/controllers/broadcasts_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../core/theme/app_colors.dart';

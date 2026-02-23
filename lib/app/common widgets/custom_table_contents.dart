@@ -1,14 +1,14 @@
 // ignore_for_file: must_be_immutable
 
-import 'package:adminpanel/app/core/theme/app_colors.dart';
+import 'package:business_whatsapp/app/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:adminpanel/app/common%20widgets/common_filled_button.dart';
-import 'package:adminpanel/app/common%20widgets/common_textfield.dart';
-import 'package:adminpanel/app/common%20widgets/common_white_bg_button.dart';
-import 'package:adminpanel/app/utilities/webutils.dart';
-import 'package:adminpanel/app/core/constants/app_assets.dart'; // Added this import
+import 'package:business_whatsapp/app/common%20widgets/common_filled_button.dart';
+import 'package:business_whatsapp/app/common%20widgets/common_textfield.dart';
+import 'package:business_whatsapp/app/common%20widgets/common_white_bg_button.dart';
+import 'package:business_whatsapp/app/utilities/webutils.dart';
+import 'package:business_whatsapp/app/core/constants/app_assets.dart'; // Added this import
 
 /// This File is to handle if we have to show the upper contents of table or not
 

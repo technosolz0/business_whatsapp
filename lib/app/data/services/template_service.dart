@@ -1,9 +1,10 @@
 import 'dart:typed_data';
-import 'package:adminpanel/app/data/models/interactive_model.dart';
-import 'package:adminpanel/main.dart';
+import 'package:business_whatsapp/app/data/models/interactive_model.dart';
+import 'package:business_whatsapp/main.dart';
 import 'package:http_parser/http_parser.dart';
 
-import 'package:adminpanel/app/Utilities/network_utilities.dart';
+import 'package:business_whatsapp/app/Utilities/api_endpoints.dart';
+import 'package:business_whatsapp/app/Utilities/network_utilities.dart';
 import 'package:dio/dio.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -13,15 +14,12 @@ class TemplateService {
 
   final Dio _dio = NetworkUtilities.getDioClient();
 
-  /// Cloud Function URLs
-  final String createUrl =
-      "https://createinterakttemplate-d3b4t36f7q-uc.a.run.app";
-  final String getUrl = "https://getinterakttemplates-d3b4t36f7q-uc.a.run.app";
-  final String deleteUrl =
-      "https://deleteinterakttemplate-d3b4t36f7q-uc.a.run.app";
+  /// Cloud Function URLs (Moved to ApiEndpoints)
+  final String createUrl = ApiEndpoints.createTemplate;
+  final String getUrl = ApiEndpoints.getTemplates;
+  final String deleteUrl = ApiEndpoints.deleteTemplate;
 
-  final String uploadMediaUrl =
-      'https://uploadmediatointerakt-d3b4t36f7q-uc.a.run.app';
+  final String uploadMediaUrl = ApiEndpoints.uploadMediaToInterakt;
 
   Future<Map<String, dynamic>> createInteraktTemplate({
     required String name,

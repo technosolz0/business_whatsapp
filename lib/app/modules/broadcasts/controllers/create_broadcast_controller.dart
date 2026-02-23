@@ -3,36 +3,37 @@ import 'dart:typed_data';
 import 'package:csv/csv.dart';
 import 'package:file_saver/file_saver.dart';
 
-import 'package:adminpanel/app/Utilities/webutils.dart';
-import 'package:adminpanel/app/Utilities/network_utilities.dart';
-import 'package:adminpanel/app/Utilities/media_utils.dart';
-import 'package:adminpanel/app/Utilities/utilities.dart';
-import 'package:adminpanel/app/common%20widgets/common_snackbar.dart';
-import 'package:adminpanel/app/data/models/broadcast_model.dart';
-import 'package:adminpanel/app/data/models/broadcast_payload.dart';
-import 'package:adminpanel/app/data/models/broadcast_status.dart';
-import 'package:adminpanel/app/data/models/contact_model.dart';
-import 'package:adminpanel/app/data/models/interactive_model.dart';
-import 'package:adminpanel/app/data/models/quota_model.dart';
-import 'package:adminpanel/app/data/models/template_params.dart';
-import 'package:adminpanel/app/data/services/broadcast_firebase_service.dart';
-import 'package:adminpanel/app/data/services/broadcast_queue_service.dart';
-import 'package:adminpanel/app/data/services/broadcast_service.dart';
-import 'package:adminpanel/app/data/services/contact_service.dart';
+import 'package:business_whatsapp/app/Utilities/api_endpoints.dart';
+import 'package:business_whatsapp/app/Utilities/webutils.dart';
+import 'package:business_whatsapp/app/Utilities/network_utilities.dart';
+import 'package:business_whatsapp/app/Utilities/media_utils.dart';
+import 'package:business_whatsapp/app/Utilities/utilities.dart';
+import 'package:business_whatsapp/app/common%20widgets/common_snackbar.dart';
+import 'package:business_whatsapp/app/data/models/broadcast_model.dart';
+import 'package:business_whatsapp/app/data/models/broadcast_payload.dart';
+import 'package:business_whatsapp/app/data/models/broadcast_status.dart';
+import 'package:business_whatsapp/app/data/models/contact_model.dart';
+import 'package:business_whatsapp/app/data/models/interactive_model.dart';
+import 'package:business_whatsapp/app/data/models/quota_model.dart';
+import 'package:business_whatsapp/app/data/models/template_params.dart';
+import 'package:business_whatsapp/app/data/services/broadcast_firebase_service.dart';
+import 'package:business_whatsapp/app/data/services/broadcast_queue_service.dart';
+import 'package:business_whatsapp/app/data/services/broadcast_service.dart';
+import 'package:business_whatsapp/app/data/services/contact_service.dart';
 
-import 'package:adminpanel/app/data/services/template_firebase_service.dart';
-import 'package:adminpanel/app/data/services/upload_file_firebase.dart';
-import 'package:adminpanel/app/modules/broadcasts/views/widgets/segment_filter_popup.dart';
-import 'package:adminpanel/app/modules/contacts/services/import_service.dart';
-import 'package:adminpanel/app/routes/app_pages.dart';
-import 'package:adminpanel/app/utilities/constants/app_constants.dart';
+import 'package:business_whatsapp/app/data/services/template_firebase_service.dart';
+import 'package:business_whatsapp/app/data/services/upload_file_firebase.dart';
+import 'package:business_whatsapp/app/modules/broadcasts/views/widgets/segment_filter_popup.dart';
+import 'package:business_whatsapp/app/modules/contacts/services/import_service.dart';
+import 'package:business_whatsapp/app/routes/app_pages.dart';
+import 'package:business_whatsapp/app/utilities/constants/app_constants.dart';
 import 'package:chips_input_autocomplete/chips_input_autocomplete.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'broadcasts_controller.dart';
 import '../../../data/models/broadcast_table_model.dart';
-import 'package:adminpanel/main.dart';
+import 'package:business_whatsapp/main.dart';
 
 import 'package:intl/intl.dart';
 
@@ -274,7 +275,7 @@ class CreateBroadcastController extends GetxController {
       // Fetch approved templates from the new API
       final dio = NetworkUtilities.getDioClient();
       final response = await dio.get(
-        'https://getapprovedtemplates-d3b4t36f7q-uc.a.run.app',
+        ApiEndpoints.getApprovedTemplates,
         queryParameters: {'clientId': clientID},
       );
 

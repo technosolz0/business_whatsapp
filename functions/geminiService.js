@@ -1,12 +1,17 @@
 const { GoogleGenAI } = require("@google/genai");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
+const axios = require("axios");
 
 // Initialize Firebase Admin if not already initialized
 if (!admin.apps.length) {
     admin.initializeApp();
 }
 const db = admin.firestore();
+
+// Initialize Gemini Client
+const apiKey = process.env.GOOGLE_API_KEY;
+const client = new GoogleGenAI({ apiKey });
 
 const fallbackPhrase = "We couldn't find that information. Would you like to schedule a call with a representative?";
 const systemPrompt = `You are the AIS Virtual Assistant. 
@@ -31,9 +36,7 @@ Rules:
 /**
  * Generate content using Google Gemini with File Search tool.
  * 
- * @param {string} clientId - The client ID.
  * @param {string} prompt - The text prompt for the model.
- * @param {string} apiKey - The API key for authentication.
  * @param {string[]} storeIds - The resource names of the File Search Store (e.g., "fileSearchStores/...").
  * @param {string} modelName - The model to use.
  * @param {Object} config - Optional configuration for generation.
@@ -41,17 +44,15 @@ Rules:
  * @param {number} [contextWindow=10] - Number of previous messages to remember.
  * @returns {Promise<string>} - The generated text response.
  */
-async function generateContentWithFileSearch(clientId, prompt, apiKey, storeIds, modelName = "gemini-2.5-flash-lite", config = {}, sessionId = null, contextWindow = 10) {
+async function generateContentWithFileSearch(prompt, storeIds, modelName = "gemini-2.5-flash-lite", config = {}, sessionId = null, contextWindow = 10) {
     if (!apiKey) {
-        throw new Error("googleApiKey is not set in client's secrets.");
+        throw new Error("GOOGLE_API_KEY is not set in environment variables.");
     }
-    try {
-        // Initialize Gemini Client
-        const client = new GoogleGenAI({ apiKey });
 
+    try {
         let history = [];
         if (sessionId) {
-            history = await getChatHistory(clientId, sessionId, contextWindow);
+            history = await getChatHistory(sessionId, contextWindow);
         }
 
         // Format contents: history + current prompt
@@ -111,7 +112,7 @@ async function generateContentWithFileSearch(clientId, prompt, apiKey, storeIds,
                     logger.info(`Tool Call: scheduleCall detected. DateTime: ${dateTime}, Reason: ${reason}`);
 
                     // Notify sales team
-                    await notifySalesTeam(clientId, sessionId, dateTime, reason);
+                    await notifySalesTeam(sessionId, dateTime, reason);
 
                     // We can either return a confirmation or continue the generation
                     // For simplicity, we'll append a confirmation to the response if text is empty
@@ -123,8 +124,8 @@ async function generateContentWithFileSearch(clientId, prompt, apiKey, storeIds,
         }
 
         // Check for unanswered question
-        if (responseText && responseText.includes('Would you like to schedule a call with a representative?')) {
-            await logUnansweredQuestion(clientId, sessionId, prompt);
+        if (responseText && responseText.includes(fallbackPhrase)) {
+            await logUnansweredQuestion(sessionId, prompt);
         }
 
         return responseText;
@@ -138,11 +139,9 @@ async function generateContentWithFileSearch(clientId, prompt, apiKey, storeIds,
 /**
  * Retrieves chat history from the existing 'chats' collection in Firestore.
  */
-async function getChatHistory(clientId, sessionId, limit) {
+async function getChatHistory(sessionId, limit) {
     try {
         const historyRef = db.collection("chats")
-            .doc(clientId)
-            .collection("data")
             .doc(sessionId)
             .collection("messages")
             .where("messageType", "==", "text")
@@ -150,15 +149,19 @@ async function getChatHistory(clientId, sessionId, limit) {
             .limit(limit);
 
         const snapshot = await historyRef.get();
+        const history = [];
 
-        // Map first (descending), then reverse to get chronological order (ascending)
-        const history = snapshot.docs.map(doc => {
+        snapshot.forEach(doc => {
             const data = doc.data();
-            return {
-                role: data.isFromMe ? "model" : "user",
+            // Map roles based on isFromMe: true -> model, false -> user
+            const role = data.isFromMe ? "model" : "user";
+
+            // unshift to keep chronological order (last messages first in Gemini contents)
+            history.unshift({
+                role: role,
                 parts: [{ text: data.content || "" }]
-            };
-        }).reverse();
+            });
+        });
 
         return history;
     } catch (error) {
@@ -170,7 +173,7 @@ async function getChatHistory(clientId, sessionId, limit) {
 /**
  * Notifies the sales team about a call request.
  */
-async function notifySalesTeam(clientId, contactId, dateTime, reason) {
+async function notifySalesTeam(contactId, dateTime, reason) {
     try {
         const salesPhone = process.env.SALES_TEAM_WHATSAPP;
         if (!salesPhone) {
@@ -179,7 +182,7 @@ async function notifySalesTeam(clientId, contactId, dateTime, reason) {
         }
 
         // Fetch contact details for better notification
-        const contactDoc = await db.collection("contacts").doc(clientId).collection("data").doc(contactId).get();
+        const contactDoc = await db.collection("contacts").doc(contactId).get();
         let contactInfo = contactId;
         if (contactDoc.exists) {
             const data = contactDoc.data();
@@ -188,7 +191,24 @@ async function notifySalesTeam(clientId, contactId, dateTime, reason) {
 
         const notificationText = `🚀 *New Call Scheduled!*\n\n*Contact:* ${contactInfo}\n*Time:* ${dateTime}\n*Topic:* ${reason || "Not specified"}\n\nPlease reach out to the customer at the scheduled time.`;
 
-        //TODO: Send via WhatsApp Interakt API
+        // Send via WhatsApp Interakt API
+        const PHONENUMBERID = process.env.PHONENUMBERID;
+        const SEND_MESSAGE_URL = `https://amped-express.interakt.ai/api/v24.0/${PHONENUMBERID}/messages`;
+        const TOKEN = process.env.INTERAKT_TOKEN;
+        const WABA_ID = process.env.WABA_ID;
+
+        await axios.post(SEND_MESSAGE_URL, {
+            messaging_product: "whatsapp",
+            to: salesPhone.replace(/[+\s-]/g, ""),
+            type: "text",
+            text: { body: notificationText }
+        }, {
+            headers: {
+                "x-access-token": TOKEN,
+                "x-waba-id": WABA_ID,
+                "Content-Type": "application/json",
+            },
+        });
 
         logger.info(`Sales team notified about call for contact ${contactId}`);
 
@@ -200,9 +220,9 @@ async function notifySalesTeam(clientId, contactId, dateTime, reason) {
 /**
  * Logs unanswered questions to a separate collection.
  */
-async function logUnansweredQuestion(clientId, contactId, question) {
+async function logUnansweredQuestion(contactId, question) {
     try {
-        await db.collection("unanswered_questions").doc(clientId).collection("data").add({
+        await db.collection("unanswered_questions").add({
             contactId: contactId,
             question: question,
             timestamp: admin.firestore.FieldValue.serverTimestamp()

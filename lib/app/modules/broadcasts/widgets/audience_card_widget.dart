@@ -1,4 +1,4 @@
-import 'package:adminpanel/app/core/theme/app_colors.dart';
+import 'package:business_whatsapp/app/core/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
 class AudienceCardWidget extends StatelessWidget {

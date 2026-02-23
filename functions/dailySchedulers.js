@@ -5,11 +5,9 @@ const admin = require("firebase-admin");
 const sharp = require("sharp");
 const { sendWhatsAppTemplateMessageHelper } = require("./broadcastHandler");
 const { createMediaId } = require("./templateHandler");
-// Initialize Firebase Admin if not already initialized
-if (!admin.apps.length) {
-    admin.initializeApp();
-}
+
 const db = admin.firestore();
+const bucket = admin.storage().bucket();
 const schedulerClient = new CloudSchedulerClient();
 const PROJECT_ID = process.env.PROJECT_ID;
 const REGION = process.env.REGION;
@@ -79,7 +77,7 @@ exports.pauseMilestoneCronJob = onRequest({ cors: true }, async (req, res) => {
                 message: "Method not allowed.",
             });
         }
-        const { clientId, schedulerId } = req.body;
+        const { schedulerId } = req.body;
         const name = schedulerClient.jobPath(PROJECT_ID, REGION, schedulerId);
 
         //pause the job
@@ -88,7 +86,7 @@ exports.pauseMilestoneCronJob = onRequest({ cors: true }, async (req, res) => {
         });
 
         //update the scheduler status
-        await db.collection("milestone_schedulars").doc(clientId).collection("data").doc(schedulerId).update({
+        await db.collection("milestone_schedulars").doc(schedulerId).update({
             status: "paused",
         });
 
@@ -119,7 +117,7 @@ exports.resumeMilestoneCronJob = onRequest({ cors: true }, async (req, res) => {
                 message: "Method not allowed.",
             });
         }
-        const { clientId, schedulerId } = req.body;
+        const { schedulerId } = req.body;
         const name = schedulerClient.jobPath(PROJECT_ID, REGION, schedulerId);
 
         //resume the job
@@ -128,7 +126,7 @@ exports.resumeMilestoneCronJob = onRequest({ cors: true }, async (req, res) => {
         });
 
         //update the scheduler status
-        await db.collection("milestone_schedulars").doc(clientId).collection("data").doc(schedulerId).update({
+        await db.collection("milestone_schedulars").doc(schedulerId).update({
             status: "active",
         });
 
@@ -159,7 +157,7 @@ exports.deleteMilestoneCronJob = onRequest({ cors: true }, async (req, res) => {
                 message: "Method not allowed.",
             });
         }
-        const { clientId, schedulerId } = req.body;
+        const { schedulerId } = req.body;
         const name = schedulerClient.jobPath(PROJECT_ID, REGION, schedulerId);
 
         //pause the job
@@ -173,7 +171,7 @@ exports.deleteMilestoneCronJob = onRequest({ cors: true }, async (req, res) => {
         });
 
         //delete the scheduler
-        await db.collection("milestone_schedulars").doc(clientId).collection("data").doc(schedulerId).delete();
+        await db.collection("milestone_schedulars").doc(schedulerId).delete();
 
         logger.info("Scheduler deleted successfully.");
 
@@ -252,10 +250,10 @@ exports.sendMilestoneMessages = onRequest({ cors: true }, async (req, res) => {
 
         logger.info("🎂 Starting Cron Job...");
 
-        const { clientId, schedulerId } = req.body;
+        const { schedulerId } = req.body;
 
         //1. Fetch scheduler data
-        const schedulerSnapshot = await db.collection("milestone_schedulars").doc(clientId).collection("data").doc(schedulerId).get();
+        const schedulerSnapshot = await db.collection("milestone_schedulars").doc(schedulerId).get();
         const schedulerData = schedulerSnapshot.data();
 
         const type = schedulerData.type;
@@ -290,7 +288,7 @@ exports.sendMilestoneMessages = onRequest({ cors: true }, async (req, res) => {
                 break;
         }
 
-        const snapshot = await db.collection("contacts").doc(clientId).collection("data")
+        const snapshot = await db.collection("contacts")
             .where(field, "==", dayMonth)
             .where(activeFilter, "==", true)
             .get();
@@ -390,7 +388,6 @@ exports.sendMilestoneMessages = onRequest({ cors: true }, async (req, res) => {
                     });
 
                 const response = await sendWhatsAppTemplateMessageHelper({
-                    clientId: clientId,
                     template: schedulerData.selectedTemplateName,
                     language: schedulerData.language,
                     type: "Media",
@@ -415,7 +412,7 @@ exports.sendMilestoneMessages = onRequest({ cors: true }, async (req, res) => {
             }
         }
 
-        await db.collection("milestone_schedulars").doc(clientId).collection("data").doc(schedulerId).update({
+        await db.collection("milestone_schedulars").doc(schedulerId).update({
             lastRun: admin.firestore.FieldValue.serverTimestamp(),
         });
 

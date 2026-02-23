@@ -2,8 +2,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:get/get.dart';
-import 'package:adminpanel/app/core/theme/app_colors.dart';
-import 'package:adminpanel/app/Utilities/responsive.dart';
+import 'package:business_whatsapp/app/core/theme/app_colors.dart';
+import 'package:business_whatsapp/app/Utilities/responsive.dart';
 import '../../controllers/create_broadcast_controller.dart';
 
 class ImportOptionsDialog extends StatelessWidget {

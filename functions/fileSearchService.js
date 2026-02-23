@@ -1,17 +1,23 @@
 const { onRequest } = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const Busboy = require("busboy");
+const axios = require("axios");
 const { GoogleGenAI } = require("@google/genai");
-const { getSecrets } = require("./webhookHandler");
+
+const STORE_ID = process.env.STORE_ID;
+const QNA_STORE_ID = process.env.QNA_STORE_ID;
+
+// Initialize Gemini Client
+const apiKey = process.env.GOOGLE_API_KEY;
+const client = new GoogleGenAI({ apiKey });
 
 /**
  * Helper to get the target store ID based on a boolean flag.
  * @param {boolean|string} isQnA - Flag to indicate if QnA store should be used.
- * @param {Object} secrets - The secrets object containing store IDs.
  * @returns {string} - The selected store ID.
  */
-const getTargetStoreId = (isQnA, secrets) => {
-    return (isQnA === "true" || isQnA === true) ? secrets.qnaStoreId : secrets.storeId;
+const getTargetStoreId = (isQnA) => {
+    return (isQnA === "true" || isQnA === true) ? QNA_STORE_ID : STORE_ID;
 };
 
 /**
@@ -20,7 +26,11 @@ const getTargetStoreId = (isQnA, secrets) => {
  * This endpoint accepts `multipart/form-data` requests containing:
  * - `files`: A single file to upload.
  */
-const uploadToFileSearchStore = onRequest({ cors: true }, async (req, res) => {
+const uploadToFileSearchStore = onRequest(async (req, res) => {
+    // Set CORS headers to allow requests from any origin
+    res.set("Access-Control-Allow-Origin", "*");
+    res.set("Access-Control-Allow-Headers", "*");
+
     // Handle preflight OPTIONS requests
     if (req.method === "OPTIONS") {
         return res.status(200).end();
@@ -37,8 +47,7 @@ const uploadToFileSearchStore = onRequest({ cors: true }, async (req, res) => {
     try {
         const { fields, files } = await parseMultipart(req);
 
-        const secrets = await getSecrets(fields.clientId);
-        const targetStoreId = getTargetStoreId(fields.isQnA, secrets);
+        const targetStoreId = getTargetStoreId(fields.isQnA);
 
         if (!targetStoreId) {
             return res.status(400).json({
@@ -54,22 +63,18 @@ const uploadToFileSearchStore = onRequest({ cors: true }, async (req, res) => {
             });
         }
 
-        const apiKey = secrets.googleApiKey;
+        const apiKey = process.env.GOOGLE_API_KEY;
         if (!apiKey) {
-            logger.error("googleApiKey is not set in client's secrets.");
+            logger.error("GOOGLE_API_KEY is missing in environment variables.");
             return res.status(500).json({
                 success: false,
-                message: "Configuration error: API Key missing"
+                message: "Server configuration error: API Key missing"
             });
         }
-
-        // Initialize Gemini Client
-        const client = new GoogleGenAI({ apiKey });
 
         // Upload all files to the selected Google File Search Store
         const uploadPromises = files.map(file =>
             uploadToFileSearchStoreHelper(
-                client,
                 targetStoreId,
                 file.buffer,
                 file.mimeType,
@@ -103,7 +108,9 @@ const uploadToFileSearchStore = onRequest({ cors: true }, async (req, res) => {
  * Accepts JSON body:
  * - `id`: The resource name of the document to delete (e.g., "corpora/.../documents/...").
  */
-const deleteFromFileSearchStore = onRequest({ cors: true }, async (req, res) => {
+const deleteFromFileSearchStore = onRequest(async (req, res) => {
+    res.set("Access-Control-Allow-Origin", "*");
+    res.set("Access-Control-Allow-Headers", "*");
 
     if (req.method === "OPTIONS") {
         return res.status(200).end();
@@ -115,22 +122,10 @@ const deleteFromFileSearchStore = onRequest({ cors: true }, async (req, res) => 
 
     try {
         const name = req.body.id || req.query.id;
-        const clientId = req.body.clientId || req.query.clientId;
 
         if (!name) {
             return res.status(400).json({ success: false, message: "Missing required parameter: id" });
         }
-
-        const secrets = await getSecrets(clientId);
-        const apiKey = secrets.googleApiKey;
-        if (!apiKey) {
-            logger.error("googleApiKey is not set in client's secrets.");
-            return res.status(500).json({
-                success: false,
-                message: "Configuration error: API Key missing"
-            });
-        }
-        const client = new GoogleGenAI({ apiKey });
 
         logger.info(`Deleting document: ${name}`);
         await client.fileSearchStores.documents.delete({ name: name, config: { force: true } });
@@ -166,8 +161,6 @@ const listDocumentsFromFileSearchStore = onRequest({ cors: true }, async (req, r
 
     try {
         const isQnA = req.query.isQnA || req.body.isQnA;
-        const clientId = req.query.clientId || req.body.clientId;
-
         const targetStoreId = getTargetStoreId(isQnA);
 
         if (!targetStoreId) {
@@ -176,17 +169,6 @@ const listDocumentsFromFileSearchStore = onRequest({ cors: true }, async (req, r
                 message: "Target store ID is not configured"
             });
         }
-
-        const secrets = await getSecrets(clientId);
-        const apiKey = secrets.googleApiKey;
-        if (!apiKey) {
-            logger.error("googleApiKey is not set in client's secrets.");
-            return res.status(500).json({
-                success: false,
-                message: "Configuration error: API Key missing"
-            });
-        }
-        const client = new GoogleGenAI({ apiKey });
 
         logger.info(`Listing documents for store: ${targetStoreId}`);
         const response = await client.fileSearchStores.documents.list({
@@ -228,7 +210,9 @@ const listDocumentsFromFileSearchStore = onRequest({ cors: true }, async (req, r
  * - `files`: The new file.
  * - `id`: The resource name of the existing document to delete.
  */
-const updateInFileSearchStore = onRequest({ cors: true }, async (req, res) => {
+const updateInFileSearchStore = onRequest(async (req, res) => {
+    res.set("Access-Control-Allow-Origin", "*");
+    res.set("Access-Control-Allow-Headers", "*");
 
     if (req.method === "OPTIONS") return res.status(200).end();
     if (req.method !== "POST") return res.status(405).json({ success: false, message: "Only POST requests are allowed" });
@@ -237,8 +221,6 @@ const updateInFileSearchStore = onRequest({ cors: true }, async (req, res) => {
         const { fields, files } = await parseMultipart(req);
 
         const name = fields.id;
-        const clientId = fields.clientId;
-
         const uploadedFile = files[0];
         const targetStoreId = getTargetStoreId(fields.isQnA);
 
@@ -250,17 +232,6 @@ const updateInFileSearchStore = onRequest({ cors: true }, async (req, res) => {
             return res.status(400).json({ success: false, message: "No new file uploaded" });
         }
 
-        const secrets = await getSecrets(clientId);
-        const apiKey = secrets.googleApiKey;
-        if (!apiKey) {
-            logger.error("googleApiKey is not set in client's secrets.");
-            return res.status(500).json({
-                success: false,
-                message: "Configuration error: API Key missing"
-            });
-        }
-        const client = new GoogleGenAI({ apiKey });
-
         // 1. Delete the old document (name includes store path, so it's store-independent if full name is provided)
         try {
             logger.info(`Deleting old document: ${name}`);
@@ -271,7 +242,6 @@ const updateInFileSearchStore = onRequest({ cors: true }, async (req, res) => {
 
         // 2. Upload the new file
         const result = await uploadToFileSearchStoreHelper(
-            client,
             targetStoreId,
             uploadedFile.buffer,
             uploadedFile.mimeType,
@@ -350,7 +320,7 @@ function parseMultipart(req) {
  * @param {string} description - The description for the file.
  * @returns {Promise<Object>} - The response data from the Google API.
  */
-async function uploadToFileSearchStoreHelper(client, storeId, fileBuffer, mimeType, displayName, description) {
+async function uploadToFileSearchStoreHelper(storeId, fileBuffer, mimeType, displayName, description) {
     try {
         const config = {
             displayName: displayName
