@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:developer';
 
+import 'package:business_whatsapp/app/Utilities/api_endpoints.dart';
+import 'package:business_whatsapp/app/Utilities/network_utilities.dart';
 import 'package:business_whatsapp/app/modules/chats/models/chat_model.dart';
 import 'package:business_whatsapp/main.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -151,19 +153,22 @@ class AddAdminsController extends GetxController {
     showAdminDetails.value = true;
 
     try {
-      final snapshot = await firestore
-          .collection('roles')
-          .doc(clientIdToUse)
-          .collection('data')
-          .get();
+      final _dio = NetworkUtilities.getDioClient();
+      final response = await _dio.get(
+        ApiEndpoints.getRoles,
+        queryParameters: {'clientId': clientIdToUse},
+      );
 
-      allRoles.value = snapshot.docs
-          .map((doc) => RolesModel.fromJson({'id': doc.id, ...doc.data()}))
-          .toList();
-      if (!isEditing) showAdminDetails.value = false;
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final List rolesData = response.data['data'];
+        allRoles.value = rolesData
+            .map((data) => RolesModel.fromJson({'id': data['id'], ...data}))
+            .toList();
+      }
     } catch (e) {
-      if (!isEditing) showAdminDetails.value = false;
       log("Error fetching roles: $e");
+    } finally {
+      showAdminDetails.value = false;
     }
   }
 
@@ -171,10 +176,14 @@ class AddAdminsController extends GetxController {
     try {
       showAdminDetails.value = true;
 
-      final docSnapshot = await firestore.collection('admins').doc(id).get();
+      final dio = NetworkUtilities.getDioClient();
+      final response = await dio.get(
+        ApiEndpoints.getAdminById,
+        queryParameters: {'adminId': id},
+      );
 
-      if (docSnapshot.exists) {
-        final data = docSnapshot.data()!;
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final data = response.data['data'];
 
         // Populate basic fields
         firstNameController.text = data['first_name'] ?? '';
@@ -182,12 +191,12 @@ class AddAdminsController extends GetxController {
         emailController.text = data['email'] ?? '';
         final cId = data['client_id']?.toString();
         selectedClientId.value = cId;
-        isSuperUserChecked.value = data['isSuperUser'] ?? false;
+        isSuperUserChecked.value = data['is_super_user'] ?? false;
         editingPassword = data['password'] ?? '';
         createdDate = data['created_at'] ?? '';
         lastLoggedIn = data['last_logged_in'] ?? '';
         originalEmail = emailController.text.trim().toLowerCase();
-        isAllChats.value = data['isAllChats'] ?? false;
+        isAllChats.value = data['is_all_chats'] ?? false;
 
         // Fetch roles for this client so the dropdown has valid items
         if (cId != null && cId.isNotEmpty) {
@@ -197,7 +206,7 @@ class AddAdminsController extends GetxController {
         // Set role AFTER fetching roles
         selectedRole.value = data['role'] ?? '';
 
-        // Load assigned contacts (IDs only for selection state)
+        // Load assigned contacts
         if (data['assigned_contacts'] != null) {
           List<dynamic> ids = data['assigned_contacts'];
           segmentContacts.assignAll(
@@ -208,20 +217,16 @@ class AddAdminsController extends GetxController {
         }
       } else {
         Utilities.showSnackbar(SnackType.ERROR, "Admin not found");
-        // Only go back on mobile, on web keep the form for user to navigate
         if (GetPlatform.isMobile) {
           Get.back();
         }
-        return;
       }
     } catch (e) {
       log("Error fetching admin details: $e");
       Utilities.showSnackbar(SnackType.ERROR, "Failed to fetch admin details");
-      // Only go back on mobile, on web keep the form for user to navigate
       if (GetPlatform.isMobile) {
         Get.back();
       }
-      return;
     } finally {
       showAdminDetails.value = false;
     }
@@ -237,34 +242,7 @@ class AddAdminsController extends GetxController {
         return;
       }
 
-      String enteredEmail = emailController.text.trim().toLowerCase();
-
-      // Check only if email is changed OR it's a new admin
-      if (!isEditing || isEmailChanged()) {
-        // === Check if email exists in admins (excluding current admin) ===
-        final adminQuery = await firestore
-            .collection('admins')
-            // .where(
-            //   'client_id',
-            //   isEqualTo: isSuperUserChecked.value
-            //       ? selectedClientId.value
-            //       : clientID,
-            // )
-            .where('email', isEqualTo: enteredEmail)
-            .get();
-
-        bool emailExistsInAdmins = adminQuery.docs.any(
-          (doc) => doc.id != adminID,
-        );
-
-        if (emailExistsInAdmins) {
-          Utilities.showSnackbar(
-            SnackType.ERROR,
-            "Email already exists in the system.",
-          );
-          return;
-        }
-      }
+      final dio = NetworkUtilities.getDioClient();
 
       final String id = adminID.isEmpty
           ? DateTime.now().millisecondsSinceEpoch.toString()
@@ -281,14 +259,13 @@ class AddAdminsController extends GetxController {
       List<AssignedPages>? assignedPages = <AssignedPages>[];
 
       if (allRoles.isNotEmpty && selectedRole.isNotEmpty) {
-        allRoles.map((e) {
+        for (var e in allRoles) {
           if (e.roleName == selectedRole.value) {
             assignedPages = e.assignedPages;
           }
-        }).toList();
+        }
       }
 
-      // Use selected client ID if super user, otherwise use cookie client ID
       final clientIdToUse = isSuperUser.value
           ? selectedClientId.value
           : clientID;
@@ -303,35 +280,32 @@ class AddAdminsController extends GetxController {
         'email': emailController.text.trim().toLowerCase(),
         'role': selectedRole.value,
         'client_id': clientIdToUse,
-        'isSuperUser': isSuperUserChecked.value,
-        'isAllChats': isAllChats.value,
+        'is_super_user': isSuperUserChecked.value,
+        'is_all_chats': isAllChats.value,
         'assigned_contacts': segmentContacts.map((e) => e.id).toList(),
         'assigned_pages': assignedPages?.map((e) => e.toJson()).toList() ?? [],
-        'created_at': createdDate.isEmpty
-            ? DateTime.now().toIso8601String()
-            : createdDate,
-        'updated_at': adminID.isEmpty ? '' : DateTime.now().toIso8601String(),
-        'last_logged_in': adminID.isEmpty ? '' : lastLoggedIn,
       };
 
-      await FirebaseFirestore.instance
-          .collection('admins')
-          .doc(id)
-          .set(adminData);
-
-      Get.offNamed(Routes.ADMINS);
-
-      Utilities.showSnackbar(
-        SnackType.SUCCESS,
-        isEditing ? "Admin updated successfully" : "Admin added successfully",
+      final response = await dio.post(
+        isEditing ? ApiEndpoints.updateAdmin : ApiEndpoints.addAdmin,
+        queryParameters: isEditing ? {'adminId': id} : null,
+        data: adminData,
       );
 
-      // Optionally clear fields
-      firstNameController.clear();
-      lastNameController.clear();
-      emailController.clear();
-      roleController.clear();
-      passwordController.clear();
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        Get.offNamed(Routes.ADMINS);
+
+        Utilities.showSnackbar(
+          SnackType.SUCCESS,
+          isEditing ? "Admin updated successfully" : "Admin added successfully",
+        );
+        clearForm();
+      } else {
+        Utilities.showSnackbar(
+          SnackType.ERROR,
+          response.data['detail'] ?? "Failed to save admin",
+        );
+      }
     } catch (e) {
       log("$e");
       Utilities.showSnackbar(SnackType.ERROR, "Failed to add admin: $e");
@@ -347,13 +321,17 @@ class AddAdminsController extends GetxController {
   }
 
   Future<void> updateAssignedContacts() async {
-    // Only update immediately if we are editing an existing admin
     if (isEditing && adminID.isNotEmpty) {
       try {
         Utilities.showOverlayLoadingDialog();
-        await firestore.collection('admins').doc(adminID).update({
-          'assigned_contacts': segmentContacts.map((e) => e.id).toList(),
-        });
+        final dio = NetworkUtilities.getDioClient();
+        await dio.post(
+          ApiEndpoints.updateAdmin,
+          queryParameters: {'adminId': adminID},
+          data: {
+            'assigned_contacts': segmentContacts.map((e) => e.id).toList(),
+          },
+        );
         Utilities.hideCustomLoader(Get.context!);
         Utilities.showSnackbar(
           SnackType.SUCCESS,
@@ -507,7 +485,9 @@ class AddAdminsController extends GetxController {
 
     if (query.docs.isNotEmpty) {
       allContacts.assignAll(
-        query.docs.map((doc) => ChatModel.fromFirestore(doc)).toList(),
+        query.docs
+            .map((doc) => ChatModel.fromJson({...doc.data(), 'id': doc.id}))
+            .toList(),
       );
       // For viewing purposes, we treat all fetched contacts as the segment
       segmentContacts.assignAll(allContacts);

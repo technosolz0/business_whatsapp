@@ -6,7 +6,6 @@ import 'package:file_picker/file_picker.dart';
 import '../../../data/models/client_model.dart';
 import '../../../data/services/clients_service.dart';
 import '../../../routes/app_pages.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AddClientController extends GetxController {
   final ClientsService _clientsService = ClientsService();
@@ -84,21 +83,17 @@ class AddClientController extends GetxController {
         nameController.text = client.name;
         phoneNumberController.text = client.phoneNumber;
         phoneNumberIdController.text = client.phoneNumberId;
-        // interaktTokenController.text = client.interaktToken; // Removed
         wabaIdController.text = client.wabaId;
         webhookVerifyTokenController.text = client.webhookVerifyToken;
         adminLimitController.text = client.adminLimit.toString();
+        walletController.text = client.walletBalance.toString();
         isCRMEnabled.value = client.isCRMEnabled;
-
-        // Load additional data (Premium, Subscriptions, Wallet)
-        _loadAdditionalData(clientId!);
+        isPremium.value = client.isPremium;
+        subscriptionEndDate.value = client.subscriptionExpiry;
 
         if (client.logoUrl != null && client.logoUrl!.isNotEmpty) {
           logoFileName.value = 'Current Logo';
         }
-        // if (client.faviconUrl != null && client.faviconUrl!.isNotEmpty) {
-        //   faviconFileName.value = 'Current Favicon';
-        // } // Removed
       }
     } catch (e) {
       Get.snackbar(
@@ -149,73 +144,7 @@ class AddClientController extends GetxController {
 
   // pickFaviconFile removed
 
-  Future<void> _loadAdditionalData(String clientId) async {
-    try {
-      final dataCollection = FirebaseFirestore.instance
-          .collection('profile')
-          .doc(clientId)
-          .collection('data');
-
-      // Load Premium
-      final premiumDoc = await dataCollection.doc('premium').get();
-      if (premiumDoc.exists) {
-        isPremium.value = premiumDoc.data()?['status'] ?? true;
-      }
-
-      // Load Wallet
-      final walletDoc = await dataCollection.doc('wallet').get();
-      if (walletDoc.exists) {
-        walletController.text = (walletDoc.data()?['balance'] ?? 0).toString();
-      }
-
-      // Load Subscriptions
-      final subDoc = await dataCollection.doc('subscriptions').get();
-      if (subDoc.exists) {
-        final data = subDoc.data();
-        if (data != null && data['expiryDate'] != null) {
-          subscriptionEndDate.value = (data['expiryDate'] as Timestamp)
-              .toDate();
-        }
-      }
-    } catch (e) {
-      // debugPrint('Error loading additional data: $e');
-    }
-  }
-
-  Future<void> _saveAdditionalData(String clientId) async {
-    try {
-      final dataCollection = FirebaseFirestore.instance
-          .collection('profile')
-          .doc(clientId)
-          .collection('data');
-
-      // Save Premium
-      await dataCollection.doc('premium').set({'status': isPremium.value});
-
-      // Save Wallet
-      final balance = double.tryParse(walletController.text) ?? 0.0;
-      await dataCollection.doc('wallet').set({'balance': balance});
-
-      // Save Subscriptions
-      if (subscriptionEndDate.value != null) {
-        final now = DateTime.now();
-        final startDate = now;
-        final expiryDate = subscriptionEndDate.value!;
-        final difference = expiryDate.difference(startDate).inDays;
-
-        await dataCollection.doc('subscriptions').set({
-          'expiryDate': Timestamp.fromDate(expiryDate),
-          'lastRenewedAt': Timestamp.fromDate(now),
-          'startDate': Timestamp.fromDate(startDate),
-          'status': 'active',
-          'validityDays': difference > 0 ? difference : 0,
-        });
-      }
-    } catch (e) {
-      // debugPrint('Error saving additional data: $e');
-      rethrow; // Rethrow to be caught by saveClient
-    }
-  }
+  // Firestore based load/save additional data removed as moved to Client table
 
   /// Save client (add or update)
   Future<void> saveClient() async {
@@ -251,38 +180,29 @@ class AddClientController extends GetxController {
         name: nameController.text.trim(),
         phoneNumber: phoneNumberController.text.trim(),
         phoneNumberId: phoneNumberIdController.text.trim(),
-        // interaktToken: interaktTokenController.text.trim(), // Removed
         wabaId: wabaIdController.text.trim(),
         webhookVerifyToken: webhookVerifyTokenController.text.trim(),
         logoUrl: logoUrl,
-        // faviconUrl: faviconUrl, // Removed
-        status: existingClient?.status ?? 'Active',
+        status: existingClient?.status ?? 'Approved',
         isCRMEnabled: isCRMEnabled.value,
         adminLimit: int.tryParse(adminLimitController.text.trim()) ?? 2,
+        isPremium: isPremium.value,
+        subscriptionExpiry: subscriptionEndDate.value,
+        walletBalance: double.tryParse(walletController.text.trim()) ?? 0.0,
         createdAt: existingClient?.createdAt ?? DateTime.now(),
         updatedAt: DateTime.now(),
       );
 
-      String? targetClientId;
+      bool success;
 
       if (isEditMode.value && clientId != null) {
-        // Update existing client
-        targetClientId = clientId;
-        final success = await _clientsService.updateClient(clientId!, client);
-        if (!success) {
-          throw Exception('Failed to update client');
-        }
+        success = await _clientsService.updateClient(clientId!, client);
       } else {
-        // Add new client
-        targetClientId = await _clientsService.addClient(client);
-        if (targetClientId == null) {
-          throw Exception('Failed to add client');
-        }
+        final newId = await _clientsService.addClient(client);
+        success = newId != null;
       }
 
-      if (targetClientId != null) {
-        await _saveAdditionalData(targetClientId);
-
+      if (success) {
         Get.snackbar(
           'Success',
           'Client saved successfully',
@@ -291,6 +211,8 @@ class AddClientController extends GetxController {
           colorText: Colors.white,
         );
         Get.offAllNamed(Routes.CLIENTS);
+      } else {
+        throw Exception('Failed to save client');
       }
     } catch (e) {
       Get.snackbar(

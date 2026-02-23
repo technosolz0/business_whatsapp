@@ -1,7 +1,3 @@
-// ============================================================
-// 📁 lib/app/modules/chats/models/chat_model.dart
-// ============================================================
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
 class ChatModel {
@@ -62,51 +58,54 @@ class ChatModel {
     this.isLeadGenerated = false,
   }) : _isFavourite = isFavourite;
 
-  factory ChatModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+  factory ChatModel.fromJson(Map<String, dynamic> json) {
     return ChatModel(
-      id: doc.id,
-      name: data['name'] ?? '',
-      phoneNumber: data['phoneNumber'] ?? '',
-      avatarUrl: data['avatarUrl'],
-      lastMessage: data['lastMessage'] ?? '',
-      lastMessageTime: data['lastMessageTime'] != null
-          ? DateFormat(
-              'h:mm a',
-            ).format((data['lastMessageTime'] as Timestamp).toDate())
+      id: json['id']?.toString() ?? '',
+      name: json['name'] ?? '',
+      phoneNumber: json['phone_number'] ?? json['phoneNumber'] ?? '',
+      avatarUrl: json['avatar_url'] ?? json['avatarUrl'],
+      lastMessage: json['last_message'] ?? json['lastMessage'] ?? '',
+      lastMessageTime: json['last_message_time'] != null
+          ? (json['last_message_time'] is String
+                ? json['last_message_time']
+                : DateFormat('h:mm a').format(
+                    DateTime.parse(json['last_message_time'].toString()),
+                  ))
           : '',
-      campaignName: data['campaignName'],
-      isOnline: data['isOnline'] ?? false,
-      unRead: data['unRead'] == true,
-      isActive: data['isActive'] == true,
-      isFavourite: data['isFavourite'] == true,
-      userLastMessageTime: data['userLastMessageTime'] != null
-          ? (data['userLastMessageTime'] as Timestamp).toDate()
-          : null,
-      assignedAdmin: data['assigned_admin'] != null
-          ? List<String>.from(data['assigned_admin'])
-          : null,
-      leadRecordId: data['leadRecordId'],
-      isLeadGenerated: data['isLeadGenerated'] == true,
+      campaignName: json['campaign_name'] ?? json['campaignName'],
+      isOnline: json['is_online'] ?? json['isOnline'] ?? false,
+      unRead: json['un_read'] ?? json['unRead'] == true,
+      isActive: json['is_active'] ?? json['isActive'] == true,
+      isFavourite: json['isFavourite'] == true || json['is_favourite'] == true,
+      userLastMessageTime: json['user_last_message_time'] != null
+          ? DateTime.parse(json['user_last_message_time'].toString())
+          : (json['userLastMessageTime'] != null
+                ? DateTime.tryParse(json['userLastMessageTime'].toString())
+                : null),
+      assignedAdmin: json['assigned_admin'] != null
+          ? List<String>.from(json['assigned_admin'])
+          : (json['assigned_admins'] != null
+                ? List<String>.from(json['assigned_admins'])
+                : null),
+      leadRecordId: json['leadRecordId'],
+      isLeadGenerated: json['isLeadGenerated'] == true,
     );
   }
 
-  Map<String, dynamic> toFirestore() {
+  Map<String, dynamic> toJson() {
     return {
+      'id': id,
       'name': name,
-      'phoneNumber': phoneNumber,
-      'avatarUrl': avatarUrl,
-      'lastMessage': lastMessage,
-      'lastMessageTime': FieldValue.serverTimestamp(),
-      'campaignName': campaignName,
-      'isOnline': isOnline,
-      'unRead': unRead,
-      'isActive': isActive,
-      'isFavourite': isFavourite,
-      'createdAt': FieldValue.serverTimestamp(),
-      'userLastMessageTime': userLastMessageTime != null
-          ? Timestamp.fromDate(userLastMessageTime!)
-          : null,
+      'phone_number': phoneNumber,
+      'avatar_url': avatarUrl,
+      'last_message': lastMessage,
+      'last_message_time': userLastMessageTime?.toIso8601String(),
+      'campaign_name': campaignName,
+      'is_online': isOnline,
+      'un_read': unRead,
+      'is_active': isActive,
+      'is_favourite': isFavourite,
+      'user_last_message_time': userLastMessageTime?.toIso8601String(),
       'assigned_admin': assignedAdmin,
       'leadRecordId': leadRecordId,
       'isLeadGenerated': isLeadGenerated,

@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+// Removed Firestore import
 
 class ClientModel {
   String? id;
@@ -11,6 +11,9 @@ class ClientModel {
   String status; // "Approved", "Rejected", "Pending"
   int adminLimit;
   bool isCRMEnabled;
+  bool isPremium;
+  DateTime? subscriptionExpiry;
+  double walletBalance;
   DateTime createdAt;
   DateTime updatedAt;
 
@@ -25,6 +28,9 @@ class ClientModel {
     this.status = 'Pending',
     this.adminLimit = 2,
     this.isCRMEnabled = false,
+    this.isPremium = true,
+    this.subscriptionExpiry,
+    this.walletBalance = 0.0,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) : createdAt = createdAt ?? DateTime.now(),
@@ -42,11 +48,16 @@ class ClientModel {
       status: json['status'] ?? 'Pending',
       adminLimit: json['admin_limit'] ?? 2,
       isCRMEnabled: json['isCRMEnabled'] == true,
+      isPremium: json['is_premium'] ?? true,
+      subscriptionExpiry: json['subscription_expiry'] != null
+          ? DateTime.tryParse(json['subscription_expiry'])
+          : null,
+      walletBalance: (json['wallet_balance'] ?? 0.0).toDouble(),
       createdAt: json['createdAt'] != null
-          ? (json['createdAt'] as Timestamp).toDate()
+          ? DateTime.parse(json['createdAt'])
           : DateTime.now(),
       updatedAt: json['updatedAt'] != null
-          ? (json['updatedAt'] as Timestamp).toDate()
+          ? DateTime.parse(json['updatedAt'])
           : DateTime.now(),
     );
   }
@@ -62,8 +73,11 @@ class ClientModel {
       'status': status,
       'admin_limit': adminLimit,
       'isCRMEnabled': isCRMEnabled,
-      'createdAt': Timestamp.fromDate(createdAt),
-      'updatedAt': Timestamp.fromDate(updatedAt),
+      'is_premium': isPremium,
+      'subscription_expiry': subscriptionExpiry?.toIso8601String(),
+      'wallet_balance': walletBalance,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
     };
   }
 
@@ -78,6 +92,9 @@ class ClientModel {
     String? status,
     int? adminLimit,
     bool? isCRMEnabled,
+    bool? isPremium,
+    DateTime? subscriptionExpiry,
+    double? walletBalance,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -92,6 +109,9 @@ class ClientModel {
       status: status ?? this.status,
       adminLimit: adminLimit ?? this.adminLimit,
       isCRMEnabled: isCRMEnabled ?? this.isCRMEnabled,
+      isPremium: isPremium ?? this.isPremium,
+      subscriptionExpiry: subscriptionExpiry ?? this.subscriptionExpiry,
+      walletBalance: walletBalance ?? this.walletBalance,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

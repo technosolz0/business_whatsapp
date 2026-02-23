@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'dart:developer';
+import 'package:business_whatsapp/app/Utilities/api_endpoints.dart';
+import 'package:business_whatsapp/app/Utilities/network_utilities.dart';
 import 'package:business_whatsapp/app/data/models/admins_model.dart';
 import 'package:business_whatsapp/main.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -123,56 +125,29 @@ class AdminsController extends GetxController {
     showLoading.value = true;
 
     try {
-      if (newPageSize != null) {
-        pageSize.value = newPageSize;
-        allAdmins.clear();
-        lastDocument = null;
-        hasMore = true;
+      final dio = NetworkUtilities.getDioClient();
+      final response = await dio.get(
+        ApiEndpoints.getAdmins,
+        queryParameters: {'clientId': clientID},
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final List adminsData = response.data['data'];
+        allAdmins.value = adminsData
+            .map((data) => AdminsModel.fromJson({'id': data['id'], ...data}))
+            .toList();
+
+        // Search locally for now as simpler (can be improved later)
+        if (searchQuery.value.isNotEmpty) {
+          searchAdmins(searchQuery.value);
+        } else {
+          filteredAdmins.assignAll(allAdmins);
+        }
+
+        hasMore =
+            false; // Backend doesn't support pagination yet in this endpoint
+        updatePageRows();
       }
-
-      if (!isNextPage) {
-        allAdmins.clear();
-      }
-
-      Query<Map<String, dynamic>> query = firestore
-          .collection('admins')
-          .where('client_id', isEqualTo: clientID)
-          .orderBy('created_at')
-          .limit(pageSize.value + 1);
-
-      if (isNextPage && lastDocument != null) {
-        query = query.startAfterDocument(lastDocument!);
-      }
-
-      final snapshot = await query.get();
-
-      // ✅ Remove extra doc BEFORE assigning
-      List<QueryDocumentSnapshot<Map<String, dynamic>>> docs = snapshot.docs;
-
-      if (docs.length > pageSize.value) {
-        hasMore = true;
-        docs = docs.sublist(0, pageSize.value);
-      } else {
-        hasMore = false;
-      }
-
-      allAdmins.value = docs
-          .map((doc) => AdminsModel.fromJson({'id': doc.id, ...doc.data()}))
-          .toList();
-
-      filteredAdmins.assignAll(allAdmins);
-
-      if (docs.isNotEmpty) {
-        lastDocument = docs.last;
-        firstDocument = docs.first;
-      }
-
-      if (isNextPage && allAdmins.isNotEmpty) {
-        currentPage.value++;
-      }
-
-      updatePageRows();
-
       showLoading.value = false;
     } catch (e) {
       log("Error fetching admins: $e");
@@ -275,32 +250,18 @@ class AdminsController extends GetxController {
 
   Future<bool> deleteAdmin(String id) async {
     try {
-      final docRef = firestore.collection('admins').doc(id);
-      final doc = await docRef.get();
+      final dio = NetworkUtilities.getDioClient();
+      final response = await dio.delete(
+        ApiEndpoints.deleteAdmin,
+        queryParameters: {'adminId': id},
+      );
 
-      if (!doc.exists) {
-        Utilities.showSnackbar(SnackType.ERROR, "Admin not found");
-        return false;
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        Utilities.showSnackbar(SnackType.SUCCESS, "Admin deleted successfully");
+        await getAllAdmins();
+        return true;
       }
-
-      // Copy data to deleted_admins
-      await firestore.collection('deleted_admins').doc(id).set({
-        ...doc.data()!,
-        'deleted_at': DateTime.now().toIso8601String(),
-      });
-
-      // Delete from admins
-      await docRef.delete();
-
-      Utilities.showSnackbar(SnackType.SUCCESS, "Admin deleted successfully");
-
-      // reload table
-      currentPage.value = 1;
-      lastDocument = null;
-      hasMore = true;
-
-      await getAllAdmins(newPageSize: pageSize.value);
-      return true;
+      return false;
     } catch (e) {
       Utilities.showSnackbar(SnackType.ERROR, "Failed to delete admin: $e");
       return false;
@@ -379,33 +340,27 @@ class AdminsController extends GetxController {
       if (isSuperUser.value) return true;
       if (clientID.isEmpty) return false;
 
-      // 1. Fetch Client Document to get limit
-      final clientDoc = await firestore
-          .collection('clients')
-          .doc(clientID)
-          .get(); // ID is usually phoneNumberId, verify if clientID is the doc ID.
-      // In main.dart/AppInitializer, clientID is set.
-      // Wait, ClientsService uses phoneNumberId as ID.
-      // But we are storing 'client_id' in admins.
-      // Assuming clientID matches the doc ID in 'clients'.
-      // If clientID is not the doc ID, I need to know how to map it. Typically it is.
+      final dio = NetworkUtilities.getDioClient();
 
-      if (!clientDoc.exists) {
-        // Fallback: If client doc missing, maybe check admin doc?
-        // Or default limit.
-        return false; // Safer to block if client not found
-      }
+      // 1. Fetch Client Details to get limit
+      final clientResponse = await dio.get(
+        ApiEndpoints.getClientDetails,
+        queryParameters: {'clientId': clientID},
+      );
 
-      int limit = clientDoc.data()?['admin_limit'] ?? 0;
+      if (clientResponse.statusCode != 200) return false;
+
+      int limit = clientResponse.data['adminLimit'] ?? 0;
 
       // 2. Count total admins for this client
-      final countQuery = await firestore
-          .collection('admins')
-          .where('client_id', isEqualTo: clientID)
-          .count()
-          .get();
+      final adminsResponse = await dio.get(
+        ApiEndpoints.getAdmins,
+        queryParameters: {'clientId': clientID},
+      );
 
-      int totalAdmins = countQuery.count ?? 0;
+      if (adminsResponse.statusCode != 200) return false;
+
+      int totalAdmins = (adminsResponse.data['data'] as List).length;
 
       if (totalAdmins >= limit) {
         return false;

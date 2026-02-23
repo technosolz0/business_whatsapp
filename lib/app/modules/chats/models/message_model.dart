@@ -216,49 +216,82 @@ class MessageModel {
     this.errorDescription,
   });
 
-  factory MessageModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-
+  factory MessageModel.fromJson(Map<String, dynamic> json) {
     MessageType msgType = MessageType.text;
     try {
       msgType = MessageType.values.firstWhere(
-        (x) => x.name == (data['messageType'] ?? 'text'),
+        (x) =>
+            x.name == (json['message_type'] ?? json['messageType'] ?? 'text'),
         orElse: () => MessageType.text,
       );
     } catch (e) {
       msgType = MessageType.text;
     }
 
-    // Parse buttons for interactive messages
     List<InteractiveButton>? buttons;
-    if (data['buttons'] != null && data['buttons'] is List) {
-      buttons = (data['buttons'] as List)
+    if (json['buttons'] != null && json['buttons'] is List) {
+      buttons = (json['buttons'] as List)
           .map((btn) => InteractiveButton.fromMap(btn as Map<String, dynamic>))
           .toList();
     }
 
     return MessageModel(
-      id: doc.id,
-      content: data['content'] ?? '',
-      timestamp: (data['timestamp'] as Timestamp).toDate(),
-      isFromMe: data['isFromMe'] ?? false,
-      senderName: data['senderName'],
-      senderAvatar: data['senderAvatar'],
-      whatsappMessageId: data['whatsappMessageId'],
+      id: (json['id'] ?? '').toString(),
+      content: json['content'] ?? '',
+      timestamp: json['timestamp'] != null
+          ? (json['timestamp'] is String
+                ? DateTime.parse(json['timestamp'])
+                : (json['timestamp'] as Timestamp).toDate())
+          : DateTime.now(),
+      isFromMe: json['is_from_me'] ?? json['isFromMe'] ?? false,
+      senderName: json['sender_name'] ?? json['senderName'],
+      senderAvatar: json['sender_avatar'] ?? json['senderAvatar'],
+      whatsappMessageId:
+          json['whatsapp_message_id'] ?? json['whatsappMessageId'],
       messageType: msgType,
-      mediaUrl: data['mediaUrl'],
-      fileName: data['fileName'],
-      caption: data['caption'],
+      mediaUrl: json['media_url'] ?? json['mediaUrl'],
+      fileName: json['file_name'] ?? json['fileName'],
+      caption: json['caption'],
       buttons: buttons,
-      header: data['header'],
-      footer: data['footer'],
-      isTemplateMessage: data['isTemplateMessage'] ?? false,
+      header: json['header'],
+      footer: json['footer'],
+      isTemplateMessage:
+          json['is_template_message'] ?? json['isTemplateMessage'] ?? false,
       status: MessageStatus.values.firstWhere(
-        (x) => x.name == (data['status'] ?? 'sent'),
+        (x) => x.name == (json['status'] ?? 'sent'),
         orElse: () => MessageStatus.sent,
       ),
-      errorDescription: data['errorDescription'],
+      errorDescription: json['error_description'] ?? json['errorDescription'],
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'content': content,
+      'timestamp': timestamp.toIso8601String(),
+      'is_from_me': isFromMe,
+      'sender_name': senderName,
+      'sender_avatar': senderAvatar,
+      'status': status.name,
+      'whatsapp_message_id': whatsappMessageId,
+      'message_type': messageType.name,
+      'media_url': mediaUrl,
+      'file_name': fileName,
+      'caption': caption,
+      'buttons': buttons?.map((btn) => btn.toMap()).toList(),
+      'header': header,
+      'footer': footer,
+      'is_template_message': isTemplateMessage,
+      'error_description': errorDescription,
+    };
+  }
+
+  factory MessageModel.fromFirestore(DocumentSnapshot doc) {
+    return MessageModel.fromJson({
+      ...doc.data() as Map<String, dynamic>,
+      'id': doc.id,
+    });
   }
 
   Map<String, dynamic> toFirestore() {

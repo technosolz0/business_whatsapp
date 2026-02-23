@@ -1,26 +1,25 @@
 import 'dart:io';
 import 'dart:typed_data';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:business_whatsapp/app/Utilities/api_endpoints.dart';
+import 'package:business_whatsapp/app/Utilities/network_utilities.dart';
+import 'package:dio/dio.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../models/client_model.dart';
 
 class ClientsService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final Dio _dio = NetworkUtilities.getDioClient();
   final FirebaseStorage _storage = FirebaseStorage.instance;
-
-  static const String _collectionName = 'clients';
 
   /// Get all clients
   Future<List<ClientModel>> getClients() async {
     try {
-      final snapshot = await _firestore
-          .collection(_collectionName)
-          .orderBy('createdAt', descending: true)
-          .get();
-
-      return snapshot.docs
-          .map((doc) => ClientModel.fromJson(doc.data(), doc.id))
-          .toList();
+      final response = await _dio.get(ApiEndpoints.getAllClients);
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return (response.data['data'] as List)
+            .map((data) => ClientModel.fromJson(data, data['client_id']))
+            .toList();
+      }
+      return [];
     } catch (e) {
       print('Error getting clients: $e');
       return [];
@@ -30,10 +29,13 @@ class ClientsService {
   /// Get a single client by ID
   Future<ClientModel?> getClientById(String id) async {
     try {
-      final doc = await _firestore.collection(_collectionName).doc(id).get();
+      final response = await _dio.get(
+        ApiEndpoints.getClientDetails,
+        queryParameters: {'clientId': id},
+      );
 
-      if (doc.exists && doc.data() != null) {
-        return ClientModel.fromJson(doc.data()!, doc.id);
+      if (response.statusCode == 200) {
+        return ClientModel.fromJson(response.data, id);
       }
       return null;
     } catch (e) {
@@ -45,11 +47,14 @@ class ClientsService {
   /// Add a new client
   Future<String?> addClient(ClientModel client) async {
     try {
-      final docRef = await _firestore
-          .collection(_collectionName)
-          .doc(client.phoneNumberId)
-          .set(client.toJson());
-      return client.phoneNumberId;
+      final response = await _dio.post(
+        ApiEndpoints.addClient,
+        data: client.toJson(),
+      );
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return response.data['clientId'];
+      }
+      return null;
     } catch (e) {
       print('Error adding client: $e');
       return null;
@@ -59,11 +64,12 @@ class ClientsService {
   /// Update an existing client
   Future<bool> updateClient(String id, ClientModel client) async {
     try {
-      await _firestore
-          .collection(_collectionName)
-          .doc(id)
-          .update(client.copyWith(updatedAt: DateTime.now()).toJson());
-      return true;
+      final response = await _dio.post(
+        ApiEndpoints.updateClient,
+        queryParameters: {'clientId': id},
+        data: client.toJson(),
+      );
+      return response.statusCode == 200 && response.data['success'] == true;
     } catch (e) {
       print('Error updating client: $e');
       return false;
@@ -73,16 +79,18 @@ class ClientsService {
   /// Delete a client
   Future<bool> deleteClient(String id) async {
     try {
-      await _firestore.collection(_collectionName).doc(id).delete();
-      return true;
+      final response = await _dio.delete(
+        ApiEndpoints.deleteClient,
+        queryParameters: {'clientId': id},
+      );
+      return response.statusCode == 200 && response.data['success'] == true;
     } catch (e) {
       print('Error deleting client: $e');
       return false;
     }
   }
 
-  /// Upload a file to Firebase Storage
-  /// Returns the download URL
+  /// Upload a file to Firebase Storage (Keeping Firebase for media for now)
   Future<String?> uploadFile(File file, String path) async {
     try {
       final ref = _storage.ref().child(path);
@@ -111,14 +119,8 @@ class ClientsService {
   /// Search clients by name or phone number
   Future<List<ClientModel>> searchClients(String query) async {
     try {
-      final snapshot = await _firestore
-          .collection(_collectionName)
-          .orderBy('createdAt', descending: true)
-          .get();
-
-      final allClients = snapshot.docs
-          .map((doc) => ClientModel.fromJson(doc.data(), doc.id))
-          .toList();
+      // For now, search locally after fetching all, or we could add a backend search
+      final allClients = await getClients();
 
       if (query.isEmpty) {
         return allClients;

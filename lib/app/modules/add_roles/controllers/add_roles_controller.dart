@@ -1,6 +1,11 @@
 import 'dart:convert';
 import 'dart:developer';
 
+import 'package:business_whatsapp/app/Utilities/api_endpoints.dart';
+import 'package:business_whatsapp/app/Utilities/network_utilities.dart';
+import 'package:dio/dio.dart' as dio;
+import 'package:business_whatsapp/app/data/models/client_model.dart';
+import 'package:business_whatsapp/app/data/services/clients_service.dart';
 import 'package:business_whatsapp/main.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
@@ -8,8 +13,6 @@ import 'package:flutter/material.dart';
 import 'package:business_whatsapp/app/common%20widgets/common_snackbar.dart';
 import 'package:business_whatsapp/app/routes/app_pages.dart';
 import 'package:business_whatsapp/app/utilities/utilities.dart';
-import 'package:business_whatsapp/app/data/models/client_model.dart';
-import 'package:business_whatsapp/app/data/services/clients_service.dart';
 
 class AddRolesController extends GetxController {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
@@ -100,52 +103,46 @@ class AddRolesController extends GetxController {
     try {
       showRoleDetails.value = true;
 
-      final docSnapshot = await firestore
-          .collection('roles')
-          .doc(clientID)
-          .collection('data')
-          .doc(id)
-          .get();
+      final _dio = NetworkUtilities.getDioClient();
+      final response = await _dio.get(
+        ApiEndpoints.getRoles,
+        queryParameters: {'clientId': clientID},
+      );
 
-      if (docSnapshot.exists) {
-        final data = docSnapshot.data()!;
-        addRoleNameController.text = data['role_name'] ?? '';
-        createdDate = data['created_at'] ?? '';
-        selectedClientId.value = data['client_id'];
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final List roles = response.data['data'];
+        final data = roles.firstWhere((r) => r['id'] == id, orElse: () => null);
 
-        // Update checkbox table according to existing role
-        if (data['assigned_pages'] != null) {
-          final List assignedPages = data['assigned_pages'];
-          for (var i = 0; i < rolesTable.length; i++) {
-            final route = routeMap[rolesTable[i][0]];
-            final match = assignedPages.firstWhere(
-              (e) => e['route'] == route,
-              orElse: () => null,
-            );
-            if (match != null) {
-              final ax = match['ax'].toString().padLeft(3, '0');
-              rolesTable[i][1] = ax[0] == '1';
-              rolesTable[i][2] = ax[1] == '1';
-              rolesTable[i][3] = ax[2] == '1';
+        if (data != null) {
+          addRoleNameController.text = data['role_name'] ?? '';
+          createdDate = data['created_at'] ?? '';
+          selectedClientId.value = data['client_id'];
+
+          if (data['assigned_pages'] != null) {
+            final List assignedPages = data['assigned_pages'];
+            for (var i = 0; i < rolesTable.length; i++) {
+              final route = routeMap[rolesTable[i][0]];
+              final match = assignedPages.firstWhere(
+                (e) => e['route'] == route,
+                orElse: () => null,
+              );
+              if (match != null) {
+                final ax = match['ax'].toString().padLeft(3, '0');
+                rolesTable[i][1] = ax[0] == '1';
+                rolesTable[i][2] = ax[1] == '1';
+                rolesTable[i][3] = ax[2] == '1';
+              }
             }
+            rolesTable.refresh();
           }
-          rolesTable.refresh();
+        } else {
+          Utilities.showSnackbar(SnackType.ERROR, "Role not found");
+          if (GetPlatform.isMobile) Get.back();
         }
-      } else {
-        Utilities.showSnackbar(SnackType.ERROR, "Role not found");
-        // Only go back on mobile, on web keep the form for user to navigate
-        if (GetPlatform.isMobile) {
-          Get.back();
-        }
-        return;
       }
     } catch (e) {
       Utilities.showSnackbar(SnackType.ERROR, "Failed to fetch role details");
-      // Only go back on mobile, on web keep the form for user to navigate
-      if (GetPlatform.isMobile) {
-        Get.back();
-      }
-      return;
+      if (GetPlatform.isMobile) Get.back();
     } finally {
       showRoleDetails.value = false;
     }
@@ -159,13 +156,11 @@ class AddRolesController extends GetxController {
       return;
     }
 
-    // Use selected client ID if available, otherwise use cookie client ID
     final clientIdToUse = isSuperUser.value ? selectedClientId.value : clientID;
 
     try {
       isLoading.value = true;
 
-      // Build assigned_pages array
       List<Map<String, dynamic>> assignedPages = [];
       for (var row in rolesTable) {
         String pageName = row[0];
@@ -173,7 +168,6 @@ class AddRolesController extends GetxController {
         bool edit = row[2] as bool;
         bool delete = row[3] as bool;
 
-        // Encode access rights e.g. 111 or 100
         final ax = '${view ? 1 : 0}${edit ? 1 : 0}${delete ? 1 : 0}';
         assignedPages.add({
           'route': routeMap[pageName] ?? '',
@@ -191,45 +185,27 @@ class AddRolesController extends GetxController {
         'role_name': roleName,
         'client_id': clientIdToUse,
         'assigned_pages': assignedPages,
-        'updated_at': roleID.isEmpty ? '' : DateTime.now().toIso8601String(),
-        'created_at': createdDate.isEmpty
-            ? DateTime.now().toIso8601String()
-            : createdDate,
       };
 
-      await firestore
-          .collection('roles')
-          .doc(clientIdToUse)
-          .collection('data')
-          .doc(id)
-          .set(roleData, SetOptions(merge: true));
-
-      await firestore
-          .collection('admins')
-          .where('role', isEqualTo: roleName)
-          .get()
-          .then((query) async {
-            for (var doc in query.docs) {
-              await firestore.collection('admins').doc(doc.id).update({
-                'assigned_pages': assignedPages,
-              });
-            }
-          });
-
-      Get.offNamed(Routes.ROLES);
-      Utilities.showSnackbar(
-        SnackType.SUCCESS,
-        isEditing ? "Role updated successfully" : "Role saved successfully",
+      final _dio = NetworkUtilities.getDioClient();
+      final response = await _dio.post(
+        isEditing ? ApiEndpoints.updateRole : ApiEndpoints.addRole,
+        queryParameters: isEditing ? {'roleId': id} : null,
+        data: roleData,
       );
 
-      // Reset after save
-      addRoleNameController.clear();
-      for (int i = 0; i < rolesTable.length; i++) {
-        rolesTable[i][1] = false;
-        rolesTable[i][2] = false;
-        rolesTable[i][3] = false;
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        Get.offNamed(Routes.ROLES);
+        Utilities.showSnackbar(
+          SnackType.SUCCESS,
+          isEditing ? "Role updated successfully" : "Role saved successfully",
+        );
+      } else {
+        Utilities.showSnackbar(
+          SnackType.ERROR,
+          response.data['detail'] ?? "Failed to save role",
+        );
       }
-      rolesTable.refresh();
     } catch (e) {
       Utilities.showSnackbar(SnackType.ERROR, "Failed to save role: $e");
     } finally {

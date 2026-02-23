@@ -1,12 +1,15 @@
 import 'dart:convert';
 import 'dart:developer';
-import 'package:business_whatsapp/app/Utilities/utilities.dart' show Utilities;
+import 'package:business_whatsapp/app/Utilities/api_endpoints.dart';
+import 'package:business_whatsapp/app/Utilities/network_utilities.dart';
+import 'package:dio/dio.dart' as dio;
 import 'package:business_whatsapp/main.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:business_whatsapp/app/common%20widgets/common_snackbar.dart';
 import 'package:business_whatsapp/app/modules/roles/models/roles_model.dart';
+import 'package:business_whatsapp/app/utilities/utilities.dart' show Utilities;
 
 class RolesController extends GetxController {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
@@ -54,52 +57,27 @@ class RolesController extends GetxController {
     showLoading.value = true;
 
     try {
-      if (newPageSize != null) {
-        pageSize.value = newPageSize;
-        lastDocument = null;
-        currentPage.value = 1;
-        hasMore = true;
+      final dio = NetworkUtilities.getDioClient();
+      final response = await dio.get(
+        ApiEndpoints.getRoles,
+        queryParameters: {'clientId': clientID},
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final List rolesData = response.data['data'];
+        allRoles.value = rolesData
+            .map((data) => RolesModel.fromJson({'id': data['id'], ...data}))
+            .toList();
+
+        if (searchQuery.value.isNotEmpty) {
+          searchRoles(searchQuery.value);
+        } else {
+          filteredRoles.assignAll(allRoles);
+        }
+
+        hasMore = false; // Backend pagination not implemented yet
+        updatePageRows();
       }
-
-      if (!isNextPage) {
-        allRoles.clear();
-      }
-
-      Query<Map<String, dynamic>> query = firestore
-          .collection('roles')
-          .doc(clientID)
-          .collection('data')
-          .orderBy('created_at')
-          .limit(pageSize.value + 1);
-
-      if (isNextPage && lastDocument != null) {
-        query = query.startAfterDocument(lastDocument!);
-      }
-
-      final snapshot = await query.get();
-      List<QueryDocumentSnapshot<Map<String, dynamic>>> docs = snapshot.docs;
-
-      // ✅ Check if next exists
-      if (docs.length > pageSize.value) {
-        hasMore = true;
-        docs = docs.sublist(0, pageSize.value);
-      } else {
-        hasMore = false;
-      }
-
-      allRoles.value = docs
-          .map((doc) => RolesModel.fromJson({'id': doc.id, ...doc.data()}))
-          .toList();
-
-      filteredRoles.assignAll(allRoles);
-
-      if (docs.isNotEmpty) {
-        firstDocument = docs.first;
-        lastDocument = docs.last;
-      }
-
-      if (isNextPage) currentPage.value++;
-      updatePageRows();
     } catch (e) {
       log("Error fetching roles: $e");
     }
@@ -236,64 +214,18 @@ class RolesController extends GetxController {
   // ✅ DELETE
   Future<bool> deleteRole(String id) async {
     try {
-      final roleRef = firestore
-          .collection('roles')
-          .doc(clientID)
-          .collection('data')
-          .doc(id);
-      final roleDoc = await roleRef.get();
+      final dio = NetworkUtilities.getDioClient();
+      final response = await dio.delete(
+        ApiEndpoints.deleteRole,
+        queryParameters: {'roleId': id},
+      );
 
-      if (!roleDoc.exists) {
-        Utilities.showSnackbar(SnackType.ERROR, "Role not found");
-        return false;
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        Utilities.showSnackbar(SnackType.SUCCESS, "Role deleted successfully");
+        await getAllRoles();
+        return true;
       }
-
-      final deletedRoleName = roleDoc.data()?["role_name"] ?? "";
-      if (deletedRoleName.isEmpty) {
-        Utilities.showSnackbar(SnackType.ERROR, "Invalid role data");
-        return false;
-      }
-
-      // -------------------------------
-      // 1️⃣ Move role → deleted_roles
-      // -------------------------------
-      await firestore.collection('deleted_roles').doc(id).set({
-        ...roleDoc.data()!,
-        'deleted_at': DateTime.now().toIso8601String(),
-      });
-
-      // -------------------------------
-      // 2️⃣ Delete role from main table
-      // -------------------------------
-      await roleRef.delete();
-
-      // -------------------------------
-      // 3️⃣ Remove role from all admins
-      // -------------------------------
-      final adminSnap = await firestore
-          .collection("admins")
-          .where("role", isEqualTo: deletedRoleName)
-          .get();
-
-      for (var admin in adminSnap.docs) {
-        await admin.reference.update({
-          "role": null,
-          "assigned_pages": [], // remove all permissions
-          "updated_at": DateTime.now().toIso8601String(),
-        });
-      }
-
-      // -------------------------------
-      // 4️⃣ UI + reload
-      // -------------------------------
-      Utilities.showSnackbar(SnackType.SUCCESS, "Role deleted successfully");
-
-      lastDocument = null;
-      currentPage.value = 1;
-      hasMore = true;
-      await getAllRoles(newPageSize: pageSize.value);
-
-      return true;
+      return false;
     } catch (e) {
       Utilities.showSnackbar(SnackType.ERROR, "Failed to delete role: $e");
       return false;

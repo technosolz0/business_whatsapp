@@ -4,11 +4,37 @@ class ApiEndpoints {
   static const String serverUrl = 'https://bw.serwex.in';
 
   // Chat Endpoints
+  static const String login = "$serverUrl/auth/login";
+  static const String getClientDetails = "$serverUrl/clients/getClientDetails";
+  static const String getCharges = "$serverUrl/clients/getCharges";
   static const String sendMessage = "$serverUrl/chat/sendWhatsAppMessage";
-  static const String uploadMediaForChat = "$serverUrl/chat/uploadMedia";
+  static const String uploadMediaForChat =
+      "$serverUrl/chat/uploadMediaForChat"; // Corrected name
   static const String updateMessageStatus =
       '$serverUrl/chat/updateMessageStatus';
   static const String getDailyStats = '$serverUrl/chat/getDailyStats';
+  static const String getChats = '$serverUrl/chat/getChats';
+  static const String getMessages = '$serverUrl/chat/getMessages';
+  static const String updateChat = '$serverUrl/chat/updateChat';
+  static const String getAdmins = '$serverUrl/admins/getAdmins';
+  static const String getAdminById = '$serverUrl/admins/getAdminById';
+  static const String addAdmin = '$serverUrl/admins/addAdmin';
+  static const String updateAdmin = '$serverUrl/admins/updateAdmin';
+  static const String deleteAdmin = '$serverUrl/admins/deleteAdmin';
+  static const String getRoles = '$serverUrl/roles/getRoles';
+  static const String addRole = '$serverUrl/roles/addRole';
+  static const String updateRole = '$serverUrl/roles/updateRole';
+  static const String deleteRole = '$serverUrl/roles/deleteRole';
+  static const String getAllClients = '$serverUrl/clients/get_all_clients';
+  static const String addClient = '$serverUrl/clients/addClient';
+  static const String updateClient = '$serverUrl/clients/updateClient';
+  static const String deleteClient = '$serverUrl/clients/deleteClient';
+  static const String createChat = '$serverUrl/chat/createChat';
+  static const String deleteChat = '$serverUrl/chat/deleteChat';
+
+  // WebSocket URL
+  static String wsUrl(String clientId) =>
+      "wss://bw.serwex.in/chat/ws/$clientId"; // Using wss for production
 
   // Profile Endpoints
   static const String updateProfile =

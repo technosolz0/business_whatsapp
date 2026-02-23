@@ -1,11 +1,10 @@
 import 'dart:convert';
-import 'dart:developer';
-
+import 'package:business_whatsapp/app/Utilities/api_endpoints.dart';
 import 'package:business_whatsapp/app/Utilities/constants/app_constants.dart';
+import 'package:business_whatsapp/app/Utilities/network_utilities.dart';
 import 'package:business_whatsapp/app/Utilities/webutils.dart';
-
+import 'package:dio/dio.dart' as dio;
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:business_whatsapp/app/common%20widgets/common_snackbar.dart';
@@ -43,40 +42,35 @@ class LoginController extends GetxController {
 
     try {
       showLoading.value = true;
-      final querySnapshot = await firestore
-          .collection('admins')
-          .where('email', isEqualTo: email)
-          .where('password', isEqualTo: password)
-          .get();
+      final dio = NetworkUtilities.getDioClient();
 
-      if (querySnapshot.docs.isNotEmpty) {
-        final adminDoc = querySnapshot.docs.first;
-        final adminData = adminDoc.data();
-        final adminId = adminDoc.id;
-        final clientId = adminData['client_id'] ?? adminId;
+      final response = await dio.post(
+        ApiEndpoints.login,
+        data: {'email': email, 'password': password},
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final data = response.data;
+        final adminData = data['admin'];
+        final adminId = adminData['id'];
+        final clientId = data['clientId'];
+        final token = data['token'];
 
         adminName.value =
             "${adminData['first_name']} ${adminData['last_name']}";
 
         // Update global isSuperUser reactive variable
-        isSuperUser.value = adminData['isSuperUser'] ?? false;
-        isAllChats.value = adminData['isAllChats'] ?? false;
-
-        final token = generateJwt(
-          adminId,
-          clientId,
-          adminData['email'],
-          adminData['password'],
-        );
+        isSuperUser.value = adminData['is_super_user'] ?? false;
+        isAllChats.value = adminData['is_all_chats'] ?? false;
 
         // Prepare client-specific data
         Map<String, dynamic> clientSpecificData = {
           "adminId": adminId,
-          "adminName": "${adminData['first_name']} ${adminData['last_name']}",
+          "adminName": adminName.value,
           "pages": adminData["assigned_pages"],
           "clientId": clientId,
-          "isSuperUser": adminData['isSuperUser'] ?? false,
-          "isAllChats": adminData['isAllChats'] ?? false,
+          "isSuperUser": adminData['is_super_user'] ?? false,
+          "isAllChats": adminData['is_all_chats'] ?? false,
         };
 
         String encryptedClientData = WebUtils.encryptData(
@@ -96,10 +90,6 @@ class LoginController extends GetxController {
         gJwtToken = token;
         adminID = adminId;
         clientID = clientId;
-
-        String fname = adminData['first_name'];
-        String lname = adminData['last_name'];
-        adminName.value = "$fname $lname";
 
         // Store admin credentials with client ID prefix
         WebUtils.addCookie(
@@ -126,14 +116,14 @@ class LoginController extends GetxController {
         WebUtils.addCookie(
           key: 'isSuperUser_$clientId',
           value: WebUtils.encryptData(
-            data: (adminData['isSuperUser'] ?? false).toString(),
+            data: (adminData['is_super_user'] ?? false).toString(),
             secretKey: AppConstants.menuItemsSecret,
           ),
         );
         WebUtils.addCookie(
           key: 'isAllChats_$clientId',
           value: WebUtils.encryptData(
-            data: (adminData['isAllChats'] ?? false).toString(),
+            data: (adminData['is_all_chats'] ?? false).toString(),
             secretKey: AppConstants.menuItemsSecret,
           ),
         );
@@ -157,120 +147,86 @@ class LoginController extends GetxController {
 
         // --- Fetch and Store Client Info for Fixed Sidebar ---
         try {
-          final clientDoc = await firestore
-              .collection('clients')
-              .doc(clientId)
-              .get();
-          String cName = 'Messaging Portal';
-          String cLogo = '';
-          bool crmEnabled = false;
+          final clientResponse = await dio.get(
+            ApiEndpoints.getClientDetails,
+            queryParameters: {'clientId': clientId},
+          );
 
-          if (clientDoc.exists && clientDoc.data() != null) {
-            final data = clientDoc.data()!;
-            if (data['name'] != null) cName = data['name'];
-            if (data['logoUrl'] != null) cLogo = data['logoUrl'];
-            crmEnabled = data['isCRMEnabled'] == true;
+          if (clientResponse.statusCode == 200) {
+            final clientData = clientResponse.data;
+            String cName = clientData['name'] ?? 'Messaging Portal';
+            String cLogo = clientData['logoUrl'] ?? '';
+            bool crmEnabled = clientData['isCRMEnabled'] == true;
+
+            // Update Globals
+            clientName.value = cName;
+            clientLogo.value = cLogo;
+            isCRMEnabled.value = crmEnabled;
+
+            // Store in Cookies
+            WebUtils.addCookie(
+              key: 'clientName_$clientId',
+              value: WebUtils.encryptData(
+                data: cName,
+                secretKey: AppConstants.menuItemsSecret,
+              ),
+            );
+            WebUtils.addCookie(
+              key: 'clientLogo_$clientId',
+              value: WebUtils.encryptData(
+                data: cLogo,
+                secretKey: AppConstants.menuItemsSecret,
+              ),
+            );
+            WebUtils.addCookie(
+              key: 'isCRMEnabled_$clientId',
+              value: WebUtils.encryptData(
+                data: crmEnabled.toString(),
+                secretKey: AppConstants.menuItemsSecret,
+              ),
+            );
           }
-
-          // Update Globals
-          clientName.value = cName;
-          clientLogo.value = cLogo;
-          isCRMEnabled.value = crmEnabled;
-
-          // Store in Cookies
-          WebUtils.addCookie(
-            key: 'clientName_$clientId',
-            value: WebUtils.encryptData(
-              data: cName,
-              secretKey: AppConstants.menuItemsSecret,
-            ),
-          );
-          WebUtils.addCookie(
-            key: 'clientLogo_$clientId',
-            value: WebUtils.encryptData(
-              data: cLogo,
-              secretKey: AppConstants.menuItemsSecret,
-            ),
-          );
-          WebUtils.addCookie(
-            key: 'isCRMEnabled_$clientId',
-            value: WebUtils.encryptData(
-              data: crmEnabled.toString(),
-              secretKey: AppConstants.menuItemsSecret,
-            ),
-          );
         } catch (e) {
           print('Error fetching client details: $e');
         }
 
         // --- Fetch and Store Charges Collection for Local Storage ---
         try {
-          final chargesSnapshot = await firestore.collection('charges').get();
-          Map<String, dynamic> chargesData = {};
-          for (var doc in chargesSnapshot.docs) {
-            chargesData[doc.id] = doc.data();
+          final chargesResponse = await dio.get(ApiEndpoints.getCharges);
+          if (chargesResponse.statusCode == 200) {
+            WebUtils.saveToLocalStorage(
+              'charges',
+              jsonEncode(chargesResponse.data),
+            );
           }
-          WebUtils.saveToLocalStorage('charges', jsonEncode(chargesData));
-          // print('Charges data stored in local storage');
-          // print('chargesData: ******************************  $chargesData');
         } catch (e) {
           print('Error fetching or storing charges: $e');
         }
         // -----------------------------------------------------
-
-        // print('Login successful for Client ID: $clientId');
-        // print('Admin ID: $adminId');
-        // print('Admin Name: ${adminName.value}');
-        // print('Admin Email: ${adminData['email']}');
-
-        try {
-          await firestore.collection('admins').doc(adminId).update({
-            "last_logged_in": DateTime.now().toIso8601String(),
-          });
-        } catch (e) {
-          print('Firestore update failed: $e');
-        }
 
         showLoading.value = false;
 
         // Start listening to subscription updates now that we have clientID
         SubscriptionService.instance.startListening();
 
-        // print('Navigating to dashboard...');
-
-        // Use WidgetsBinding to ensure navigation happens after the current frame
-        // This prevents the TextEditingController disposal error
         WidgetsBinding.instance.addPostFrameCallback((_) {
           Get.offAllNamed(Routes.DASHBOARD);
         });
       } else {
         showLoading.value = false;
-        Utilities.showSnackbar(SnackType.ERROR, 'Invalid email or password');
+        Utilities.showSnackbar(
+          SnackType.ERROR,
+          response.data['detail'] ?? 'Invalid email or password',
+        );
       }
     } catch (e) {
       showLoading.value = false;
-      // log('$e');
+      if (e is dio.DioException) {
+        NetworkUtilities.dioExceptionHandler(e);
+      } else {
+        Utilities.showSnackbar(SnackType.ERROR, 'Login failed: $e');
+      }
     }
-  }
-
-  String generateJwt(
-    String adminId,
-    String clientId,
-    String email,
-    String password,
-  ) {
-    final jwt = JWT({
-      'adminId': adminId,
-      'clientId': clientId,
-      'email': email,
-      'password': password,
-      'exp':
-          DateTime.now().add(const Duration(days: 7)).millisecondsSinceEpoch ~/
-          1000,
-    });
-
-    final token = jwt.sign(SecretKey(AppConstants.menuItemsSecret));
-    return token;
   }
 
   // Helper method to get client-specific cookie value

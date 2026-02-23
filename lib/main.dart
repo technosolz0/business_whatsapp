@@ -93,7 +93,7 @@ void main() async {
 
   runApp(
     GetMaterialApp(
-      title: "WhatsApp Campaigns Dashboard",
+      title: "Business WhatsApp",
       debugShowCheckedModeBanner: false,
       defaultTransition: Transition.noTransition,
       theme: AppTheme.lightTheme,

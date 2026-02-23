@@ -3,11 +3,9 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:business_whatsapp/app/Utilities/responsive.dart';
 import 'package:business_whatsapp/app/modules/chats/widgets/chat_admin_assignment_popup.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 import 'package:business_whatsapp/app/Utilities/api_endpoints.dart';
 import 'package:business_whatsapp/app/Utilities/network_utilities.dart';
-import 'package:dio/dio.dart';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -18,8 +16,10 @@ import '../models/chat_model.dart';
 import '../models/message_model.dart';
 import '../../../../app/Utilities/subscription_guard.dart';
 import '../../../data/models/admins_model.dart';
+import '../../../data/services/chat_service.dart';
 
 class ChatsController extends GetxController {
+  final ChatService _chatService = ChatService();
   ScrollController scrollController = ScrollController();
   final chats = <ChatModel>[].obs;
   final selectedChat = Rxn<ChatModel>();
@@ -44,11 +44,9 @@ class ChatsController extends GetxController {
   final int pageSize = 10; // Load 15 messages at a time
   final isLoadingMore = false.obs;
   final hasMoreMessages = true.obs;
-  DocumentSnapshot? lastMessageDoc; // For pagination
   String? currentChatId; // Track current chat for pagination
 
   // Track if this is the first time loading messages for a chat
-  bool _isFirstMessageLoad = true;
 
   bool get canSendMessage {
     if (!SubscriptionGuard.canEdit()) return false;
@@ -76,27 +74,15 @@ class ChatsController extends GetxController {
   }
 
   Future<void> _initChatAccess() async {
-    if (!isAllChats.value) {
-      await _fetchAssignedContacts();
-    }
+    // Note: Assigned contacts filtering will eventually be handled by backend APIs
+    // For now, we fetch all chats for clientID
     listenToChats();
-  }
+    _chatService.initWebSocket(clientID);
 
-  Future<void> _fetchAssignedContacts() async {
-    if (adminID.isEmpty) return;
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('chats')
-          .doc(clientID)
-          .collection('data')
-          .where('assigned_admin', arrayContains: adminID)
-          .get();
-      if (doc.docs.isNotEmpty) {
-        assignedContactIds = doc.docs.map((doc) => doc.id).toList();
-      }
-    } catch (e) {
-      debugPrint('Error fetching assigned contacts: $e');
-    }
+    // Listen to WebSocket updates
+    _chatService.webSocketStream.listen((event) {
+      _handleWebSocketEvent(event);
+    });
   }
 
   @override
@@ -111,73 +97,74 @@ class ChatsController extends GetxController {
     super.onClose();
   }
 
-  void listenToChats() {
-    chatsSub?.cancel();
+  void listenToChats() async {
+    isLoadingMoreChats.value = true;
+    try {
+      final chatsData = await _chatService.getChats(clientID);
+      chats.value = chatsData.map((data) => ChatModel.fromJson(data)).toList();
 
-    // If regular user has no assigned contacts, show empty list
-    if (!isAllChats.value && assignedContactIds.isEmpty) {
-      chats.clear();
-      hasMoreChats.value = false;
-      if (isLoadingMoreChats.value) {
-        isLoadingMoreChats.value = false;
+      // Basic filtering until backend supports it via query params
+      if (activeFilter.value == 'unRead') {
+        chats.value = chats.where((c) => c.unRead).toList();
+      } else if (activeFilter.value == 'isFavourite') {
+        chats.value = chats.where((c) => c.isFavourite).toList();
       }
-      return;
+
+      hasMoreChats.value =
+          false; // Backend currently returns all? Or add pagination later
+    } catch (e) {
+      debugPrint('Error loading chats: $e');
+    } finally {
+      isLoadingMoreChats.value = false;
     }
+  }
 
-    Query query = FirebaseFirestore.instance
-        .collection('chats')
-        .doc(clientID)
-        .collection('data');
+  void _handleWebSocketEvent(Map<String, dynamic> event) {
+    final String type = event['type'] ?? '';
 
-    // Apply assigned contacts filter
-    if (!isAllChats.value && assignedContactIds.isNotEmpty) {
-      query = query.where(FieldPath.documentId, whereIn: assignedContactIds);
-    }
+    if (type == 'new_message') {
+      final String chatId = event['chatId'];
+      final Map<String, dynamic> messageData = event['message'];
+      final newMessage = MessageModel.fromJson(messageData);
 
-    if (activeFilter.value == 'unRead') {
-      query = query.where('unRead', isEqualTo: true);
-    } else if (activeFilter.value == 'isFavourite') {
-      query = query.where('isFavourite', isEqualTo: true);
-    }
+      // If this message belongs to the current selected chat, add it
+      if (selectedChat.value?.id == chatId) {
+        messages.insert(0, newMessage);
+        // scrollToBottom would be 0.0 in reversed list
+      }
 
-    // If filter is active, fetch all (or a very large number) to avoid pagination issues
-    if (activeFilter.value == 'all') {
-      query = query.limit(chatLimit.value);
-    }
-
-    chatsSub = query
-        .orderBy('lastMessageTime', descending: true)
-        .snapshots()
-        .listen(
-          (snapshot) {
-            chats.value = snapshot.docs.map((doc) {
-              return ChatModel.fromFirestore(doc);
-            }).toList();
-
-            // Check if we have loaded all available chats (only relevant for 'all' filter with limit)
-            if (activeFilter.value == 'all') {
-              if (snapshot.docs.length < chatLimit.value) {
-                hasMoreChats.value = false;
-              } else {
-                hasMoreChats.value = true;
-              }
-            } else {
-              // When filtering, we essentially fetch all, so no "more" chats to load via pagination
-              hasMoreChats.value = false;
-            }
-
-            // If we received data, stop loading state
-            if (isLoadingMoreChats.value) {
-              isLoadingMoreChats.value = false;
-            }
-          },
-          onError: (error) {
-            // debugPrint('Error loading chats: $error');
-            if (isLoadingMoreChats.value) {
-              isLoadingMoreChats.value = false;
-            }
-          },
+      // Update the chat list (last message, unread status, etc.)
+      final index = chats.indexWhere((c) => c.id == chatId);
+      if (index != -1) {
+        final chat = chats[index];
+        chats[index] = chat.copyWith(
+          lastMessage: newMessage.content,
+          userLastMessageTime: newMessage.timestamp,
+          unRead:
+              selectedChat.value?.id != chatId, // mark unread if not selected
         );
+        // Move to top
+        final movedChat = chats.removeAt(index);
+        chats.insert(0, movedChat);
+      } else {
+        // New chat? Re-fetch list
+        listenToChats();
+      }
+    } else if (type == 'status_update') {
+      final String whatsappMessageId = event['whatsappMessageId'];
+      final String statusStr = event['status'];
+
+      final msgIndex = messages.indexWhere(
+        (m) => m.whatsappMessageId == whatsappMessageId,
+      );
+      if (msgIndex != -1) {
+        final status = MessageStatus.values.firstWhere(
+          (e) => e.name == statusStr,
+          orElse: () => MessageStatus.sent,
+        );
+        messages[msgIndex] = messages[msgIndex].copyWith(status: status);
+      }
+    }
   }
 
   void _chatListScrollListener() {
@@ -220,11 +207,8 @@ class ChatsController extends GetxController {
     await updateChatActiveStatus(chat.id, true);
     await updateChatUnreadStatus(chat.id, false);
 
-    _isFirstMessageLoad = true; // Reset flag when selecting new chat
-
     // Reset pagination state for new chat
     currentChatId = chat.id;
-    lastMessageDoc = null;
     hasMoreMessages.value = true;
     isLoadingMore.value = false;
 
@@ -245,202 +229,64 @@ class ChatsController extends GetxController {
 
   // Lazy Loading Implementation
   Future<void> loadInitialMessages(String chatId) async {
-    // Cancel any existing subscriptions
-    messagesSub?.cancel();
-    newMessagesSub?.cancel();
-
     messages.clear();
     isLoadingMore.value = true;
+    hasMoreMessages.value = true;
 
     try {
-      // Load initial batch of messages (most recent)
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('chats')
-          .doc(clientID)
-          .collection('data')
-          .doc(chatId)
-          .collection('messages')
-          .orderBy(
-            'timestamp',
-            descending: true,
-          ) // Most recent first for pagination
-          .limit(pageSize)
-          .get();
-
-      if (querySnapshot.docs.isNotEmpty) {
-        // Keep in Newest -> Oldest order for reversed ListView
-        final loadedMessages = querySnapshot.docs
-            .map((doc) => MessageModel.fromFirestore(doc))
-            .toList();
-
-        messages.addAll(loadedMessages);
-        lastMessageDoc =
-            querySnapshot.docs.last; // Oldest message for next pagination
-
-        // Check if there are more messages
-        hasMoreMessages.value = querySnapshot.docs.length == pageSize;
-
-        // Reset scroll position for new chat (bottom)
-        if (_isFirstMessageLoad) {
-          _isFirstMessageLoad = false;
-          // With reversed list, 0 is bottom. No explicit scroll needed usually but ensuring it:
-          // scrollToBottom(); // Wait, scrollToBottom is now scrollToTop/0.0
-        }
-      } else {
-        hasMoreMessages.value = false;
-      }
-
-      // Set up real-time listener for new messages and updates to recently loaded messages
-      DateTime? oldestLoadedMessageTime;
-      if (querySnapshot.docs.isNotEmpty) {
-        final lastDoc = querySnapshot.docs.last;
-        try {
-          final timestamp = lastDoc.get('timestamp');
-          if (timestamp is Timestamp) {
-            oldestLoadedMessageTime = timestamp.toDate();
-          }
-        } catch (e) {
-          // debugPrint('Error getting timestamp from last doc: $e');
-        }
-      }
-
-      _setupNewMessagesListener(
-        chatId,
-        startTimestamp: oldestLoadedMessageTime,
+      final messagesData = await _chatService.getMessages(
+        chatId: chatId,
+        clientId: clientID,
+        limit: pageSize,
+        offset: 0,
       );
+
+      final loadedMessages = messagesData
+          .map((data) => MessageModel.fromJson(data))
+          .toList();
+
+      messages.addAll(loadedMessages);
+      hasMoreMessages.value = loadedMessages.length == pageSize;
     } catch (e) {
-      // debugPrint('Error loading initial messages: $e');
+      debugPrint('Error loading initial messages: $e');
     } finally {
       isLoadingMore.value = false;
+    }
+  }
+
+  void _scrollListener() {
+    if (scrollController.hasClients) {
+      if (scrollController.position.pixels >=
+              scrollController.position.maxScrollExtent - 200 &&
+          !isLoadingMore.value &&
+          hasMoreMessages.value) {
+        loadMoreMessages();
+      }
     }
   }
 
   Future<void> loadMoreMessages() async {
-    if (!hasMoreMessages.value ||
-        isLoadingMore.value ||
-        currentChatId == null ||
-        lastMessageDoc == null) {
-      // debugPrint(
-      //   '❌ Cannot load more: hasMore=${hasMoreMessages.value}, loading=${isLoadingMore.value}, chatId=$currentChatId, lastDoc=${lastMessageDoc != null}',
-      // );
-      return;
-    }
+    if (isLoadingMore.value || !hasMoreMessages.value) return;
 
     isLoadingMore.value = true;
-    // debugPrint(
-    //   '🔄 Starting to load more messages... Current count: ${messages.length}',
-    // );
-
     try {
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('chats')
-          .doc(clientID)
-          .collection('data')
-          .doc(currentChatId!)
-          .collection('messages')
-          .orderBy('timestamp', descending: true)
-          .startAfterDocument(lastMessageDoc!)
-          .limit(pageSize)
-          .get();
+      final messagesData = await _chatService.getMessages(
+        chatId: selectedChat.value?.id ?? '',
+        clientId: clientID,
+        limit: pageSize,
+        offset: messages.length,
+      );
 
-      // debugPrint('📊 Query returned ${querySnapshot.docs.length} documents');
+      final loadedMessages = messagesData
+          .map((data) => MessageModel.fromJson(data))
+          .toList();
 
-      if (querySnapshot.docs.isNotEmpty) {
-        // Convert for chronological order
-        final olderMessages = querySnapshot.docs
-            .map((doc) => MessageModel.fromFirestore(doc))
-            .toList();
-
-        // debugPrint(
-        //   '📝 Appending ${olderMessages.length} older messages to the end',
-        // );
-
-        // Append older messages to the end (Newest -> Oldest list)
-        messages.addAll(olderMessages);
-        lastMessageDoc = querySnapshot.docs.last;
-
-        // Check if there are more messages
-        hasMoreMessages.value = querySnapshot.docs.length == pageSize;
-
-        // debugPrint(
-        //   '✅ Successfully loaded ${olderMessages.length} messages. Total: ${messages.length}. Has more: ${hasMoreMessages.value}',
-        // );
-      } else {
-        hasMoreMessages.value = false;
-        // debugPrint('ℹ️ No more messages to load');
-      }
+      messages.addAll(loadedMessages);
+      hasMoreMessages.value = loadedMessages.length == pageSize;
     } catch (e) {
-      // debugPrint('❌ Error loading more messages: $e');
+      debugPrint('Error loading more messages: $e');
     } finally {
       isLoadingMore.value = false;
-    }
-  }
-
-  void _setupNewMessagesListener(String chatId, {DateTime? startTimestamp}) {
-    // Listen for messages from the provided startTimestamp
-    // If startTimestamp is null, fall back to the most recent message or now
-    final subscriptionStartTimestamp =
-        startTimestamp ??
-        (messages.isNotEmpty ? messages.last.timestamp : DateTime.now());
-
-    newMessagesSub = FirebaseFirestore.instance
-        .collection('chats')
-        .doc(clientID)
-        .collection('data')
-        .doc(chatId)
-        .collection('messages')
-        .where('timestamp', isGreaterThanOrEqualTo: subscriptionStartTimestamp)
-        .orderBy('timestamp', descending: false)
-        .snapshots()
-        .listen((snapshot) {
-          for (final docChange in snapshot.docChanges) {
-            final messageData = MessageModel.fromFirestore(docChange.doc);
-
-            if (docChange.type == DocumentChangeType.added) {
-              // Check if message already exists to verify duplication from the query overlap
-              final index = messages.indexWhere((m) => m.id == messageData.id);
-              if (index == -1) {
-                // Insert new message at the beginning (Bottom of view)
-                messages.insert(0, messageData);
-
-                // Mark as unread if not from me and chat is not active
-                if (!messageData.isFromMe &&
-                    (selectedChat.value?.id != chatId ||
-                        selectedChat.value?.isActive == false)) {
-                  updateChatUnreadStatus(chatId, true);
-                }
-
-                // Auto-scroll to bottom (0) if we are near bottom
-                scrollToBottom();
-              }
-            } else if (docChange.type == DocumentChangeType.modified) {
-              // Handle status updates (sent -> delivered -> read)
-              final index = messages.indexWhere((m) => m.id == messageData.id);
-              if (index != -1) {
-                messages[index] = messageData;
-                messages.refresh(); // Trigger GetX update
-              }
-            }
-          }
-        });
-  }
-
-  void _scrollListener() {
-    bool shouldLoad = false;
-    if (scrollController.hasClients) {
-      for (final position in scrollController.positions) {
-        // reversed: true, so maxScrollExtent is the visual TOP (history)
-        if (position.hasContentDimensions &&
-            position.pixels >= position.maxScrollExtent - 200) {
-          shouldLoad = true;
-          break;
-        }
-      }
-    }
-
-    if (shouldLoad && hasMoreMessages.value && !isLoadingMore.value) {
-      // debugPrint('🚀 Triggering lazy load - Loading more messages...');
-      loadMoreMessages();
     }
   }
 
@@ -472,66 +318,22 @@ class ChatsController extends GetxController {
 
     final chat = selectedChat.value!;
     isSendingMessage.value = true;
-    // debugPrint('Sending message to ${chat.phoneNumber}');
-
-    // Create a new document reference to get the ID beforehand
-    final messageRef = FirebaseFirestore.instance
-        .collection('chats')
-        .doc(clientID)
-        .collection('data')
-        .doc(chat.id)
-        .collection('messages')
-        .doc();
-
-    final String messageId = messageRef.id;
 
     try {
-      // Optimistically save message to Firestore
-      await messageRef.set({
-        'content': content.trim(),
-        'timestamp': FieldValue.serverTimestamp(),
-        'isFromMe': true,
-        'senderName': adminName.value.isNotEmpty ? adminName.value : 'Admin',
-        'senderAvatar': null,
-        'status': "invocationSucceeded",
-        'whatsappMessageId': null,
+      final response = await _chatService.sendMessage({
+        'clientId': clientID,
+        'phoneNumber': chat.phoneNumber,
+        'message': content.trim(),
+        'chatId': chat.id,
         'messageType': 'text',
-        'mediaUrl': null,
-        'fileName': null,
-        'caption': null,
+        'adminName': adminName.value.isNotEmpty ? adminName.value : 'Admin',
       });
 
-      // Update last message in chat document
-      await FirebaseFirestore.instance
-          .collection('chats')
-          .doc(clientID)
-          .collection('data')
-          .doc(chat.id)
-          .update({
-            'lastMessage': content.trim(),
-            'lastMessageTime': FieldValue.serverTimestamp(),
-          });
-
-      final dio = NetworkUtilities.getDioClient();
-      final response = await dio.post(
-        ApiEndpoints.sendMessage,
-        data: {
-          'clientId': clientID,
-          'phoneNumber': chat.phoneNumber,
-          'message': content.trim(),
-          'chatId': chat.id,
-          'messageId': messageId,
-          'messageType': 'text',
-          'adminName': adminName.value.isNotEmpty ? adminName.value : 'Admin',
-        },
-      );
-
-      final data = response.data;
-
-      if (response.statusCode == 200 && data['success'] == true) {
-        // Utilities.showSnackbar(SnackType.SUCCESS, 'Message sent successfully');
+      if (response['success'] == true) {
+        // Optimistically add it handled by WS broadcast or local logic
+        // For better UX, we could add it here immediately with 'sending' status
       } else {
-        throw Exception(data['message'] ?? 'Failed to send message');
+        throw Exception(response['message'] ?? 'Failed to send message');
       }
     } catch (e) {
       Utilities.showSnackbar(
@@ -903,9 +705,11 @@ class ChatsController extends GetxController {
                                   for (var file in selectedFiles) {
                                     if (file.bytes != null) {
                                       await _sendMediaMessage(
-                                        bytes: file.bytes!,
-                                        messageType: MessageType.image,
+                                        filePath: file.path ?? '',
                                         fileName: file.name,
+                                        mimeType: _getMimeType(file.name),
+                                        messageType: 'image',
+                                        fileBytes: file.bytes,
                                       );
                                     }
                                   }
@@ -1251,9 +1055,11 @@ class ChatsController extends GetxController {
                                 for (var file in selectedFiles) {
                                   if (file.bytes != null) {
                                     await _sendMediaMessage(
-                                      bytes: file.bytes!,
-                                      messageType: MessageType.document,
+                                      filePath: file.path ?? '',
                                       fileName: file.name,
+                                      mimeType: _getMimeType(file.name),
+                                      messageType: 'document',
+                                      fileBytes: file.bytes,
                                     );
                                   }
                                 }
@@ -1320,20 +1126,21 @@ class ChatsController extends GetxController {
   }
 
   Future<void> _sendMediaMessage({
-    required Uint8List bytes,
-    required MessageType messageType,
+    required String filePath,
     required String fileName,
+    required String mimeType,
+    required String messageType,
     String? caption,
+    Uint8List? fileBytes,
   }) async {
+    if (selectedChat.value == null || !canSendMessage) return;
+
     final chat = selectedChat.value!;
     isSendingMessage.value = true;
-    uploadProgress.value = 0.0;
 
     try {
-      // Step 1: Upload to Firebase Storage
-      uploadProgress.value = 0.2;
-      final base64File = base64Encode(bytes);
-      final mimeType = _getMimeType(fileName);
+      // 1. Upload media to backend
+      String base64File = base64Encode(fileBytes!);
 
       final dio = NetworkUtilities.getDioClient();
       final uploadResponse = await dio.post(
@@ -1344,70 +1151,24 @@ class ChatsController extends GetxController {
           'mimeType': mimeType,
           'base64File': base64File,
         },
-        options: Options(
-          receiveTimeout: Duration(seconds: 60),
-          sendTimeout: Duration(seconds: 60),
-        ),
       );
 
-      if (uploadResponse.statusCode != 200) {
-        throw Exception(
-          'Failed to upload media to storage: ${uploadResponse.data}',
-        );
-      }
+      if (uploadResponse.statusCode != 200) throw Exception('Upload failed');
 
-      uploadProgress.value = 0.5;
+      final mediaUrl = uploadResponse.data['mediaUrl'];
 
-      final uploadData = uploadResponse.data;
-      final mediaUrl = uploadData['url'];
-
-      if (mediaUrl == null) {
-        throw Exception('No media ID returned from upload');
-      }
-
-      // Step 2: Send WhatsApp message with media ID
-      uploadProgress.value = 0.7;
-
-      String displayContent = '';
-      if (messageType == MessageType.image) {
-        displayContent = caption ?? '📷 Image';
-      } else if (messageType == MessageType.document) {
-        displayContent = caption ?? '📄 $fileName';
-      }
-
-      final response = await dio.post(
-        ApiEndpoints.sendMessage,
-        data: {
-          'clientId': clientID,
-          'phoneNumber': chat.phoneNumber,
-          'chatId': chat.id,
-          'messageType': messageType.name,
-          'mediaUrl': mediaUrl,
-          'fileName': fileName,
-          'caption': caption,
-          'message': displayContent,
-          'adminName': adminName.value.isNotEmpty ? adminName.value : 'Admin',
-        },
-        options: Options(
-          receiveTimeout: Duration(seconds: 30),
-          sendTimeout: Duration(seconds: 30),
-        ),
-      );
-
-      uploadProgress.value = 1.0;
-
-      if (response.statusCode == 200) {
-        final data = response.data;
-        if (data['success'] == true) {
-          Utilities.showSnackbar(SnackType.SUCCESS, 'Media sent successfully');
-        } else {
-          throw Exception(data['message'] ?? 'Failed to send media');
-        }
-      } else {
-        throw Exception(
-          'Server error: ${response.statusCode} - ${response.data}',
-        );
-      }
+      // 2. Send message with media URL
+      await _chatService.sendMessage({
+        'clientId': clientID,
+        'phoneNumber': chat.phoneNumber,
+        'message': caption ?? '',
+        'chatId': chat.id,
+        'messageType': messageType,
+        'mediaUrl': mediaUrl,
+        'fileName': fileName,
+        'mimeType': mimeType,
+        'adminName': adminName.value.isNotEmpty ? adminName.value : 'Admin',
+      });
     } catch (e) {
       Utilities.showSnackbar(
         SnackType.ERROR,
@@ -1447,50 +1208,10 @@ class ChatsController extends GetxController {
 
   Future<void> createChatFromContact(String contactId) async {
     try {
-      final contactDoc = await FirebaseFirestore.instance
-          .collection('contacts')
-          .doc(clientID)
-          .collection('data')
-          .doc(contactId)
-          .get();
+      await _chatService.createChat(clientID, contactId);
 
-      if (!contactDoc.exists) {
-        Utilities.showSnackbar(SnackType.ERROR, 'Contact not found');
-        return;
-      }
-
-      final contactData = contactDoc.data()!;
-      final fullName =
-          '${contactData['fName'] ?? ''} ${contactData['lName'] ?? ''}'.trim();
-      final phoneNumber =
-          '${contactData['countryCallingCode'] ?? contactData['countryCode'] ?? ''}${contactData['phoneNumber'] ?? ''}';
-
-      final existingChat = chats.firstWhereOrNull(
-        (chat) => chat.phoneNumber == phoneNumber,
-      );
-
-      if (existingChat != null) {
-        selectChat(existingChat);
-        Utilities.showSnackbar(SnackType.INFO, 'Chat already exists');
-        return;
-      }
-
-      final chatRef = FirebaseFirestore.instance
-          .collection('chats')
-          .doc(clientID)
-          .collection('data')
-          .doc(contactId);
-
-      await chatRef.set({
-        'name': fullName.isNotEmpty ? fullName : phoneNumber,
-        'phoneNumber': phoneNumber,
-        'avatarUrl': null,
-        'lastMessage': '',
-        'lastMessageTime': FieldValue.serverTimestamp(),
-        'campaignName': null,
-        'isOnline': false,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      // Refresh chats list to see the new chat
+      listenToChats();
 
       Utilities.showSnackbar(SnackType.SUCCESS, 'Chat created successfully');
     } catch (e) {
@@ -1503,29 +1224,15 @@ class ChatsController extends GetxController {
 
   Future<void> deleteChat(String chatId) async {
     try {
-      final messagesSnapshot = await FirebaseFirestore.instance
-          .collection('chats')
-          .doc(clientID)
-          .collection('data')
-          .doc(chatId)
-          .collection('messages')
-          .get();
-
-      for (var doc in messagesSnapshot.docs) {
-        await doc.reference.delete();
-      }
-
-      await FirebaseFirestore.instance
-          .collection('chats')
-          .doc(clientID)
-          .collection('data')
-          .doc(chatId)
-          .delete();
+      await _chatService.deleteChat(clientID, chatId);
 
       if (selectedChat.value?.id == chatId) {
         selectedChat.value = null;
         messages.clear();
       }
+
+      // Refresh chats list
+      listenToChats();
 
       Utilities.showSnackbar(SnackType.SUCCESS, 'Chat deleted');
     } catch (e) {
@@ -1642,28 +1349,26 @@ class ChatsController extends GetxController {
   // Update chat active status
   Future<void> updateChatActiveStatus(String chatId, bool isActive) async {
     try {
-      await FirebaseFirestore.instance
-          .collection('chats')
-          .doc(clientID)
-          .collection('data')
-          .doc(chatId)
-          .update({'isActive': isActive});
+      await _chatService.updateChat({
+        'clientId': clientID,
+        'chatId': chatId,
+        'isActive': isActive,
+      });
     } catch (e) {
-      // debugPrint('Error updating chat active status: $e');
+      debugPrint('Error updating chat active status: $e');
     }
   }
 
   // Update chat unread status
   Future<void> updateChatUnreadStatus(String chatId, bool unRead) async {
     try {
-      await FirebaseFirestore.instance
-          .collection('chats')
-          .doc(clientID)
-          .collection('data')
-          .doc(chatId)
-          .update({'unRead': unRead});
+      await _chatService.updateChat({
+        'clientId': clientID,
+        'chatId': chatId,
+        'unRead': unRead,
+      });
     } catch (e) {
-      // debugPrint('Error updating chat unread status: $e');
+      debugPrint('Error updating chat unread status: $e');
     }
   }
 
@@ -1727,14 +1432,13 @@ class ChatsController extends GetxController {
     bool isFavourite,
   ) async {
     try {
-      await FirebaseFirestore.instance
-          .collection('chats')
-          .doc(clientID)
-          .collection('data')
-          .doc(chatId)
-          .update({'isFavourite': isFavourite});
+      await _chatService.updateChat({
+        'clientId': clientID,
+        'chatId': chatId,
+        'isFavourite': isFavourite,
+      });
     } catch (e) {
-      // debugPrint('Error updating chat favourite status: $e');
+      debugPrint('Error updating chat favourite status: $e');
     }
   }
 
@@ -1784,7 +1488,6 @@ class ChatsController extends GetxController {
   RxBool isLoadingMoreAdmins = false.obs;
   int currentAdminsPage = 1;
   static const int adminsPageSize = 50;
-  DocumentSnapshot? _lastAdminDoc;
 
   void updateAdminSearch(String value) {
     adminSearch.value = value;
@@ -1817,8 +1520,7 @@ class ChatsController extends GetxController {
   Future<void> loadAdminsForAssignment() async {
     isLoadingAdmins.value = true;
     allAdmins.clear();
-    currentAdminsPage = 1;
-    _lastAdminDoc = null;
+    hasMoreAdmins.value = true;
 
     try {
       // Initialize selectedAdmins from current chat's assignedAdmin IDs
@@ -1853,27 +1555,19 @@ class ChatsController extends GetxController {
   }
 
   Future<void> _fetchAdminsPage() async {
-    var query = FirebaseFirestore.instance
-        .collection('admins')
-        .where('client_id', isEqualTo: clientID)
-        .where('isAllChats', isEqualTo: false);
+    try {
+      final adminsData = await _chatService.getAdmins(clientID);
 
-    if (_lastAdminDoc != null) {
-      query = query.startAfterDocument(_lastAdminDoc!);
-    }
+      // Filter out admins who see all chats if needed, or handle it in backend
+      final loadedAdmins = adminsData
+          .map((data) => AdminsModel.fromJson(data))
+          .toList();
 
-    final snapshot = await query.get();
-
-    if (snapshot.docs.isNotEmpty) {
-      _lastAdminDoc = snapshot.docs.last;
-      allAdmins.addAll(
-        snapshot.docs.map((doc) => AdminsModel.fromFirestore(doc)).toList(),
-      );
-      if (snapshot.docs.length < adminsPageSize) {
-        hasMoreAdmins.value = false;
-      }
-    } else {
-      hasMoreAdmins.value = false;
+      allAdmins.assignAll(loadedAdmins);
+      hasMoreAdmins.value =
+          false; // For now backend returns all, handle pagination later if needed
+    } catch (e) {
+      debugPrint('Error fetching admins: $e');
     }
   }
 
@@ -1885,49 +1579,16 @@ class ChatsController extends GetxController {
       Utilities.showOverlayLoadingDialog();
 
       final newAdminIds = selectedChatAdmins.map((e) => e.id!).toList();
-      final oldAdminIds = chat.assignedAdmin ?? [];
 
-      final batch = FirebaseFirestore.instance.batch();
+      await _chatService.updateChat({
+        'clientId': clientID,
+        'chatId': chat.id,
+        'assignedAdmins': newAdminIds,
+      });
 
-      // 1. Update Chat document's assigned_admin array
-      final chatRef = FirebaseFirestore.instance
-          .collection('chats')
-          .doc(clientID)
-          .collection('data')
-          .doc(chat.id);
-      batch.update(chatRef, {'assigned_admin': newAdminIds});
-
-      // 2. Identify admins to add/remove this chat from
-      final toAdd = newAdminIds
-          .where((id) => !oldAdminIds.contains(id))
-          .toList();
-      final toRemove = oldAdminIds
-          .where((id) => !newAdminIds.contains(id))
-          .toList();
-
-      // 3. Update each Admin's assigned_contacts array
-      for (var adminId in toAdd) {
-        final adminRef = FirebaseFirestore.instance
-            .collection('admins')
-            .doc(adminId);
-        batch.update(adminRef, {
-          'assigned_contacts': FieldValue.arrayUnion([chat.id]),
-        });
-      }
-
-      for (var adminId in toRemove) {
-        final adminRef = FirebaseFirestore.instance
-            .collection('admins')
-            .doc(adminId);
-        batch.update(adminRef, {
-          'assigned_contacts': FieldValue.arrayRemove([chat.id]),
-        });
-      }
-
-      await batch.commit();
-
-      // Update local chat object
+      // Update local state
       selectedChat.value = chat.copyWith(assignedAdmin: newAdminIds);
+      selectedChat.refresh();
 
       Utilities.hideCustomLoader(Get.context!);
       Utilities.showSnackbar(
