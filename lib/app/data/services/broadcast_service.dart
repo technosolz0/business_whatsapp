@@ -72,10 +72,10 @@ class BroadcastService {
   }) async {
     try {
       final Map<String, dynamic> payload = {
-        "template": templateName,
+        "templateName": templateName,
         "language": language,
-        "type": type,
-        "mobileNo": mobileNo,
+        "type": type.toUpperCase(),
+        "phoneNumber": mobileNo,
         "bodyVariables": bodyVariables,
         "clientId": clientID,
       };
@@ -86,17 +86,31 @@ class BroadcastService {
         case "TEXT":
           // No headerVariables needed
           if (headerVar != null) {
-            payload["headerVariables"] = {"type": type, "text": headerVar};
+            payload["headerVariables"] = {
+              "type": "TEXT",
+              "data": {"text": headerVar},
+            };
           }
           break;
         case "MEDIA":
           payload["headerVariables"] = {
-            "type": headerType ?? "",
+            "type": (headerType ?? "").toUpperCase(),
             "data": {"mediaId": mediaId ?? "", "fileName": fileName ?? ""},
           };
           break;
+        case "INTERACTIVE":
+          payload["headerVariables"] = headerType != null
+              ? {
+                  "type": headerType.toUpperCase(),
+                  "data": {
+                    "mediaId": mediaId ?? "",
+                    "fileName": fileName ?? "",
+                    "text": headerVar,
+                  },
+                }
+              : null;
+          break;
         default:
-          // Handle other types if necessary
           break;
       }
       // if (type.toUpperCase() == "MEDIA") {

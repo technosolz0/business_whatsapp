@@ -1,7 +1,7 @@
 class ApiEndpoints {
   // Base URL for the new FastAPI backend
   // In development, this might be 'http://localhost:8000' or similar
-  static const String serverUrl = 'https://bw-backend.example.com';
+  static const String serverUrl = 'https://bw.serwex.in';
 
   // Chat Endpoints
   static const String sendMessage = "$serverUrl/chat/sendWhatsAppMessage";

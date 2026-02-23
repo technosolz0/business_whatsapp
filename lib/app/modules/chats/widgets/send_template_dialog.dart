@@ -313,12 +313,12 @@ class _SendTemplateDialogState extends State<SendTemplateDialog> {
         ApiEndpoints.sendTemplateMessage,
         data: {
           'clientId': clientID,
-          'mobileNo': widget.phoneNumber,
-          'template': selectedTemplate!.name,
+          'phoneNumber': widget.phoneNumber,
+          'templateName': selectedTemplate!.name,
           'language': selectedTemplate!.language,
           'type': selectedTemplate!.templateType == 'Text & Media'
               ? 'MEDIA'
-              : selectedTemplate!.templateType,
+              : selectedTemplate!.templateType.toUpperCase(),
           'bodyVariables': bodyValues,
           'headerVariables': headerVariables,
           'buttonVariables': buttonVals,
