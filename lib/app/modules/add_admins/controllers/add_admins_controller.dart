@@ -286,8 +286,8 @@ class AddAdminsController extends GetxController {
         'assigned_pages': assignedPages?.map((e) => e.toJson()).toList() ?? [],
       };
 
-      final response = await dio.post(
-        isEditing ? ApiEndpoints.updateAdmin : ApiEndpoints.addAdmin,
+      final response = await dio.patch(
+        isEditing ? ApiEndpoints.patchAdmin : ApiEndpoints.addAdmin,
         queryParameters: isEditing ? {'adminId': id} : null,
         data: adminData,
       );
@@ -325,8 +325,8 @@ class AddAdminsController extends GetxController {
       try {
         Utilities.showOverlayLoadingDialog();
         final dio = NetworkUtilities.getDioClient();
-        await dio.post(
-          ApiEndpoints.updateAdmin,
+        await dio.patch(
+          ApiEndpoints.patchAdmin,
           queryParameters: {'adminId': adminID},
           data: {
             'assigned_contacts': segmentContacts.map((e) => e.id).toList(),

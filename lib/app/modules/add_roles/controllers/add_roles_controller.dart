@@ -188,8 +188,8 @@ class AddRolesController extends GetxController {
       };
 
       final _dio = NetworkUtilities.getDioClient();
-      final response = await _dio.post(
-        isEditing ? ApiEndpoints.updateRole : ApiEndpoints.addRole,
+      final response = await _dio.patch(
+        isEditing ? ApiEndpoints.patchRole : ApiEndpoints.addRole,
         queryParameters: isEditing ? {'roleId': id} : null,
         data: roleData,
       );

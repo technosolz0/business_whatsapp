@@ -64,8 +64,8 @@ class ClientsService {
   /// Update an existing client
   Future<bool> updateClient(String id, ClientModel client) async {
     try {
-      final response = await _dio.post(
-        ApiEndpoints.updateClient,
+      final response = await _dio.patch(
+        ApiEndpoints.patchClient,
         queryParameters: {'clientId': id},
         data: client.toJson(),
       );

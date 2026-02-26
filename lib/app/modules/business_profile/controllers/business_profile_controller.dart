@@ -142,8 +142,8 @@ class BusinessProfileController extends GetxController {
 
       // debugPrint('📤 Sending form data: ${formData.fields}');
 
-      final response = await _dio.post(
-        ApiEndpoints.updateProfile,
+      final response = await _dio.patch(
+        ApiEndpoints.patchProfile,
         data: formData,
       );
 

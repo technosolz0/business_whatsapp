@@ -95,7 +95,7 @@ class ChatService {
   /// Update chat properties (isActive, unRead, isFavourite)
   Future<void> updateChat(Map<String, dynamic> data) async {
     try {
-      final response = await _dio.post(ApiEndpoints.updateChat, data: data);
+      final response = await _dio.patch(ApiEndpoints.patchChat, data: data);
       if (response.statusCode != 200) {
         throw Exception(response.data['message'] ?? 'Failed to update chat');
       }

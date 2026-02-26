@@ -1120,8 +1120,8 @@ class CreateMilestoneSchedularController extends GetxController {
           "${DateTime.now().year}-01-01 ${this.scheduleTime.value}:00";
 
       final dio = NetworkUtilities.getDioClient();
-      final response = await dio.post(
-        ApiEndpoints.updateMilestone,
+      final response = await dio.patch(
+        ApiEndpoints.patchMilestoneScheduler,
         data: {
           'clientId': clientID,
           'schedulerId': schedulerId,

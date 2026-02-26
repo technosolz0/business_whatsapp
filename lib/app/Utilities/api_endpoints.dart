@@ -16,18 +16,22 @@ class ApiEndpoints {
   static const String getChats = '$serverUrl/chat/getChats';
   static const String getMessages = '$serverUrl/chat/getMessages';
   static const String updateChat = '$serverUrl/chat/updateChat';
+  static const String patchChat = '$serverUrl/chat/patchChat';
   static const String getAdmins = '$serverUrl/admins/getAdmins';
   static const String getAdminById = '$serverUrl/admins/getAdminById';
   static const String addAdmin = '$serverUrl/admins/addAdmin';
   static const String updateAdmin = '$serverUrl/admins/updateAdmin';
+  static const String patchAdmin = '$serverUrl/admins/patchAdmin';
   static const String deleteAdmin = '$serverUrl/admins/deleteAdmin';
   static const String getRoles = '$serverUrl/roles/getRoles';
   static const String addRole = '$serverUrl/roles/addRole';
   static const String updateRole = '$serverUrl/roles/updateRole';
+  static const String patchRole = '$serverUrl/roles/patchRole';
   static const String deleteRole = '$serverUrl/roles/deleteRole';
   static const String getAllClients = '$serverUrl/clients/get_all_clients';
   static const String addClient = '$serverUrl/clients/addClient';
   static const String updateClient = '$serverUrl/clients/updateClient';
+  static const String patchClient = '$serverUrl/clients/patchClient';
   static const String deleteClient = '$serverUrl/clients/deleteClient';
   static const String createChat = '$serverUrl/chat/createChat';
   static const String deleteChat = '$serverUrl/chat/deleteChat';
@@ -39,6 +43,8 @@ class ApiEndpoints {
   // Profile Endpoints
   static const String updateProfile =
       "$serverUrl/profile/updateWhatsAppBusinessProfile";
+  static const String patchProfile =
+      "$serverUrl/profile/patchWhatsAppBusinessProfile";
   static const String getProfile =
       "$serverUrl/profile/getWhatsAppBusinessProfile";
 
@@ -63,6 +69,7 @@ class ApiEndpoints {
   static const String sendTemplateMessage =
       "$serverUrl/broadcasts/sendTemplateMessage";
   static const String queueBroadcast = "$serverUrl/broadcasts/queueBroadcast";
+  static const String patchBroadcast = "$serverUrl/broadcasts/patchBroadcast";
   static const String deleteScheduledBroadcast =
       "$serverUrl/broadcasts/deleteScheduledBroadcast";
 
@@ -71,6 +78,8 @@ class ApiEndpoints {
       "$serverUrl/milestones/getApprovedMediaTemplates";
   static const String createMilestone = "$serverUrl/milestones/createMilestone";
   static const String updateMilestone = "$serverUrl/milestones/updateMilestone";
+  static const String patchMilestoneScheduler =
+      "$serverUrl/scheduler/patchMilestoneScheduler";
   static const String pauseMilestone = "$serverUrl/milestones/pauseMilestone";
   static const String resumeMilestone = "$serverUrl/milestones/resumeMilestone";
   static const String deleteMilestone = "$serverUrl/milestones/deleteMilestone";
