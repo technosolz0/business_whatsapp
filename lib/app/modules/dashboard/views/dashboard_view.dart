@@ -256,7 +256,7 @@ class DashboardView extends GetView<DashboardController> {
     return Obx(() {
       final subService = SubscriptionService.instance;
       final sub = subService.subscription.value;
-     
+
       if (sub == null || !subService.shouldShowRenewalWarning()) {
         return const SizedBox.shrink();
       }
@@ -442,25 +442,25 @@ class DashboardView extends GetView<DashboardController> {
     if (isMobile) {
       // Mobile: Single column for better readability
       crossAxisCount = 1;
-      childAspectRatio = 1.4; // Taller cards for mobile
+      childAspectRatio = 1.2; // Taller cards for mobile (was 1.4)
       crossAxisSpacing = 16;
       mainAxisSpacing = 16;
     } else if (isTablet) {
       // Tablet: 2 columns
       crossAxisCount = 2;
-      childAspectRatio = 1.5;
+      childAspectRatio = 1.35; // Taller (was 1.5)
       crossAxisSpacing = 16;
       mainAxisSpacing = 16;
     } else if (width < 1500) {
       // Small Desktop / Laptop: 3 columns (2 rows)
       crossAxisCount = 3;
-      childAspectRatio = 1.6;
+      childAspectRatio = 1.45; // Taller (was 1.6)
       crossAxisSpacing = 16;
       mainAxisSpacing = 16;
     } else {
       // Large Desktop: Keep original 6-column layout
       crossAxisCount = 6;
-      childAspectRatio = 0.85;
+      childAspectRatio = 0.75; // Taller (was 0.85)
       crossAxisSpacing = 12;
       mainAxisSpacing = 16;
     }
@@ -770,7 +770,7 @@ class _StatCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
 
-          Expanded(
+          Flexible(
             child: ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -1117,28 +1117,29 @@ class _DailyMessageLimitChart extends GetView<DashboardController> {
               // Desktop/Tablet layout: Chart and legend side by side
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
-                // mainAxisAlignment: MainAxisAlignment.spaceBetween, // Not needed with Expanded
                 children: [
-                  SizedBox(
-                    height: 200,
-                    width: 200,
-                    child: SfCircularChart(
-                      series: <CircularSeries>[
-                        PieSeries<_PieData, String>(
-                          dataSource: chartData,
-                          xValueMapper: (data, _) => data.category,
-                          yValueMapper: (data, _) => data.value,
-                          pointColorMapper: (data, _) => data.color,
-                          radius: '100%',
-                          dataLabelSettings: const DataLabelSettings(
-                            isVisible: false,
+                  Flexible(
+                    child: SizedBox(
+                      height: 200,
+                      width: 200,
+                      child: SfCircularChart(
+                        series: <CircularSeries>[
+                          PieSeries<_PieData, String>(
+                            dataSource: chartData,
+                            xValueMapper: (data, _) => data.category,
+                            yValueMapper: (data, _) => data.value,
+                            pointColorMapper: (data, _) => data.color,
+                            radius: '100%',
+                            dataLabelSettings: const DataLabelSettings(
+                              isVisible: false,
+                            ),
+                            animationDuration: 1000,
                           ),
-                          animationDuration: 1000,
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 12), // Spacing between chart and legend
+                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1316,7 +1317,7 @@ class _ShimmerStatCard extends StatelessWidget {
               thickness: 1,
             ),
             const SizedBox(height: 8),
-            Expanded(
+            Flexible(
               child: Column(
                 children: List.generate(
                   2,
