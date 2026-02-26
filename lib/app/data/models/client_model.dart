@@ -40,44 +40,53 @@ class ClientModel {
     return ClientModel(
       id: id,
       name: json['name'] ?? '',
-      phoneNumber: json['phoneNumber'] ?? '',
-      phoneNumberId: json['phoneNumberId'] ?? '',
-      wabaId: json['wabaId'] ?? '',
-      webhookVerifyToken: json['webhookVerifyToken'] ?? '',
-      logoUrl: json['logoUrl'],
+      phoneNumber: json['phone_number'] ?? json['phoneNumber'] ?? '',
+      phoneNumberId: json['phone_number_id'] ?? json['phoneNumberId'] ?? '',
+      wabaId: json['waba_id'] ?? json['wabaId'] ?? '',
+      webhookVerifyToken:
+          json['webhook_verify_token'] ?? json['webhookVerifyToken'] ?? '',
+      logoUrl: json['logo_url'] ?? json['logoUrl'],
       status: json['status'] ?? 'Pending',
-      adminLimit: json['admin_limit'] ?? 2,
-      isCRMEnabled: json['isCRMEnabled'] == true,
-      isPremium: json['is_premium'] ?? true,
+      adminLimit: json['admin_limit'] ?? json['adminLimit'] ?? 2,
+      isCRMEnabled:
+          json['is_crm_enabled'] == true || json['isCRMEnabled'] == true,
+      isPremium: json['is_premium'] ?? json['isPremium'] ?? true,
       subscriptionExpiry: json['subscription_expiry'] != null
           ? DateTime.tryParse(json['subscription_expiry'])
+          : json['subscription_expiry_date'] != null
+          ? DateTime.tryParse(json['subscription_expiry_date'])
           : null,
-      walletBalance: (json['wallet_balance'] ?? 0.0).toDouble(),
-      createdAt: json['createdAt'] != null
-          ? DateTime.parse(json['createdAt'])
-          : DateTime.now(),
-      updatedAt: json['updatedAt'] != null
-          ? DateTime.parse(json['updatedAt'])
-          : DateTime.now(),
+      walletBalance: (json['wallet_balance'] ?? json['walletBalance'] ?? 0.0)
+          .toDouble(),
+      createdAt: json['created_at'] != null
+          ? DateTime.tryParse(json['created_at'])
+          : json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'])
+          : null,
+      updatedAt: json['updated_at'] != null
+          ? DateTime.tryParse(json['updated_at'])
+          : json['updatedAt'] != null
+          ? DateTime.tryParse(json['updatedAt'])
+          : null,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'name': name,
-      'phoneNumber': phoneNumber,
-      'phoneNumberId': phoneNumberId,
-      'wabaId': wabaId,
-      'webhookVerifyToken': webhookVerifyToken,
-      'logoUrl': logoUrl,
+      'phone_number': phoneNumber,
+      'phone_number_id': phoneNumberId,
+      'waba_id': wabaId,
+      'webhook_verify_token': webhookVerifyToken,
+      'logo_url': logoUrl,
       'status': status,
       'admin_limit': adminLimit,
-      'isCRMEnabled': isCRMEnabled,
+      'is_crm_enabled': isCRMEnabled,
       'is_premium': isPremium,
       'subscription_expiry': subscriptionExpiry?.toIso8601String(),
       'wallet_balance': walletBalance,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
     };
   }
 

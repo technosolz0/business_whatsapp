@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:business_whatsapp/app/common%20widgets/shimmer_widgets.dart';
 import 'package:intl/intl.dart';
 
@@ -10,6 +9,7 @@ import '../../../../common widgets/no_data_found.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../data/models/admins_model.dart';
 import '../../../../Utilities/subscription_guard.dart';
+import '../../../../../main.dart';
 
 class AdminsTable extends StatelessWidget {
   final List<AdminsModel> admins;
@@ -117,6 +117,7 @@ class AdminsTable extends StatelessWidget {
       ),
       child: Row(
         children: [
+          if (isSuperUser.value) _headerText("CLIENT", flex: 2, isDark: isDark),
           _headerText("NAME", flex: 3, isDark: isDark), // Combined Avatar+Name
           _headerText("EMAIL", flex: 2, isDark: isDark),
           _headerText("ROLE", flex: 2, isDark: isDark),
@@ -169,6 +170,20 @@ class AdminsTable extends StatelessWidget {
             : Colors.transparent,
         child: Row(
           children: [
+            if (isSuperUser.value)
+              Expanded(
+                flex: 2,
+                child: Text(
+                  admin.clientName ?? admin.clientId ?? '-',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: isDark
+                        ? AppColors.textSecondaryDark
+                        : AppColors.textSecondaryLight,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             // Name + Avatar
             Expanded(
               flex: 3,
@@ -340,6 +355,17 @@ class AdminsTable extends StatelessWidget {
                         color: isDark ? AppColors.gray400 : Colors.grey[600],
                       ),
                     ),
+                    if (isSuperUser.value) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Client: ${admin.clientName ?? admin.clientId ?? '-'}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

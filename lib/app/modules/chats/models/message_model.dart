@@ -261,7 +261,10 @@ class MessageModel {
         (x) => x.name == (json['status'] ?? 'sent'),
         orElse: () => MessageStatus.sent,
       ),
-      errorDescription: json['error_description'] ?? json['errorDescription'],
+      errorDescription:
+          json['error_description'] ??
+          json['errorDescription'] ??
+          json['error'],
     );
   }
 

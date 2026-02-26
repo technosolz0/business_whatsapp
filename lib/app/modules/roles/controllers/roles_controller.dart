@@ -19,7 +19,10 @@ class RolesController extends GetxController {
   final RxList<RolesModel> filteredRoles = <RolesModel>[].obs;
   final RxList<List<String>> rowData = <List<String>>[].obs;
 
-  final List<String> tableColumns = ["Role Name", "Assigned Pages"];
+  final RxList<String> tableColumns = <String>[
+    "Role Name",
+    "Assigned Pages",
+  ].obs;
   final RxBool showLoading = false.obs;
   final RxBool isAddingRole = false.obs;
 
@@ -45,6 +48,9 @@ class RolesController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    if (isSuperUser.value && !tableColumns.contains("Client")) {
+      tableColumns.insert(0, "Client");
+    }
     getAllRoles();
 
     searchController.addListener(() {
@@ -57,17 +63,17 @@ class RolesController extends GetxController {
     showLoading.value = true;
 
     try {
-      final dio = NetworkUtilities.getDioClient();
-      final response = await dio.get(
+      final dioClient = NetworkUtilities.getDioClient();
+      final response = await dioClient.get(
         ApiEndpoints.getRoles,
         queryParameters: {'clientId': clientID},
       );
 
       if (response.statusCode == 200 && response.data['success'] == true) {
         final List rolesData = response.data['data'];
-        allRoles.value = rolesData
-            .map((data) => RolesModel.fromJson({'id': data['id'], ...data}))
-            .toList();
+        allRoles.value = rolesData.map((data) {
+          return RolesModel.fromJson({'id': data['id'], ...data});
+        }).toList();
 
         if (searchQuery.value.isNotEmpty) {
           searchRoles(searchQuery.value);

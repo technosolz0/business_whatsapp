@@ -133,9 +133,9 @@ class AdminsController extends GetxController {
 
       if (response.statusCode == 200 && response.data['success'] == true) {
         final List adminsData = response.data['data'];
-        allAdmins.value = adminsData
-            .map((data) => AdminsModel.fromJson({'id': data['id'], ...data}))
-            .toList();
+        allAdmins.value = adminsData.map((data) {
+          return AdminsModel.fromJson({'id': data['id'], ...data});
+        }).toList();
 
         // Search locally for now as simpler (can be improved later)
         if (searchQuery.value.isNotEmpty) {
@@ -188,15 +188,20 @@ class AdminsController extends GetxController {
     }
 
     rowData.value = filteredAdmins.map((d) {
-      return [
-        d.fullName, // Use fullName instead of username
-        d.email ?? "-",
-        d.role ?? "-",
+      List<String> row = [];
+      if (isSuperUser.value) {
+        row.add(d.clientName ?? d.clientId ?? "-");
+      }
+      row.add(d.fullName);
+      row.add(d.email ?? "-");
+      row.add(d.role ?? "-");
+      row.add(
         d.lastLoggedIn == null
             ? '-'
             : DateFormat('dd MMM yyyy').format(d.lastLoggedIn!).toString(),
-        jsonEncode(d.toJson()),
-      ];
+      );
+      row.add(jsonEncode(d.toJson()));
+      return row;
     }).toList();
   }
 

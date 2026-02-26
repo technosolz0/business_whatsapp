@@ -1,23 +1,51 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:business_whatsapp/app/Utilities/api_endpoints.dart';
 import 'package:business_whatsapp/app/Utilities/network_utilities.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';
-import '../models/chat_model.dart'; // Adjust path if needed
+import '../../modules/chats/models/chat_model.dart';
+import '../../modules/chats/models/message_model.dart';
 
 class ChatService {
   final Dio _dio = NetworkUtilities.getDioClient();
-  WebSocketChannel? _channel;
-  StreamController<Map<String, dynamic>>? _wsStreamController;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Singleton pattern
   static final ChatService _instance = ChatService._internal();
   factory ChatService() => _instance;
   ChatService._internal();
 
-  /// Fetch list of chats for a client
+  /// Listen to list of chats for a client in real-time
+  Stream<List<ChatModel>> getChatsStream(String clientId) {
+    return _firestore
+        .collection('chats')
+        .where('clientId', isEqualTo: clientId)
+        .orderBy('updatedAt', descending: true)
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs
+              .map((doc) => ChatModel.fromFirestore(doc.data(), doc.id))
+              .toList();
+        });
+  }
+
+  /// Listen to messages for a specific chat in real-time
+  Stream<List<MessageModel>> getMessagesStream(String chatId) {
+    return _firestore
+        .collection('chats')
+        .doc(chatId)
+        .collection('messages')
+        .orderBy('timestamp', descending: true)
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs
+              .map((doc) => MessageModel.fromFirestore(doc))
+              .toList();
+        });
+  }
+
+  /// Fetch list of chats for a client (keep for backward compatibility if needed)
   Future<List<Map<String, dynamic>>> getChats(String clientId) async {
     try {
       final response = await _dio.get(
@@ -51,7 +79,7 @@ class ChatService {
     }
   }
 
-  /// Fetch messages for a specific chat with pagination
+  /// Fetch messages for a specific chat with pagination (keep for legacy load more)
   Future<List<Map<String, dynamic>>> getMessages({
     required String chatId,
     required String clientId,
@@ -135,62 +163,5 @@ class ChatService {
       debugPrint('Error in deleteChat: $e');
       rethrow;
     }
-  }
-
-  /// Initialize WebSocket connection
-  void initWebSocket(String clientId) {
-    if (_channel != null) {
-      _channel!.sink.close();
-    }
-
-    _wsStreamController ??= StreamController<Map<String, dynamic>>.broadcast();
-
-    final url = ApiEndpoints.wsUrl(clientId);
-    debugPrint('Connecting to WebSocket: $url');
-
-    try {
-      _channel = WebSocketChannel.connect(Uri.parse(url));
-
-      _channel!.stream.listen(
-        (data) {
-          debugPrint('WebSocket received: $data');
-          try {
-            final Map<String, dynamic> message = jsonDecode(data);
-            _wsStreamController?.add(message);
-          } catch (e) {
-            debugPrint('Error decoding WS message: $e');
-          }
-        },
-        onError: (error) {
-          debugPrint('WebSocket error: $error');
-          _reconnect(clientId);
-        },
-        onDone: () {
-          debugPrint('WebSocket closed');
-          _reconnect(clientId);
-        },
-      );
-    } catch (e) {
-      debugPrint('Error initializing WebSocket: $e');
-      _reconnect(clientId);
-    }
-  }
-
-  void _reconnect(String clientId) {
-    // Basic reconnection logic
-    Future.delayed(const Duration(seconds: 5), () {
-      debugPrint('Attempting to reconnect WebSocket...');
-      initWebSocket(clientId);
-    });
-  }
-
-  Stream<Map<String, dynamic>> get webSocketStream =>
-      _wsStreamController?.stream ?? const Stream.empty();
-
-  void closeWebSocket() {
-    _channel?.sink.close();
-    _wsStreamController?.close();
-    _wsStreamController = null;
-    _channel = null;
   }
 }

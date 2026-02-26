@@ -36,10 +36,6 @@ class ApiEndpoints {
   static const String createChat = '$serverUrl/chat/createChat';
   static const String deleteChat = '$serverUrl/chat/deleteChat';
 
-  // WebSocket URL
-  static String wsUrl(String clientId) =>
-      "wss://bw.serwex.in/chat/ws/$clientId"; // Using wss for production
-
   // Profile Endpoints
   static const String updateProfile =
       "$serverUrl/profile/updateWhatsAppBusinessProfile";

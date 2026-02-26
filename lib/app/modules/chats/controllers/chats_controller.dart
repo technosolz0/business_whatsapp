@@ -74,15 +74,49 @@ class ChatsController extends GetxController {
   }
 
   Future<void> _initChatAccess() async {
-    // Note: Assigned contacts filtering will eventually be handled by backend APIs
-    // For now, we fetch all chats for clientID
-    listenToChats();
-    _chatService.initWebSocket(clientID);
+    chatsSub?.cancel();
 
-    // Listen to WebSocket updates
-    _chatService.webSocketStream.listen((event) {
-      _handleWebSocketEvent(event);
-    });
+    // 1. Fetch from REST API as fallback/immediate data
+    try {
+      final apiChats = await _chatService.getChats(clientID);
+      if (apiChats.isNotEmpty) {
+        final List<ChatModel> loadedChats = apiChats
+            .map((c) => ChatModel.fromJson(c))
+            .toList();
+        _applyChatFilter(loadedChats);
+      }
+    } catch (e) {
+      debugPrint('Error fetching initial chats from API: $e');
+    }
+
+    // 2. Listen to Firestore for real-time updates
+    chatsSub = _chatService
+        .getChatsStream(clientID)
+        .listen(
+          (updatedChats) {
+            if (updatedChats.isNotEmpty) {
+              _applyChatFilter(updatedChats);
+              hasMoreChats.value = false;
+              isLoadingMoreChats.value = false;
+            } else if (chats.isEmpty) {
+              isLoadingMoreChats.value = false;
+            }
+          },
+          onError: (e) {
+            debugPrint('Chats Firestore stream error: $e');
+            isLoadingMoreChats.value = false;
+          },
+        );
+  }
+
+  void _applyChatFilter(List<ChatModel> updatedChats) {
+    List<ChatModel> filteredChats = updatedChats;
+    if (activeFilter.value == 'unRead') {
+      filteredChats = updatedChats.where((c) => c.unRead).toList();
+    } else if (activeFilter.value == 'isFavourite') {
+      filteredChats = updatedChats.where((c) => c.isFavourite).toList();
+    }
+    chats.assignAll(filteredChats);
   }
 
   @override
@@ -97,76 +131,6 @@ class ChatsController extends GetxController {
     super.onClose();
   }
 
-  void listenToChats() async {
-    isLoadingMoreChats.value = true;
-    try {
-      final chatsData = await _chatService.getChats(clientID);
-      chats.value = chatsData.map((data) => ChatModel.fromJson(data)).toList();
-
-      // Basic filtering until backend supports it via query params
-      if (activeFilter.value == 'unRead') {
-        chats.value = chats.where((c) => c.unRead).toList();
-      } else if (activeFilter.value == 'isFavourite') {
-        chats.value = chats.where((c) => c.isFavourite).toList();
-      }
-
-      hasMoreChats.value =
-          false; // Backend currently returns all? Or add pagination later
-    } catch (e) {
-      debugPrint('Error loading chats: $e');
-    } finally {
-      isLoadingMoreChats.value = false;
-    }
-  }
-
-  void _handleWebSocketEvent(Map<String, dynamic> event) {
-    final String type = event['type'] ?? '';
-
-    if (type == 'new_message') {
-      final String chatId = event['chatId'];
-      final Map<String, dynamic> messageData = event['message'];
-      final newMessage = MessageModel.fromJson(messageData);
-
-      // If this message belongs to the current selected chat, add it
-      if (selectedChat.value?.id == chatId) {
-        messages.insert(0, newMessage);
-        // scrollToBottom would be 0.0 in reversed list
-      }
-
-      // Update the chat list (last message, unread status, etc.)
-      final index = chats.indexWhere((c) => c.id == chatId);
-      if (index != -1) {
-        final chat = chats[index];
-        chats[index] = chat.copyWith(
-          lastMessage: newMessage.content,
-          userLastMessageTime: newMessage.timestamp,
-          unRead:
-              selectedChat.value?.id != chatId, // mark unread if not selected
-        );
-        // Move to top
-        final movedChat = chats.removeAt(index);
-        chats.insert(0, movedChat);
-      } else {
-        // New chat? Re-fetch list
-        listenToChats();
-      }
-    } else if (type == 'status_update') {
-      final String whatsappMessageId = event['whatsappMessageId'];
-      final String statusStr = event['status'];
-
-      final msgIndex = messages.indexWhere(
-        (m) => m.whatsappMessageId == whatsappMessageId,
-      );
-      if (msgIndex != -1) {
-        final status = MessageStatus.values.firstWhere(
-          (e) => e.name == statusStr,
-          orElse: () => MessageStatus.sent,
-        );
-        messages[msgIndex] = messages[msgIndex].copyWith(status: status);
-      }
-    }
-  }
-
   void _chatListScrollListener() {
     if (chatListScrollController.hasClients) {
       for (final position in chatListScrollController.positions) {
@@ -174,20 +138,11 @@ class ChatsController extends GetxController {
             position.pixels >= position.maxScrollExtent - 200 &&
             !isLoadingMoreChats.value &&
             hasMoreChats.value) {
-          loadMoreChats();
+          // loadMoreChats();
           break;
         }
       }
     }
-  }
-
-  void loadMoreChats() {
-    // If already loading or no more chats, don't trigger
-    if (isLoadingMoreChats.value || !hasMoreChats.value) return;
-
-    isLoadingMoreChats.value = true;
-    chatLimit.value += 10; // Load next 10
-    listenToChats();
   }
 
   // void resetScrollController() {
@@ -230,28 +185,47 @@ class ChatsController extends GetxController {
   // Lazy Loading Implementation
   Future<void> loadInitialMessages(String chatId) async {
     messages.clear();
+    messagesSub?.cancel();
     isLoadingMore.value = true;
-    hasMoreMessages.value = true;
 
+    // 1. Fetch from REST API as fallback/immediate data
     try {
-      final messagesData = await _chatService.getMessages(
+      final apiMessages = await _chatService.getMessages(
         chatId: chatId,
         clientId: clientID,
-        limit: pageSize,
-        offset: 0,
       );
-
-      final loadedMessages = messagesData
-          .map((data) => MessageModel.fromJson(data))
-          .toList();
-
-      messages.addAll(loadedMessages);
-      hasMoreMessages.value = loadedMessages.length == pageSize;
+      if (apiMessages.isNotEmpty) {
+        messages.assignAll(
+          apiMessages.map((m) => MessageModel.fromJson(m)).toList(),
+        );
+        isLoadingMore.value = false;
+        scrollToBottomImmediately();
+      }
     } catch (e) {
-      debugPrint('Error loading initial messages: $e');
-    } finally {
-      isLoadingMore.value = false;
+      debugPrint('Error fetching initial messages from API: $e');
     }
+
+    // 2. Listen to Firestore for real-time updates
+    messagesSub = _chatService
+        .getMessagesStream(chatId)
+        .listen(
+          (updatedMessages) {
+            if (updatedMessages.isNotEmpty) {
+              messages.assignAll(updatedMessages);
+              isLoadingMore.value = false;
+              // Note: with full stream, legacy pagination (loadMore) is disabled or needs adjustment
+              hasMoreMessages.value = false;
+            } else if (messages.isEmpty) {
+              // If Firestore is empty AND we didn't get API data, then it's truly empty
+              isLoadingMore.value = false;
+              hasMoreMessages.value = false;
+            }
+          },
+          onError: (e) {
+            debugPrint('Firestore stream error: $e');
+            isLoadingMore.value = false;
+          },
+        );
   }
 
   void _scrollListener() {
@@ -260,33 +234,8 @@ class ChatsController extends GetxController {
               scrollController.position.maxScrollExtent - 200 &&
           !isLoadingMore.value &&
           hasMoreMessages.value) {
-        loadMoreMessages();
+        // loadMoreMessages();
       }
-    }
-  }
-
-  Future<void> loadMoreMessages() async {
-    if (isLoadingMore.value || !hasMoreMessages.value) return;
-
-    isLoadingMore.value = true;
-    try {
-      final messagesData = await _chatService.getMessages(
-        chatId: selectedChat.value?.id ?? '',
-        clientId: clientID,
-        limit: pageSize,
-        offset: messages.length,
-      );
-
-      final loadedMessages = messagesData
-          .map((data) => MessageModel.fromJson(data))
-          .toList();
-
-      messages.addAll(loadedMessages);
-      hasMoreMessages.value = loadedMessages.length == pageSize;
-    } catch (e) {
-      debugPrint('Error loading more messages: $e');
-    } finally {
-      isLoadingMore.value = false;
     }
   }
 
@@ -1210,8 +1159,8 @@ class ChatsController extends GetxController {
     try {
       await _chatService.createChat(clientID, contactId);
 
-      // Refresh chats list to see the new chat
-      listenToChats();
+      // Refresh chats list to see the new chat - Firestore will handle this automatically
+      // listenToChats();
 
       Utilities.showSnackbar(SnackType.SUCCESS, 'Chat created successfully');
     } catch (e) {
@@ -1231,8 +1180,8 @@ class ChatsController extends GetxController {
         messages.clear();
       }
 
-      // Refresh chats list
-      listenToChats();
+      // Refresh chats list - Firestore will handle this automatically
+      // listenToChats();
 
       Utilities.showSnackbar(SnackType.SUCCESS, 'Chat deleted');
     } catch (e) {
@@ -1459,7 +1408,8 @@ class ChatsController extends GetxController {
 
     chats.clear();
     isLoadingMoreChats.value = true;
-    listenToChats();
+    // listenToChats();
+    _initChatAccess(); // Re-initialize stream with the current filter
   }
 
   bool validateAdminSelection() {
@@ -1528,7 +1478,18 @@ class ChatsController extends GetxController {
       if (chat != null && chat.assignedAdmin != null) {
         selectedChatAdmins.assignAll(
           chat.assignedAdmin!.map(
-            (id) => AdminsModel(id, null, null, null, null, null, 1, null),
+            (id) => AdminsModel(
+              id,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              null,
+              1,
+              null,
+            ),
           ),
         );
       } else {

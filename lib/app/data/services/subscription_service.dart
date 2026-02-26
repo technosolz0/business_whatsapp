@@ -33,7 +33,7 @@ class SubscriptionService extends GetxService {
         .listen(
           (doc) {
             if (doc.exists && doc.data() != null) {
-             final sub = Subscription.fromFirestore(doc.data()!);
+              final sub = Subscription.fromFirestore(doc.data()!);
               subscription.value = sub;
               validateSubscription(sub);
             } else {

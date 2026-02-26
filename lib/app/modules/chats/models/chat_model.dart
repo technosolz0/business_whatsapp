@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
 class ChatModel {
@@ -68,28 +69,69 @@ class ChatModel {
       lastMessageTime: json['last_message_time'] != null
           ? (json['last_message_time'] is String
                 ? json['last_message_time']
-                : DateFormat('h:mm a').format(
-                    DateTime.parse(json['last_message_time'].toString()),
-                  ))
-          : '',
+                : (json['last_message_time'] is Timestamp
+                      ? DateFormat('h:mm a').format(
+                          (json['last_message_time'] as Timestamp).toDate(),
+                        )
+                      : DateFormat('h:mm a').format(
+                          DateTime.parse(json['last_message_time'].toString()),
+                        )))
+          : (json['lastMessageTime'] != null
+                ? (json['lastMessageTime'] is String
+                      ? json['lastMessageTime']
+                      : (json['lastMessageTime'] is Timestamp
+                            ? DateFormat('h:mm a').format(
+                                (json['lastMessageTime'] as Timestamp).toDate(),
+                              )
+                            : ''))
+                : ''),
       campaignName: json['campaign_name'] ?? json['campaignName'],
       isOnline: json['is_online'] ?? json['isOnline'] ?? false,
       unRead: json['un_read'] ?? json['unRead'] == true,
       isActive: json['is_active'] ?? json['isActive'] == true,
       isFavourite: json['isFavourite'] == true || json['is_favourite'] == true,
       userLastMessageTime: json['user_last_message_time'] != null
-          ? DateTime.parse(json['user_last_message_time'].toString())
+          ? (json['user_last_message_time'] is String
+                ? DateTime.tryParse(json['user_last_message_time'])
+                : (json['user_last_message_time'] is Timestamp
+                      ? (json['user_last_message_time'] as Timestamp).toDate()
+                      : null))
           : (json['userLastMessageTime'] != null
-                ? DateTime.tryParse(json['userLastMessageTime'].toString())
-                : null),
+                ? (json['userLastMessageTime'] is String
+                      ? DateTime.tryParse(json['userLastMessageTime'])
+                      : (json['userLastMessageTime'] is Timestamp
+                            ? (json['userLastMessageTime'] as Timestamp)
+                                  .toDate()
+                            : null))
+                : (json['updatedAt'] != null
+                      ? (json['updatedAt'] is Timestamp
+                            ? (json['updatedAt'] as Timestamp).toDate()
+                            : (json['updatedAt'] is String
+                                  ? DateTime.tryParse(json['updatedAt'])
+                                  : null))
+                      : (json['updated_at'] != null
+                            ? (json['updated_at'] is Timestamp
+                                  ? (json['updated_at'] as Timestamp).toDate()
+                                  : (json['updated_at'] is String
+                                        ? DateTime.tryParse(json['updated_at'])
+                                        : null))
+                            : null))),
       assignedAdmin: json['assigned_admin'] != null
           ? List<String>.from(json['assigned_admin'])
           : (json['assigned_admins'] != null
                 ? List<String>.from(json['assigned_admins'])
                 : null),
-      leadRecordId: json['leadRecordId'],
-      isLeadGenerated: json['isLeadGenerated'] == true,
+      leadRecordId: json['leadRecordId'] ?? json['lead_record_id'],
+      isLeadGenerated:
+          json['isLeadGenerated'] == true || json['is_lead_generated'] == true,
     );
+  }
+
+  factory ChatModel.fromFirestore(
+    Map<String, dynamic> data,
+    String documentId,
+  ) {
+    return ChatModel.fromJson({...data, 'id': documentId});
   }
 
   Map<String, dynamic> toJson() {

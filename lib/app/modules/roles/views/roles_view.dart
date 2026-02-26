@@ -16,6 +16,7 @@ import '../../../modules/roles/models/roles_model.dart';
 import '../../../routes/app_pages.dart';
 import '../../../controllers/navigation_controller.dart';
 import '../controllers/roles_controller.dart';
+import '../../../../main.dart';
 
 class RolesView extends GetView<RolesController> {
   final MenuItem item;
@@ -370,9 +371,22 @@ class RolesView extends GetView<RolesController> {
           topRight: Radius.circular(14),
         ),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          Expanded(
+          if (isSuperUser.value)
+            const Expanded(
+              flex: 2,
+              child: Text(
+                'CLIENT',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF6b7280),
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          const Expanded(
             flex: 2,
             child: Text(
               'ROLE NAME',
@@ -384,7 +398,7 @@ class RolesView extends GetView<RolesController> {
               ),
             ),
           ),
-          Expanded(
+          const Expanded(
             flex: 3,
             child: Text(
               'ASSIGNED PAGES',
@@ -396,7 +410,7 @@ class RolesView extends GetView<RolesController> {
               ),
             ),
           ),
-          Expanded(
+          const Expanded(
             flex: 1,
             child: Text(
               'STATUS',
@@ -408,7 +422,7 @@ class RolesView extends GetView<RolesController> {
               ),
             ),
           ),
-          Expanded(
+          const Expanded(
             flex: 1,
             child: Text(
               'ACTIONS',
@@ -478,6 +492,17 @@ class RolesView extends GetView<RolesController> {
                       : AppColors.textPrimaryLight,
                 ),
               ),
+              if (isSuperUser.value) ...[
+                const SizedBox(height: 4),
+                Text(
+                  'Client: ${role.clientName ?? role.clientId ?? 'Unknown'}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ],
               const SizedBox(height: 4),
               Text(
                 role.assignedPages?.length.toString() ?? '0',
@@ -550,6 +575,18 @@ class RolesView extends GetView<RolesController> {
 
     return Row(
       children: [
+        if (isSuperUser.value)
+          Expanded(
+            flex: 2,
+            child: Text(
+              role.clientName ?? role.clientId ?? 'Unknown',
+              style: TextStyle(
+                fontSize: 14,
+                color: isDark ? AppColors.gray400 : Colors.grey[700],
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         Expanded(
           flex: 2,
           child: Row(

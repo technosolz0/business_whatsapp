@@ -5,6 +5,8 @@ class AdminsModel {
   String? username; // Keep for backward compatibility
   String? email;
   String? role;
+  String? clientId;
+  String? clientName;
   int? status; // 1 = Active, 0 = Inactive
   DateTime? lastLoggedIn;
 
@@ -15,6 +17,8 @@ class AdminsModel {
     this.username,
     this.email,
     this.role,
+    this.clientId,
+    this.clientName,
     this.status,
     this.lastLoggedIn,
   );
@@ -34,29 +38,38 @@ class AdminsModel {
   }
 
   AdminsModel.fromJson(Map<String, dynamic> json) {
-    id = json['id'];
-    firstName = json['first_name'];
-    lastName = json['last_name'];
-    username = json['username']; // Keep for backward compatibility
+    id = json['id']?.toString();
+    firstName = json['first_name'] ?? json['firstName'];
+    lastName = json['last_name'] ?? json['lastName'];
+    username = json['username'];
     email = json['email'];
     role = json['role'];
-    status = json['status'] ?? 1; // Default to active
+    clientId = json['client_id'] ?? json['clientId'];
+    clientName =
+        json['client_name'] ??
+        json['clientName'] ??
+        (json['client'] != null ? json['client']['name'] : null);
+    status = json['status'] ?? 1;
     lastLoggedIn =
         json["last_logged_in"] == null ||
             json["last_logged_in"] == "null" ||
-            (json['last_logged_in'] as String).isEmpty
+            json["last_logged_in"].toString().isEmpty
         ? null
-        : DateTime.parse(json["last_logged_in"].toString());
+        : DateTime.tryParse(json["last_logged_in"].toString());
   }
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
+      'first_name': firstName,
+      'last_name': lastName,
       'username': username,
       'email': email,
       'role': role,
+      'client_id': clientId,
+      'client_name': clientName,
       'status': status,
-      'last_logged_in': lastLoggedIn.toString(),
+      'last_logged_in': lastLoggedIn?.toIso8601String(),
     };
   }
 }

@@ -188,11 +188,13 @@ class AddRolesController extends GetxController {
       };
 
       final _dio = NetworkUtilities.getDioClient();
-      final response = await _dio.patch(
-        isEditing ? ApiEndpoints.patchRole : ApiEndpoints.addRole,
-        queryParameters: isEditing ? {'roleId': id} : null,
-        data: roleData,
-      );
+      final response = isEditing
+          ? await _dio.patch(
+              ApiEndpoints.patchRole,
+              queryParameters: {'roleId': id},
+              data: roleData,
+            )
+          : await _dio.post(ApiEndpoints.addRole, data: roleData);
 
       if (response.statusCode == 200 && response.data['success'] == true) {
         Get.offNamed(Routes.ROLES);
