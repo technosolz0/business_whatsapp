@@ -207,7 +207,7 @@ class ChatsController extends GetxController {
 
     // 2. Listen to Firestore for real-time updates
     messagesSub = _chatService
-        .getMessagesStream(chatId)
+        .getMessagesStream(chatId, clientID)
         .listen(
           (updatedMessages) {
             if (updatedMessages.isNotEmpty) {

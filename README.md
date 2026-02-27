@@ -31,3 +31,14 @@ samples, guidance on mobile development, and a full API reference.
   "is_premium": true,
   "status": "Approved"
 }
+
+
+{
+  "clientId": "1018131664709780",
+  "phoneNumber": "919561371297",
+  "chatId": "test",
+  "message": "higfhfgh",
+  "messageType": "text",
+  "mediaUrl": "string",
+  "fileName": "string"
+}

@@ -286,11 +286,13 @@ class AddAdminsController extends GetxController {
         'assigned_pages': assignedPages?.map((e) => e.toJson()).toList() ?? [],
       };
 
-      final response = await dio.patch(
-        isEditing ? ApiEndpoints.patchAdmin : ApiEndpoints.addAdmin,
-        queryParameters: isEditing ? {'adminId': id} : null,
-        data: adminData,
-      );
+      final response = isEditing
+          ? await dio.patch(
+              ApiEndpoints.patchAdmin,
+              queryParameters: {'adminId': id},
+              data: adminData,
+            )
+          : await dio.post(ApiEndpoints.addAdmin, data: adminData);
 
       if (response.statusCode == 200 && response.data['success'] == true) {
         Get.offNamed(Routes.ADMINS);

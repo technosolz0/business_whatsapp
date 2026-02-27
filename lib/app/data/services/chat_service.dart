@@ -20,7 +20,8 @@ class ChatService {
   Stream<List<ChatModel>> getChatsStream(String clientId) {
     return _firestore
         .collection('chats')
-        .where('clientId', isEqualTo: clientId)
+        .doc(clientId)
+        .collection('data')
         .orderBy('updatedAt', descending: true)
         .snapshots()
         .map((snapshot) {
@@ -31,9 +32,11 @@ class ChatService {
   }
 
   /// Listen to messages for a specific chat in real-time
-  Stream<List<MessageModel>> getMessagesStream(String chatId) {
+  Stream<List<MessageModel>> getMessagesStream(String chatId, String clientId) {
     return _firestore
         .collection('chats')
+        .doc(clientId)
+        .collection('data')
         .doc(chatId)
         .collection('messages')
         .orderBy('timestamp', descending: true)
