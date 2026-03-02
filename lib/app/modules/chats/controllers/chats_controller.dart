@@ -268,14 +268,18 @@ class ChatsController extends GetxController {
     final chat = selectedChat.value!;
     isSendingMessage.value = true;
 
+    final phone = chat.phoneNumber.startsWith('+')
+        ? chat.phoneNumber
+        : '+${chat.phoneNumber}';
+
     try {
       final response = await _chatService.sendMessage({
         'clientId': clientID,
-        'phoneNumber': chat.phoneNumber,
+        'phoneNumber': phone,
         'message': content.trim(),
         'chatId': chat.id,
         'messageType': 'text',
-        'adminName': adminName.value.isNotEmpty ? adminName.value : 'Admin',
+        'name': adminName.value.isNotEmpty ? adminName.value : 'Admin',
       });
 
       if (response['success'] == true) {

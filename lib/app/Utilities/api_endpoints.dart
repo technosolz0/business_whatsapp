@@ -7,16 +7,15 @@ class ApiEndpoints {
   static const String login = "$serverUrl/auth/login";
   static const String getClientDetails = "$serverUrl/clients/getClientDetails";
   static const String getCharges = "$serverUrl/clients/getCharges";
-  static const String sendMessage = "$serverUrl/chat/sendWhatsAppMessage";
+  static const String sendMessage = "$serverUrl/sendWhatsAppMessage";
   static const String uploadMediaForChat =
-      "$serverUrl/chat/uploadMediaForChat"; // Corrected name
-  static const String updateMessageStatus =
-      '$serverUrl/chat/updateMessageStatus';
-  static const String getDailyStats = '$serverUrl/chat/getDailyStats';
-  static const String getChats = '$serverUrl/chat/getChats';
-  static const String getMessages = '$serverUrl/chat/getMessages';
-  static const String updateChat = '$serverUrl/chat/updateChat';
-  static const String patchChat = '$serverUrl/chat/patchChat';
+      "$serverUrl/uploadMediaForChat"; // Corrected name
+  static const String updateMessageStatus = '$serverUrl/updateMessageStatus';
+  static const String getDailyStats = '$serverUrl/getDailyStats';
+  static const String getChats = '$serverUrl/getChats';
+  static const String getMessages = '$serverUrl/getMessages';
+  static const String updateChat = '$serverUrl/updateChat';
+  static const String patchChat = '$serverUrl/patchChat';
   static const String getAdmins = '$serverUrl/admins/getAdmins';
   static const String getAdminById = '$serverUrl/admins/getAdminById';
   static const String addAdmin = '$serverUrl/admins/addAdmin';
@@ -33,8 +32,8 @@ class ApiEndpoints {
   static const String updateClient = '$serverUrl/clients/updateClient';
   static const String patchClient = '$serverUrl/clients/patchClient';
   static const String deleteClient = '$serverUrl/clients/deleteClient';
-  static const String createChat = '$serverUrl/chat/createChat';
-  static const String deleteChat = '$serverUrl/chat/deleteChat';
+  static const String createChat = '$serverUrl/createChat';
+  static const String deleteChat = '$serverUrl/deleteChat';
 
   // Profile Endpoints
   static const String updateProfile =
@@ -61,7 +60,7 @@ class ApiEndpoints {
   // Broadcast & Media Endpoints
   static const String uploadMediaToInterakt =
       "$serverUrl/templates/uploadMediaToInterakt";
-  static const String uploadBroadcastMedia = "$serverUrl/chat/uploadMedia";
+  static const String uploadBroadcastMedia = "$serverUrl/uploadMedia";
   static const String sendTemplateMessage =
       "$serverUrl/broadcasts/sendTemplateMessage";
   static const String queueBroadcast = "$serverUrl/broadcasts/queueBroadcast";
