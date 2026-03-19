@@ -26,59 +26,56 @@ class ClientsTable extends StatelessWidget {
     final isMobile = Responsive.isMobile(context);
 
     if (clients.isEmpty) {
-      return Expanded(
-        child: NoDataFound(
-          icon: Icons.group_outlined,
-          label: 'No Clients Found',
-          isDark: isDark,
-        ),
+      return NoDataFound(
+        icon: Icons.group_outlined,
+        label: 'No Clients Found',
+        isDark: isDark,
       );
     }
 
-    return Expanded(
-      child: Container(
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.cardDark : Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isDark ? AppColors.borderDark : Colors.grey[200]!,
-          ),
-          boxShadow: isDark
-              ? []
-              : [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.cardDark : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : Colors.grey[200]!,
         ),
-        child: Column(
-          children: [
-            // Header (Desktop only)
-            if (!isMobile) _buildHeader(isDark),
-
-            // Rows
-            Expanded(
-              child: ListView.separated(
-                itemCount: clients.length,
-                separatorBuilder: (context, index) => Divider(
-                  height: 1,
-                  color: isDark ? AppColors.borderDark : Colors.grey[200],
+        boxShadow: isDark
+            ? []
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
                 ),
-                itemBuilder: (context, index) {
-                  return _buildRow(clients[index], isDark, isMobile);
-                },
-              ),
-            ),
+              ],
+      ),
+      child: Column(
+        children: [
+          // Header (Desktop only)
+          if (!isMobile) _buildHeader(isDark),
 
-            // Pagination
-            _buildPagination(),
-          ],
-        ),
+          // Rows
+          Expanded(
+            child: ListView.separated(
+              itemCount: clients.length,
+              separatorBuilder: (context, index) => Divider(
+                height: 1,
+                color: isDark ? AppColors.borderDark : Colors.grey[200],
+              ),
+              itemBuilder: (context, index) {
+                return _buildRow(clients[index], isDark, isMobile);
+              },
+            ),
+          ),
+
+          // Pagination
+          _buildPagination(),
+        ],
       ),
     );
   }
+
 
   Widget _buildHeader(bool isDark) {
     return Container(

@@ -1061,9 +1061,22 @@ class CreateTemplateController extends GetxController {
       templateController.loadInitialTemplates();
     } else {
       Utilities.hideCustomLoader(Get.context!);
-      handleApiError(response["message"]["error"]);
+      final msg = response["message"];
+      if (msg != null && msg is Map && msg["error"] is Map) {
+        handleApiError(msg["error"]);
+      } else {
+        String errorMsg = "Something went wrong. Please try again.";
+        if (msg is String) {
+          errorMsg = msg;
+        } else if (msg is Map && msg["error"] is String) {
+          errorMsg = msg["error"];
+        }
+        Utilities.showSnackbar(SnackType.ERROR, errorMsg);
+      }
     }
   }
+
+
 
   // ===========================================================================
   // 🟦 UPDATE TEMPLATE (EDIT MODE) — *Commented edit code kept intact*

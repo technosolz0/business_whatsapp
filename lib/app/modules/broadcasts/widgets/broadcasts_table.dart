@@ -25,66 +25,65 @@ class BroadcastsTable extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Expanded(
-      child: Obx(() {
-        // Handle loading state
-        if (controller.isLoading.value) {
-          return const TableShimmer(rows: 10, columns: 7);
-        }
+    return Obx(() {
+      // Handle loading state
+      if (controller.isLoading.value) {
+        return const TableShimmer(rows: 10, columns: 7);
+      }
 
-        // Handle empty list
-        if (controller.broadcasts.isEmpty) {
-          return NoDataFound(
-            icon: Icons.campaign_outlined,
-            label: 'No Broadcasts Found',
-            isDark: isDark,
-          );
-        }
-
-        // Build table with contacts pattern
-        return Container(
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.cardDark : Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: isDark ? AppColors.borderDark : Colors.grey[200]!,
-            ),
-            boxShadow: isDark
-                ? []
-                : [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-          ),
-          child: Column(
-            children: [
-              // Table Header
-              _buildHeader(context, isDark),
-
-              // Scrollable Rows
-              Expanded(
-                child: ListView.separated(
-                  itemCount: controller.broadcasts.length,
-                  separatorBuilder: (context, index) =>
-                      Divider(height: 1, color: Colors.grey[200]),
-                  itemBuilder: (context, index) {
-                    final broadcast = controller.broadcasts[index];
-                    return _buildRow(context, broadcast, isDark);
-                  },
-                ),
-              ),
-
-              // Pagination (INSIDE the card)
-              _buildPaginationControls(isDark),
-            ],
-          ),
+      // Handle empty list
+      if (controller.broadcasts.isEmpty) {
+        return NoDataFound(
+          icon: Icons.campaign_outlined,
+          label: 'No Broadcasts Found',
+          isDark: isDark,
         );
-      }),
-    );
+      }
+
+      // Build table with contacts pattern
+      return Container(
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.cardDark : Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isDark ? AppColors.borderDark : Colors.grey[200]!,
+          ),
+          boxShadow: isDark
+              ? []
+              : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+        ),
+        child: Column(
+          children: [
+            // Table Header
+            _buildHeader(context, isDark),
+
+            // Scrollable Rows
+            Expanded(
+              child: ListView.separated(
+                itemCount: controller.broadcasts.length,
+                separatorBuilder: (context, index) =>
+                    Divider(height: 1, color: Colors.grey[200]),
+                itemBuilder: (context, index) {
+                  final broadcast = controller.broadcasts[index];
+                  return _buildRow(context, broadcast, isDark);
+                },
+              ),
+            ),
+
+            // Pagination (INSIDE the card)
+            _buildPaginationControls(isDark),
+          ],
+        ),
+      );
+    });
   }
+
 
   // -------------------- HEADER --------------------
   Widget _buildHeader(BuildContext context, bool isDark) {

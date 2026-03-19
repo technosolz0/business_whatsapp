@@ -37,52 +37,45 @@ class ApiEndpoints {
 
   // Profile Endpoints
   static const String updateProfile =
-      "$serverUrl/profile/updateWhatsAppBusinessProfile";
-  static const String patchProfile =
-      "$serverUrl/profile/patchWhatsAppBusinessProfile";
-  static const String getProfile =
-      "$serverUrl/profile/getWhatsAppBusinessProfile";
+      "$serverUrl/updateWhatsAppBusinessProfile";
+  static const String patchProfile = "$serverUrl/patchWhatsAppBusinessProfile";
+  static const String getProfile = "$serverUrl/getWhatsAppBusinessProfile";
 
   // Analytics Endpoints
   static const String getAnalytics =
       "$serverUrl/analytics/getConversationAnalytics";
 
   // Template Endpoints
-  static const String createTemplate =
-      "$serverUrl/templates/createInteraktTemplate";
-  static const String getTemplates =
-      "$serverUrl/templates/getInteraktTemplates";
-  static const String deleteTemplate =
-      "$serverUrl/templates/deleteInteraktTemplate";
-  static const String getApprovedTemplates =
-      "$serverUrl/templates/getApprovedTemplates";
+  static const String createTemplate = "$serverUrl/createInteraktTemplate";
+  static const String getTemplates = "$serverUrl/getInteraktTemplates";
+  static const String deleteTemplate = "$serverUrl/deleteInteraktTemplate";
+  static const String getApprovedTemplates = "$serverUrl/getApprovedTemplates";
 
   // Broadcast & Media Endpoints
   static const String uploadMediaToInterakt =
-      "$serverUrl/templates/uploadMediaToInterakt";
+      "$serverUrl/uploadMediaToInterakt";
   static const String uploadBroadcastMedia = "$serverUrl/uploadMedia";
-  static const String sendTemplateMessage =
-      "$serverUrl/broadcasts/sendTemplateMessage";
-  static const String queueBroadcast = "$serverUrl/broadcasts/queueBroadcast";
-  static const String patchBroadcast = "$serverUrl/broadcasts/patchBroadcast";
+  static const String sendTemplateMessage = "$serverUrl/sendTemplateMessage";
+  static const String queueBroadcast = "$serverUrl/queueBroadcast";
+  static const String patchBroadcast = "$serverUrl/patchBroadcast";
   static const String deleteScheduledBroadcast =
-      "$serverUrl/broadcasts/deleteScheduledBroadcast";
+      "$serverUrl/deleteScheduledBroadcast";
 
   // Milestones
   static const String getApprovedMediaTemplates =
-      "$serverUrl/milestones/getApprovedMediaTemplates";
-  static const String createMilestone = "$serverUrl/milestones/createMilestone";
-  static const String updateMilestone = "$serverUrl/milestones/updateMilestone";
+      "$serverUrl/getApprovedMediaTemplates";
+  static const String createMilestone = "$serverUrl/createMilestone";
+  static const String updateMilestone = "$serverUrl/updateMilestone";
   static const String patchMilestoneScheduler =
-      "$serverUrl/scheduler/patchMilestoneScheduler";
-  static const String pauseMilestone = "$serverUrl/milestones/pauseMilestone";
-  static const String resumeMilestone = "$serverUrl/milestones/resumeMilestone";
-  static const String deleteMilestone = "$serverUrl/milestones/deleteMilestone";
+      "$serverUrl/patchMilestoneScheduler";
+  static const String pauseMilestone = "$serverUrl/pauseMilestone";
+  static const String resumeMilestone = "$serverUrl/resumeMilestone";
+  static const String deleteMilestone = "$serverUrl/deleteMilestone";
 
   // Integrations
   static const String generateZohoToken =
-      '$serverUrl/integrations/generateZohoAccessAndRefreshToken';
-  static const String exportToZoho = '$serverUrl/integrations/exportToZoho';
+      '$serverUrl/generateZohoAccessAndRefreshToken';
+  static const String exportToZoho = '$serverUrl/exportToZoho';
 
   // Other
   static const String getPhoneNumber = '$serverUrl/getPhoneNumber';

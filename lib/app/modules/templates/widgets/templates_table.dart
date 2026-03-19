@@ -32,58 +32,56 @@ class TemplatesTable extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (templates.isEmpty) {
-      return Expanded(
-        child: NoDataFound(
-          icon: Icons.description_outlined,
-          label: 'No Templates Found',
-          isDark: isDark,
-        ),
+      return NoDataFound(
+        icon: Icons.description_outlined,
+        label: 'No Templates Found',
+        isDark: isDark,
       );
     }
 
-    return Expanded(
-      child: Container(
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.cardDark : Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isDark ? AppColors.borderDark : Colors.grey[200]!,
-          ),
-          boxShadow: isDark
-              ? []
-              : [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-        ),
-        child: Column(
-          children: [
-            // Table Header
-            _buildHeader(isDark),
 
-            // Scrollable Rows
-            Expanded(
-              child: ListView.separated(
-                itemCount: templates.length,
-                separatorBuilder: (context, index) =>
-                    Divider(height: 1, color: Colors.grey[200]),
-                itemBuilder: (context, index) {
-                  final template = templates[index];
-                  return _buildRow(template, isDark);
-                },
-              ),
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.cardDark : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : Colors.grey[200]!,
+        ),
+        boxShadow: isDark
+            ? []
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+      ),
+      child: Column(
+        children: [
+          // Table Header
+          _buildHeader(isDark),
+
+          // Scrollable Rows
+          Expanded(
+            child: ListView.separated(
+              itemCount: templates.length,
+              separatorBuilder: (context, index) =>
+                  Divider(height: 1, color: Colors.grey[200]),
+              itemBuilder: (context, index) {
+                final template = templates[index];
+                return _buildRow(template, isDark);
+              },
             ),
+          ),
 
-            // Pagination (INSIDE the card)
-            _buildPaginationControls(isDark),
-          ],
-        ),
+          // Pagination (INSIDE the card)
+          _buildPaginationControls(isDark),
+        ],
       ),
     );
   }
+
 
   // ------------------- HEADER -------------------
   Widget _buildHeader(bool isDark) {

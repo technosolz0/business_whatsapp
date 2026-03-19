@@ -45,63 +45,60 @@ class AdminsTable extends StatelessWidget {
     final isMobile = Responsive.isMobile(context);
 
     if (isLoading) {
-      return const Expanded(child: TableShimmer(rows: 10, columns: 6));
+      return const TableShimmer(rows: 10, columns: 6);
     }
 
     if (admins.isEmpty) {
-      return Expanded(
-        child: NoDataFound(
-          icon: Icons.admin_panel_settings_outlined,
-          label: 'No Admins Found',
-          isDark: isDark,
-        ),
+      return NoDataFound(
+        icon: Icons.admin_panel_settings_outlined,
+        label: 'No Admins Found',
+        isDark: isDark,
       );
     }
 
-    return Expanded(
-      child: Container(
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.cardDark : Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isDark ? AppColors.borderDark : Colors.grey[200]!,
-          ),
-          boxShadow: isDark
-              ? []
-              : [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.cardDark : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isDark ? AppColors.borderDark : Colors.grey[200]!,
         ),
-        child: Column(
-          children: [
-            // Header (Desktop only)
-            if (!isMobile) _buildHeader(isDark),
-
-            // Rows
-            Expanded(
-              child: ListView.separated(
-                itemCount: admins.length,
-                separatorBuilder: (context, index) => Divider(
-                  height: 1,
-                  color: isDark ? AppColors.borderDark : Colors.grey[200],
+        boxShadow: isDark
+            ? []
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
                 ),
-                itemBuilder: (context, index) {
-                  return _buildRow(context, admins[index], isDark, isMobile);
-                },
-              ),
-            ),
+              ],
+      ),
+      child: Column(
+        children: [
+          // Header (Desktop only)
+          if (!isMobile) _buildHeader(isDark),
 
-            // Pagination
-            _buildPagination(),
-          ],
-        ),
+          // Rows
+          Expanded(
+            child: ListView.separated(
+              itemCount: admins.length,
+              separatorBuilder: (context, index) => Divider(
+                height: 1,
+                color: isDark ? AppColors.borderDark : Colors.grey[200],
+              ),
+              itemBuilder: (context, index) {
+                return _buildRow(context, admins[index], isDark, isMobile);
+              },
+            ),
+          ),
+
+          // Pagination
+          _buildPagination(),
+        ],
       ),
     );
   }
+
 
   Widget _buildHeader(bool isDark) {
     return Container(
