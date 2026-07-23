@@ -1,3 +1,4 @@
+import 'package:business_whatsapp/main.dart';
 import 'package:business_whatsapp/app/modules/broadcasts/controllers/create_broadcast_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -148,12 +149,20 @@ class DeliveryTimeCardWidget extends StatelessWidget {
 
                 // SCHEDULE OPTION
                 Obx(
-                  () => IgnorePointer(
-                    ignoring: controller.isPreview,
+                  () => Opacity(
+                    opacity:
+                        (!controller.isPreview && !isBroadcastSchedual.value)
+                        ? 0.5
+                        : 1.0,
                     child: InkWell(
-                      onTap: () => controller.isPreview
-                          ? null
-                          : controller.deliveryOption.value = 1,
+                      onTap: () {
+                        if (controller.isPreview) return;
+                        if (!isBroadcastSchedual.value) {
+                          _showPremiumDialog(context, isDark);
+                          return;
+                        }
+                        controller.deliveryOption.value = 1;
+                      },
                       borderRadius: BorderRadius.circular(8),
                       child: Container(
                         padding: const EdgeInsets.all(16),
@@ -178,8 +187,15 @@ class DeliveryTimeCardWidget extends StatelessWidget {
                                 Radio<int>(
                                   value: 1,
                                   groupValue: controller.deliveryOption.value,
-                                  onChanged: controller.isPreview
-                                      ? null
+                                  onChanged:
+                                      (controller.isPreview ||
+                                          !isBroadcastSchedual.value)
+                                      ? (value) {
+                                          if (!controller.isPreview &&
+                                              !isBroadcastSchedual.value) {
+                                            _showPremiumDialog(context, isDark);
+                                          }
+                                        }
                                       : (value) =>
                                             controller.deliveryOption.value =
                                                 value ?? 1,
@@ -355,6 +371,89 @@ class DeliveryTimeCardWidget extends StatelessWidget {
                     ),
                   ),
                 ),
+                Obx(() {
+                  if (!isBroadcastRetryEnabled.value) {
+                    return const SizedBox.shrink();
+                  }
+                  return Column(
+                    children: [
+                      const SizedBox(height: 10),
+                      // ENABLE RETRY OPTION
+                      Opacity(
+                        opacity: controller.isPreview ? 0.5 : 1.0,
+                        child: InkWell(
+                          onTap: () {
+                            if (controller.isPreview) return;
+                            controller.enableRetry.value =
+                                !controller.enableRetry.value;
+                          },
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: controller.enableRetry.value
+                                    ? const Color(0xFF137FEC)
+                                    : isDark
+                                    ? const Color(0xFF242424)
+                                    : const Color(0xFFD1D5DB),
+                                width: controller.enableRetry.value ? 2 : 1,
+                              ),
+                              color: controller.enableRetry.value
+                                  ? const Color(
+                                      0xFF137FEC,
+                                    ).withValues(alpha: 0.05)
+                                  : Colors.transparent,
+                            ),
+                            child: Row(
+                              children: [
+                                Checkbox(
+                                  value: controller.enableRetry.value,
+                                  onChanged: controller.isPreview
+                                      ? null
+                                      : (value) =>
+                                            controller.enableRetry.value =
+                                                value ?? false,
+                                  activeColor: const Color(0xFF137FEC),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Enable retry to send failed broadcast',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w500,
+                                          color: isDark
+                                              ? const Color(0xFFE5E7EB)
+                                              : const Color(0xFF1F2937),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Automatically retry sending messages that fail during delivery.',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: isDark
+                                              ? const Color(0xFF9CA3AF)
+                                              : const Color(0xFF6B7280),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }),
               ],
             ),
           ),
@@ -404,6 +503,80 @@ class DeliveryTimeCardWidget extends StatelessWidget {
             color: isDark ? const Color(0xFF9CA3AF) : const Color(0xFF6B7280),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showPremiumDialog(BuildContext context, bool isDark) {
+    Get.dialog(
+      Dialog(
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: SizedBox(
+          width: 400,
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.star_rounded,
+                    color: Colors.amber,
+                    size: 40,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  "Premium Feature",
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  "This is a premium feature. Please contact the administrator to enable it.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: isDark
+                        ? const Color(0xFF9CA3AF)
+                        : const Color(0xFF6B7280),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Get.back(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF137FEC),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: const Text(
+                      "Close",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

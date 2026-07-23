@@ -183,6 +183,28 @@ class BroadcastFirebaseService {
     }
   }
 
+  /// Exposes the messages sub-collection reference for a given broadcastId.
+  /// Used to pre-generate document IDs before building button payloads.
+  CollectionReference<Map<String, dynamic>> messagesCollection(
+    String broadcastId,
+  ) {
+    return _ref.doc(broadcastId).collection("messages");
+  }
+
+  /// Writes a broadcast message to a pre-generated document reference.
+  /// Use this when the messageId must be known before saving (e.g. QUICK_REPLY payload).
+  Future<void> addBroadcastMessageWithRef(
+    DocumentReference<Map<String, dynamic>> msgRef,
+    BroadcastMessagePayload message,
+  ) async {
+    try {
+      message.messageId = msgRef.id;
+      await msgRef.set(message.toJson());
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   /// -----------------------------------------------------------
   /// UPDATE DRAFT
   /// (only updates fields provided)
@@ -382,6 +404,14 @@ class BroadcastFirebaseService {
     } catch (e) {
       print('❌ Error calling delete API: $e');
     }
+  }
+
+  Future<void> stopBroadcastRetry(String id) async {
+    print("update" + id);
+    // await _ref.doc(id).update({
+    //   "enableRetry": false,
+    //   "updatedAt": FieldValue.serverTimestamp(),
+    // });
   }
 }
 

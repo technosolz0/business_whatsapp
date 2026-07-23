@@ -37,6 +37,11 @@ RxString clientName = ''.obs;
 RxString clientLogo = ''.obs;
 RxBool isCRMEnabled = false.obs;
 RxBool isConnected = false.obs;
+RxBool isBotActivated = false.obs;
+RxBool isUploadQuestionsEnabled = false.obs;
+RxBool isBroadcastSchedual = false.obs;
+RxBool isBroadcastRetryEnabled = false.obs;
+RxBool isCarouselTemplateEnabled = false.obs;
 
 void main() async {
   // Ensure Flutter binding is initialized

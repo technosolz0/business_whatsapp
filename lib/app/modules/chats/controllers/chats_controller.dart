@@ -76,17 +76,14 @@ class ChatsController extends GetxController {
   Future<void> _initChatAccess() async {
     chatsSub?.cancel();
 
-    // 1. Fetch from REST API as fallback/immediate data
+    // 1. Fetch from Firestore as fallback/immediate data
     try {
-      final apiChats = await _chatService.getChats(clientID);
-      if (apiChats.isNotEmpty) {
-        final List<ChatModel> loadedChats = apiChats
-            .map((c) => ChatModel.fromJson(c))
-            .toList();
-        _applyChatFilter(loadedChats);
+      final firestoreChats = await _chatService.getChatsFromFirestore(clientID);
+      if (firestoreChats.isNotEmpty) {
+        _applyChatFilter(firestoreChats);
       }
     } catch (e) {
-      debugPrint('Error fetching initial chats from API: $e');
+      debugPrint('Error fetching initial chats from Firestore: $e');
     }
 
     // 2. Listen to Firestore for real-time updates

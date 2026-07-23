@@ -1,3 +1,4 @@
+import 'package:business_whatsapp/app/modules/broadcasts/controllers/broadcasts_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -56,57 +57,74 @@ class CreateBroadcastView extends GetView<CreateBroadcastController> {
       }
     });
 
-    return StandardPageLayout(
-      title: 'Create Broadcast',
-      subtitle: 'Design and schedule your broadcast message.',
-      showBackButton: true,
-      onBack: () => Get.offAllNamed(Routes.BROADCASTS),
-      isContentScrollable: true,
-      headerActions: [
-        Obx(() {
-          final completedAt = controller.completedAt.value;
-          if (controller.isPreview && completedAt != null) {
-            final isDark = Theme.of(context).brightness == Brightness.dark;
-            return Text(
-              DateFormat('MMMM d, yyyy h:mm a').format(completedAt),
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: isDark
-                    ? const Color(0xFF94A3B8)
-                    : const Color(0xFF64748B),
-              ),
-            );
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        if (controller.currentStep.value > 0) {
+          controller.previousStep();
+        } else {
+          Get.find<BroadcastsController>().closeCreateForm();
+        }
+      },
+      child: StandardPageLayout(
+        title: 'Create Broadcast',
+        subtitle: 'Design and schedule your broadcast message.',
+        showBackButton: true,
+        onBack: () {
+          if (controller.currentStep.value > 0) {
+            controller.previousStep();
+          } else {
+            Get.find<BroadcastsController>().closeCreateForm();
           }
-          return const SizedBox();
-        }),
-      ],
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Step Indicator
-          Obx(
-            () => BroadcastStepIndicator(
-              currentStep: controller.currentStep.value,
-              getStepTitle: _getStepTitle,
-            ),
-          ),
-          const SizedBox(height: 32),
-
-          // Content based on current step
+        },
+        isContentScrollable: true,
+        headerActions: [
           Obx(() {
-            switch (controller.currentStep.value) {
-              case 0:
-                return Step1Content(controller: controller);
-              case 1:
-                return Step2Content(controller: controller);
-              case 2:
-                return Step3Content(controller: controller);
-              default:
-                return const SizedBox();
+            final completedAt = controller.completedAt.value;
+            if (controller.isPreview && completedAt != null) {
+              final isDark = Theme.of(context).brightness == Brightness.dark;
+              return Text(
+                DateFormat('MMMM d, yyyy h:mm a').format(completedAt),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B),
+                ),
+              );
             }
+            return const SizedBox();
           }),
         ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Step Indicator
+            Obx(
+              () => BroadcastStepIndicator(
+                currentStep: controller.currentStep.value,
+                getStepTitle: _getStepTitle,
+              ),
+            ),
+            const SizedBox(height: 32),
+
+            // Content based on current step
+            Obx(() {
+              switch (controller.currentStep.value) {
+                case 0:
+                  return Step1Content(controller: controller);
+                case 1:
+                  return Step2Content(controller: controller);
+                case 2:
+                  return Step3Content(controller: controller);
+                default:
+                  return const SizedBox();
+              }
+            }),
+          ],
+        ),
       ),
     );
   }

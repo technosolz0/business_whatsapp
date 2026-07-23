@@ -656,6 +656,7 @@ class Step1Content extends StatelessWidget {
                                 ),
                                 GestureDetector(
                                   onTap: () {
+                                    controller.contactDetailsSearch.value = "";
                                     Future.delayed(
                                       const Duration(milliseconds: 50),
                                       () {
@@ -717,6 +718,7 @@ class Step1Content extends StatelessWidget {
                                 const SizedBox(height: 4),
                                 GestureDetector(
                                   onTap: () {
+                                    controller.contactDetailsSearch.value = "";
                                     Future.delayed(
                                       const Duration(milliseconds: 50),
                                       () {

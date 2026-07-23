@@ -30,11 +30,13 @@ class CommonTextfield extends StatelessWidget {
   final void Function()? onTap;
   final bool readOnly;
   final TextInputAction? textInputAction;
+  final String? initialValue;
 
   // 🔥 Dark mode override colors (optional)
   final Color? labelColor;
   final Color? textColor;
   final Color? hintColor;
+  final TextStyle? labelStyle;
 
   const CommonTextfield({
     super.key,
@@ -63,11 +65,13 @@ class CommonTextfield extends StatelessWidget {
     this.onTap,
     this.readOnly = false,
     this.textInputAction,
+    this.initialValue,
 
     // Dark Mode overrides
     this.labelColor,
     this.textColor,
     this.hintColor,
+    this.labelStyle,
   });
 
   @override
@@ -78,13 +82,13 @@ class CommonTextfield extends StatelessWidget {
         labelColor ?? (isDark ? Colors.white : const Color(0xFF1A1A1A));
 
     final Color effectiveTextColor =
-        textColor ?? (isDark ? Colors.white : Colors.black);
+        textColor ?? (enabled ? (isDark ? Colors.white : Colors.black) : (isDark ? Colors.grey[600]! : Colors.grey[600]!));
 
     final Color effectiveHintColor =
         hintColor ?? (isDark ? Colors.grey[400]! : const Color(0xFFBDC3C7));
 
     final Color effectiveFillColor =
-        fillColor ?? (isDark ? const Color(0xFF2A2A2A) : Colors.white);
+        fillColor ?? (enabled ? (isDark ? const Color(0xFF2A2A2A) : Colors.white) : (isDark ? const Color(0xFF1A1A1A) : Colors.grey[200]!));
 
     final Color effectiveEnabledBorder = isDark
         ? Colors.grey[700]!
@@ -110,11 +114,10 @@ class CommonTextfield extends StatelessWidget {
             children: [
               Text(
                 label!,
-                style: GoogleFonts.publicSans(
+                style: (labelStyle ?? GoogleFonts.publicSans(
                   fontSize: labelFontSize,
-                  color: effectiveLabelColor,
                   fontWeight: FontWeight.w600,
-                ),
+                )).copyWith(color: labelStyle?.color ?? effectiveLabelColor),
               ),
               if (isRequired) const SizedBox(width: 3),
               if (isRequired)
@@ -131,12 +134,19 @@ class CommonTextfield extends StatelessWidget {
           textInputAction: textInputAction,
           inputFormatters: inputFormatter,
           controller: controller,
+          initialValue: initialValue,
           obscureText: obscureText,
           keyboardType: keyboardType,
           maxLines: maxLines,
           maxLength: maxLength,
+          maxLengthEnforcement: MaxLengthEnforcement.enforced,
           enabled: enabled,
-          validator: validator,
+          validator: (value) {
+            if (maxLength != null && value != null && value.length > maxLength!) {
+              return "Max $maxLength characters allowed";
+            }
+            return validator?.call(value);
+          },
           onChanged: onChanged,
           onFieldSubmitted: onFieldSubmitted,
           style: GoogleFonts.publicSans(

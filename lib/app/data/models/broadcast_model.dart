@@ -34,6 +34,13 @@ class BroadcastModel {
   /// Total cost of the broadcast
   final double? totalCost;
 
+  final int? clicks;
+  final int? replied;
+  final bool? enableRetry;
+  final String? retryCampaignStatus;
+  final List<dynamic>? cardVariables;
+  final List<String>? cardAttachmentIds;
+
   BroadcastModel({
     required this.id,
     required this.broadcastName,
@@ -55,6 +62,12 @@ class BroadcastModel {
     this.deliveryTimestamp,
     this.adminName,
     this.totalCost,
+    this.clicks,
+    this.replied,
+    this.enableRetry,
+    this.retryCampaignStatus,
+    this.cardVariables,
+    this.cardAttachmentIds,
   });
 
   /// -------------------------------
@@ -96,6 +109,17 @@ class BroadcastModel {
       completedAt: (data['completedAt'] as Timestamp?)?.toDate(),
       adminName: data['adminName'],
       totalCost: (data['totalCost'] as num?)?.toDouble(),
+
+      clicks: data['clicks'],
+      replied: data['replied'],
+      enableRetry: data['enableRetry'],
+      retryCampaignStatus: data['retryCampaignStatus'],
+      cardVariables: data['cardVariables'] != null
+          ? List<dynamic>.from(data['cardVariables'])
+          : null,
+      cardAttachmentIds: data['cardAttachmentIds'] != null
+          ? List<String>.from(data['cardAttachmentIds'])
+          : null,
     );
   }
 
@@ -122,6 +146,13 @@ class BroadcastModel {
 
       'deliveryTime': {'type': deliveryType, 'timestamp': deliveryTimestamp},
       'totalCost': totalCost,
+
+      'clicks': clicks,
+      'replied': replied,
+      'enableRetry': enableRetry,
+      'retryCampaignStatus': retryCampaignStatus,
+      'cardVariables': cardVariables,
+      'cardAttachmentIds': cardAttachmentIds,
 
       'updatedAt': FieldValue.serverTimestamp(),
       'createdAt': FieldValue.serverTimestamp(),
@@ -163,6 +194,12 @@ class BroadcastModel {
     DateTime? deliveryTimestamp,
     String? adminName,
     double? totalCost,
+    int? clicks,
+    int? replied,
+    bool? enableRetry,
+    String? retryCampaignStatus,
+    List<dynamic>? cardVariables,
+    List<String>? cardAttachmentIds,
   }) {
     return BroadcastModel(
       id: id ?? this.id,
@@ -188,6 +225,13 @@ class BroadcastModel {
       completedAt: null,
       adminName: adminName ?? this.adminName,
       totalCost: totalCost ?? this.totalCost,
+
+      clicks: clicks ?? this.clicks,
+      replied: replied ?? this.replied,
+      enableRetry: enableRetry ?? this.enableRetry,
+      retryCampaignStatus: retryCampaignStatus ?? this.retryCampaignStatus,
+      cardVariables: cardVariables ?? this.cardVariables,
+      cardAttachmentIds: cardAttachmentIds ?? this.cardAttachmentIds,
     );
   }
 

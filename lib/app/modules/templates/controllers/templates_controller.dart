@@ -11,18 +11,24 @@ import 'package:get/get.dart';
 import '../../../Utilities/utilities.dart' show Utilities;
 import '../../../data/services/template_service.dart';
 import '../../../common widgets/common_alert_dialog_delete.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:business_whatsapp/main.dart';
+
 
 class TemplatesController extends GetxController {
-  // ---------------------------------------------------------------------------
-  // 🟢 Reactive UI Controls
-  // ---------------------------------------------------------------------------
   final RxBool isCreatingTemplate = false.obs;
   final templates = <TemplateModels>[].obs;
 
   // Pagination details
   String? nextCursor;
   String? prevCursor;
-  int limit = 10;
+  final RxInt pageSize = 10.obs;
+  final List<int> availablePageSizes = [10, 25, 50, 100];
+  final RxInt currentPage = 1.obs;
+
+  // Pagination display helpers
+  int get startItem => ((currentPage.value - 1) * pageSize.value) + 1;
+  int get endItem => (startItem - 1) + templates.length;
 
   // Filters
   final searchQuery = ''.obs;
@@ -36,23 +42,23 @@ class TemplatesController extends GetxController {
   final RxString templateType = 'Marketing'.obs;
   final RxString templateContent = ''.obs;
   final RxBool isLoading = false.obs;
+  final RxBool isNextLoading = false.obs;
+  final RxBool isPrevLoading = false.obs;
 
   static TemplatesController get instance => Get.find<TemplatesController>();
 
-  // ---------------------------------------------------------------------------
-  // 🟢 INIT
-  // ---------------------------------------------------------------------------
   @override
   void onInit() {
     super.onInit();
     loadInitialTemplates();
   }
 
-  // ---------------------------------------------------------------------------
-  // 🟦 1) Load first page
-  // ---------------------------------------------------------------------------
   Future<void> loadInitialTemplates() async {
-    await fetchTemplates(limit: limit);
+    currentPage.value = 1;
+    nextCursor = null;
+    prevCursor = null;
+    templates.clear(); // Clear existing data to trigger shimmer/loading state
+    await fetchTemplates(limit: pageSize.value);
   }
 
   void setLanguageFilter(String name) {
@@ -63,37 +69,39 @@ class TemplatesController extends GetxController {
     } else {
       selectedLanguageCode.value = LanguageCodes.languageCodeMap[name]!;
     }
+    loadInitialTemplates();
   }
 
   // ---------------------------------------------------------------------------
-  // 🟦 Reusable API: Fetch templates with pagination
+  // Reusable API: Fetch templates with pagination
   // ---------------------------------------------------------------------------
   Future<void> fetchTemplates({
     int? limit,
     String? after,
     String? before,
+    bool showMainLoader = true,
   }) async {
     try {
-      isLoading.value = true;
+      if (showMainLoader) isLoading.value = true;
 
       final result = await TemplateService.instance.getInteraktTemplates(
-        limit: limit ?? this.limit,
+        limit: limit ?? pageSize.value,
         after: after,
         before: before,
+        status: selectedStatus.value,
+        category: selectedCategory.value,
+        language: selectedLanguageCode.value,
       );
 
       if (!result["success"]) {
         Utilities.showSnackbar(SnackType.ERROR, "Failed to load templates");
         return;
-      } else {
-        isLoading.value = false;
       }
 
       final response = result["data"];
       final list = response?["data"]?["data"] ?? [];
 
       if (list is! List) {
-        //print("❌ Unexpected API format: ${list.runtimeType}");
         return;
       }
 
@@ -102,75 +110,60 @@ class TemplatesController extends GetxController {
           .toList()
           .cast<TemplateModels>();
 
+      if (parsed.isEmpty && (after != null || before != null)) {
+        Utilities.showSnackbar(SnackType.INFO, "No more templates found on this page.");
+        // Don't update templates or cursors so the user stays on the current valid page
+        return;
+      }
+
       templates.assignAll(parsed);
 
       // Update cursors
       final paging = response?["data"]?["paging"]?["cursors"];
       nextCursor = paging?["after"];
       prevCursor = paging?["before"];
+
+      // Update page number only if we actually moved
+      if (after != null) {
+        currentPage.value++;
+      } else if (before != null && currentPage.value > 1) {
+        currentPage.value--;
+      }
     } catch (e) {
       //print("GET ERROR — $e");
       Utilities.showSnackbar(SnackType.ERROR, "Unable to fetch templates");
+    } finally {
+      isLoading.value = false;
+      isNextLoading.value = false;
+      isPrevLoading.value = false;
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // 🟦 2) NEXT page logic
-  // ---------------------------------------------------------------------------
   Future<void> loadNextPage() async {
-    if (nextCursor == null) return;
-
-    final result = await TemplateService.instance.getInteraktTemplates(
-      limit: limit,
+    if (nextCursor == null || isNextLoading.value) return;
+    isNextLoading.value = true;
+    await fetchTemplates(
+      limit: pageSize.value,
       after: nextCursor,
+      showMainLoader: false,
     );
-
-    final data = result["data"]?["data"]?["data"] ?? [];
-
-    // No more data
-    if (data.isEmpty) {
-      nextCursor = null;
-      Utilities.showSnackbar(SnackType.INFO, "No more templates available");
-      return;
-    }
-
-    await fetchTemplates(limit: limit, after: nextCursor);
   }
 
-  // ---------------------------------------------------------------------------
-  // 🟦 3) PREVIOUS page logic
-  // ---------------------------------------------------------------------------
   Future<void> loadPreviousPage() async {
-    if (prevCursor == null) {
-      Utilities.showSnackbar(
-        SnackType.INFO,
-        "You’re already on the first page.",
-      );
-      return;
-    }
-
-    final result = await TemplateService.instance.getInteraktTemplates(
-      limit: limit,
+    if (prevCursor == null || isPrevLoading.value) return;
+    isPrevLoading.value = true;
+    await fetchTemplates(
+      limit: pageSize.value,
       before: prevCursor,
+      showMainLoader: false,
     );
-
-    final data = result["data"]?["data"]?["data"] ?? [];
-
-    if (data.isEmpty) {
-      prevCursor = null;
-      Utilities.showSnackbar(
-        SnackType.ERROR,
-        "No previous templates available",
-      );
-      return;
-    }
-
-    await fetchTemplates(limit: limit, before: prevCursor);
   }
 
-  // ---------------------------------------------------------------------------
-  // 🟥 Delete Template
-  // ---------------------------------------------------------------------------
+  void updatePageSize(int newSize) {
+    pageSize.value = newSize;
+    loadInitialTemplates();
+  }
+
   Future<void> deleteTemplate(TemplateModels template) async {
     if (template.name.isEmpty) {
       Utilities.showSnackbar(
@@ -192,16 +185,16 @@ class TemplatesController extends GetxController {
       Utilities.showSnackbar(SnackType.ERROR, "Delete failed. Try again.");
       return;
     }
-    Utilities.showSnackbar(SnackType.ERROR, "Template deleted successfully.");
+    Utilities.showSnackbar(SnackType.SUCCESS, "Template deleted successfully.");
 
     loadInitialTemplates();
   }
 
-  // ---------------------------------------------------------------------------
-  // 🟦 Template Actions
-  // ---------------------------------------------------------------------------
   void onTemplateAction(TemplateModels template, String action) {
     switch (action) {
+      case 'view':
+        _viewTemplate(template);
+        break;
       case 'copy':
         _copyTemplate(template);
         break;
@@ -211,63 +204,96 @@ class TemplatesController extends GetxController {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // 🟦 COPY Template
-  // ---------------------------------------------------------------------------
-  void _copyTemplate(TemplateModels template) {
-    final c = Get.find<CreateTemplateController>();
+  Future<void> _viewTemplate(TemplateModels template) async {
+    try {
+      Utilities.showOverlayLoadingDialog();
 
-    final base = TemplateModels(
-      id: template.id.toString(),
-      name: template.name,
-      status: template.status,
-      category: template.category,
-      language: template.language,
-      type: template.type,
-      headerText: template.headerText ?? '',
-      body: template.body,
-      footer: template.footer ?? '',
-      headerFormat: template.headerFormat,
-      variables: template.variables,
-      // headerImage: template.headerImage,
-      headerVariables: template.headerVariables,
-      buttons: template.buttons,
-    );
+      final doc = await FirebaseFirestore.instance
+          .collection('templates')
+          .doc(clientID)
+          .collection('data')
+          .doc(template.id.toString())
+          .get();
 
-    c.loadTemplateForCopy(base);
-    Get.toNamed(Routes.CREATE_TEMPLATE);
+      Utilities.hideCustomLoader(Get.context!);
 
-    // Update navigation controller state for mobile compatibility
-    final navController = Get.find<NavigationController>();
-    navController.currentRoute.value = Routes.CREATE_TEMPLATE;
-    navController.selectedIndex.value = 4; // Templates index
-    navController.routeTrigger.value++;
+      if (!doc.exists) {
+        Utilities.showSnackbar(SnackType.ERROR, "Template data not found in database.");
+        return;
+      }
+
+      final fullTemplate = TemplateModels.fromFirestore(doc.data()!);
+
+      final c = Get.find<CreateTemplateController>();
+      c.loadTemplateForView(fullTemplate);
+      Get.toNamed(Routes.CREATE_TEMPLATE);
+
+      // Update navigation controller state for mobile compatibility
+      final navController = Get.find<NavigationController>();
+      navController.currentRoute.value = Routes.CREATE_TEMPLATE;
+      navController.selectedIndex.value = 4; // Templates index
+      navController.routeTrigger.value++;
+    } catch (e) {
+      Utilities.hideCustomLoader(Get.context!);
+      Utilities.showSnackbar(SnackType.ERROR, "Failed to load template data: $e");
+    }
   }
 
-  // ---------------------------------------------------------------------------
-  // 🟥 Confirm Delete Popup
-  // ---------------------------------------------------------------------------
+  Future<void> _copyTemplate(TemplateModels template) async {
+    try {
+      Utilities.showOverlayLoadingDialog();
+
+      final doc = await FirebaseFirestore.instance
+          .collection('templates')
+          .doc(clientID)
+          .collection('data')
+          .doc(template.id.toString())
+          .get();
+
+      Utilities.hideCustomLoader(Get.context!);
+
+      if (!doc.exists) {
+        Utilities.showSnackbar(SnackType.ERROR, "Template data not found in database.");
+        return;
+      }
+
+      final fullTemplate = TemplateModels.fromFirestore(doc.data()!);
+
+      final c = Get.find<CreateTemplateController>();
+      c.loadTemplateForCopy(fullTemplate);
+      Get.toNamed(Routes.CREATE_TEMPLATE);
+
+      // Update navigation controller state for mobile compatibility
+      final navController = Get.find<NavigationController>();
+      navController.currentRoute.value = Routes.CREATE_TEMPLATE;
+      navController.selectedIndex.value = 4; // Templates index
+      navController.routeTrigger.value++;
+    } catch (e) {
+      Utilities.hideCustomLoader(Get.context!);
+      Utilities.showSnackbar(SnackType.ERROR, "Failed to load template data: $e");
+    }
+  }
+
   void _confirmDelete(TemplateModels template) {
     Get.dialog(
       CommonAlertDialogDelete(
         title: "Delete Template",
         content: "Are you sure you want to delete '${template.name}'?",
         onConfirm: () async {
+          Get.back();
           await deleteTemplate(template);
         },
       ),
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // 🟦 Create Template
-  // ---------------------------------------------------------------------------
   void createTemplate() {
     final createController = Get.find<CreateTemplateController>();
     createController.resetForm();
     // TemplateFirestoreService.instance.insertStaticTemplates();
     createController.isEditMode.value = false;
     createController.isCopyMode.value = false;
+    createController.isViewMode.value = false;
     createController.editingTemplate = null;
 
     Get.offNamedUntil(
@@ -295,9 +321,6 @@ class TemplatesController extends GetxController {
     templateContent.value = '';
   }
 
-  // ---------------------------------------------------------------------------
-  // 🟦 FILTERS
-  // ---------------------------------------------------------------------------
   List<TemplateModels> get filteredTemplates {
     return templates.where((template) {
       final matchesSearch = template.name.toLowerCase().contains(
@@ -315,6 +338,13 @@ class TemplatesController extends GetxController {
   }
 
   void setSearchQuery(String q) => searchQuery.value = q;
-  void setStatusFilter(String v) => selectedStatus.value = v;
-  void setCategoryFilter(String v) => selectedCategory.value = v;
+  void setStatusFilter(String v) {
+    selectedStatus.value = v;
+    loadInitialTemplates();
+  }
+
+  void setCategoryFilter(String v) {
+    selectedCategory.value = v;
+    loadInitialTemplates();
+  }
 }

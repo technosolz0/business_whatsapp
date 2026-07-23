@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import 'package:csv/csv.dart';
 import 'package:file_saver/file_saver.dart';
 
-import 'package:business_whatsapp/app/Utilities/api_endpoints.dart';
 import 'package:business_whatsapp/app/Utilities/webutils.dart';
 import 'package:business_whatsapp/app/Utilities/network_utilities.dart';
 import 'package:business_whatsapp/app/Utilities/media_utils.dart';
@@ -20,6 +19,7 @@ import 'package:business_whatsapp/app/data/services/broadcast_firebase_service.d
 import 'package:business_whatsapp/app/data/services/broadcast_queue_service.dart';
 import 'package:business_whatsapp/app/data/services/broadcast_service.dart';
 import 'package:business_whatsapp/app/data/services/contact_service.dart';
+import 'package:business_whatsapp/app/data/models/carousel_card_model.dart';
 
 import 'package:business_whatsapp/app/data/services/template_firebase_service.dart';
 import 'package:business_whatsapp/app/data/services/upload_file_firebase.dart';
@@ -34,6 +34,7 @@ import 'package:get/get.dart';
 import 'broadcasts_controller.dart';
 import '../../../data/models/broadcast_table_model.dart';
 import 'package:business_whatsapp/main.dart';
+import 'package:business_whatsapp/app/modules/broadcasts/widgets/broadcast_progress_dialog.dart';
 
 import 'package:intl/intl.dart';
 
@@ -56,6 +57,7 @@ class CreateBroadcastController extends GetxController {
   final RxBool isUploadingMedia = false.obs;
   final RxBool isImporting = false.obs; // Loading state for import
   final RxBool isSending = false.obs; // Loading state for send broadcast
+  final RxDouble broadcastProgress = 0.0.obs;
   final RxString templateName = "".obs;
   String templateLanguage = "";
   List<String> appliedValues = [];
@@ -67,6 +69,9 @@ class CreateBroadcastController extends GetxController {
   bool isPreview = false;
   RxString estimatedCount = "0".obs;
   final Rx<DateTime?> completedAt = Rx<DateTime?>(null);
+
+  // Retry failed broadcast
+  final RxBool enableRetry = false.obs;
 
   // Wallet balance for cost validation (using double to handle decimal values)
   final RxDouble walletBalance = 0.0.obs;
@@ -109,6 +114,9 @@ class CreateBroadcastController extends GetxController {
 
   final Rx<TemplateParamModel?> selectedTemplateParams =
       Rx<TemplateParamModel?>(null);
+  final RxBool ctaUrlLinkTrackingOptedOut = false.obs;
+
+  final RxList<CarouselCard> carouselCards = <CarouselCard>[].obs;
 
   Map<String, TextEditingController> paramControllers = {};
 
@@ -119,66 +127,117 @@ class CreateBroadcastController extends GetxController {
 
   void updatePreviewBody() {
     appliedValues.clear();
-    String updated = originalTemplateBody.value;
+    String updatedBody = originalTemplateBody.value;
+    String updatedHeader = "";
+
+    // If template has header text, use it as base
+    if (selectedTemplateParams.value?.headerText != null) {
+      updatedHeader = selectedTemplateParams.value!.headerText!;
+    }
 
     ContactModel? previewContact = finalRecipients.isNotEmpty
         ? finalRecipients.first
         : null;
 
+    // 1. Process Main Template Variables (Body & Header)
     variableValues.forEach((key, data) {
-      if (!key.startsWith("body_")) return;
-
-      final index = key.split("_")[1];
-      final placeholder = "{{$index}}";
       final type = data["type"] ?? "empty";
       final rawValue = data["value"] ?? "";
 
       String displayValue = rawValue;
       bool shouldReplace = false;
 
-      // --------------------------------------------------
-      // STATIC
-      // --------------------------------------------------
       if (type == "static") {
         if (rawValue.isNotEmpty) {
           displayValue = rawValue;
           shouldReplace = true;
-        } else {
-          shouldReplace = false;
         }
-      }
-
-      // --------------------------------------------------
-      // DYNAMIC
-      // --------------------------------------------------
-      if (type == "dynamic") {
+      } else if (type == "dynamic") {
         String resolved = "";
         if (previewContact != null) {
           resolved = resolveChipValue(previewContact, rawValue);
         }
 
-        // If dynamic resolved to "-" or empty → USE RAW VALUE
         if (resolved.isEmpty || resolved == "-") {
-          displayValue = rawValue; // 🔥 show chip name
+          displayValue = rawValue;
         } else {
-          displayValue = resolved; // dynamic resolved value
+          displayValue = resolved;
         }
-
-        shouldReplace = true; // always replace for dynamic
+        shouldReplace = true;
       }
 
-      // --------------------------------------------------
-      // APPLY LOGIC
-      // --------------------------------------------------
-      if (shouldReplace) {
-        updated = updated.replaceAll(placeholder, displayValue);
-        appliedValues.add(displayValue);
-      } else {
-        appliedValues.add(placeholder);
+      if (key.startsWith("body_")) {
+        final index = key.split("_")[1];
+        final placeholder = "{{$index}}";
+        if (shouldReplace) {
+          updatedBody = updatedBody.replaceAll(placeholder, displayValue);
+          appliedValues.add(displayValue);
+        } else {
+          appliedValues.add(placeholder);
+        }
+      } else if (key.startsWith("header_")) {
+        final index = key.split("_")[1];
+        final placeholder = "{{$index}}";
+        if (shouldReplace) {
+          updatedHeader = updatedHeader.replaceAll(placeholder, displayValue);
+          appliedValues.add(displayValue);
+        } else {
+          appliedValues.add(placeholder);
+        }
       }
     });
 
-    templateBody.value = updated;
+    templateBody.value = updatedBody;
+    templateHeader.value = updatedHeader;
+
+    // 2. Process Carousel Cards Body Variables
+    for (int i = 0; i < carouselCards.length; i++) {
+      final card = carouselCards[i];
+      card.appliedValues.clear();
+      String cardUpdated = card.originalBody.value;
+
+      variableValues.forEach((key, data) {
+        // Match key card_0_body_1
+        final prefix = "card_${i}_body_";
+        if (!key.startsWith(prefix)) return;
+
+        final index = key.split("_").last;
+        final placeholder = "{{$index}}";
+        final type = data["type"] ?? "empty";
+        final rawValue = data["value"] ?? "";
+
+        String displayValue = rawValue;
+        bool shouldReplace = false;
+
+        if (type == "static") {
+          if (rawValue.isNotEmpty) {
+            displayValue = rawValue;
+            shouldReplace = true;
+          }
+        } else if (type == "dynamic") {
+          String resolved = "";
+          if (previewContact != null) {
+            resolved = resolveChipValue(previewContact, rawValue);
+          }
+
+          if (resolved.isEmpty || resolved == "-") {
+            displayValue = rawValue;
+          } else {
+            displayValue = resolved;
+          }
+          shouldReplace = true;
+        }
+
+        if (shouldReplace) {
+          cardUpdated = cardUpdated.replaceAll(placeholder, displayValue);
+          card.appliedValues.add(displayValue);
+        } else {
+          card.appliedValues.add(placeholder);
+        }
+      });
+
+      card.body.value = cardUpdated;
+    }
   }
 
   /// ----------------------------------------------------------------
@@ -260,11 +319,16 @@ class CreateBroadcastController extends GetxController {
   }
 
   void _disposeParamStates() {
-    for (final c in paramControllers.values) {
-      c.dispose();
-    }
+    final controllersToDispose = List<TextEditingController>.from(
+      paramControllers.values,
+    );
     paramControllers.clear();
     paramErrors.clear();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      for (final c in controllersToDispose) {
+        c.dispose();
+      }
+    });
   }
 
   ///
@@ -275,7 +339,7 @@ class CreateBroadcastController extends GetxController {
       // Fetch approved templates from the new API
       final dio = NetworkUtilities.getDioClient();
       final response = await dio.get(
-        ApiEndpoints.getApprovedTemplates,
+        'https://getapprovedtemplates-d3b4t36f7q-uc.a.run.app',
         queryParameters: {'clientId': clientID},
       );
 
@@ -303,6 +367,7 @@ class CreateBroadcastController extends GetxController {
               bodyExamples: [],
               buttons: null,
               buttonVars: 0,
+              version: template['version']?.toString() ?? 'v1',
             );
           }).toList();
 
@@ -318,8 +383,12 @@ class CreateBroadcastController extends GetxController {
       print('❌ Error loading templates from API: $e');
       // Fallback to Firebase if API fails
       // print('🔄 Falling back to Firebase templates');
-      templateList.value = await TemplateFirestoreService.instance
-          .getAllTemplatesForBroadcast();
+      try {
+        templateList.value = await TemplateFirestoreService.instance
+            .getAllTemplatesForBroadcast();
+      } catch (fbError) {
+        debugPrint('❌ Error loading templates from Firebase fallback: $fbError');
+      }
     }
   }
 
@@ -344,11 +413,14 @@ class CreateBroadcastController extends GetxController {
         bodyExamples: [],
         buttons: [],
         buttonVars: 0,
+        version: ctaUrlLinkTrackingOptedOut.value == false ? 'v1' : 'v2',
+        ctaUrlLinkTrackingOptedOut: ctaUrlLinkTrackingOptedOut.value,
       ),
     );
 
     // Set basic template info immediately for UI responsiveness
     selectedTemplateParams.value = basicTemplate;
+    ctaUrlLinkTrackingOptedOut.value = basicTemplate.ctaUrlLinkTrackingOptedOut;
     templateName.value = basicTemplate.name;
     templateLanguage = basicTemplate.language;
     attachmentType.value = _normalizeHeaderFormat(basicTemplate.headerFormat);
@@ -376,6 +448,8 @@ class CreateBroadcastController extends GetxController {
         selectedTemplateParams.value = category != null
             ? fullTemplate.copyWith(category: category)
             : fullTemplate;
+        ctaUrlLinkTrackingOptedOut.value =
+            fullTemplate.ctaUrlLinkTrackingOptedOut;
         templateName.value = fullTemplate.name;
         templateLanguage = fullTemplate.language;
         attachmentType.value = _normalizeHeaderFormat(
@@ -403,11 +477,92 @@ class CreateBroadcastController extends GetxController {
           variableValues["body_$i"] = {"type": "empty", "value": ""};
         }
         _disposeParamStates();
+
+        /// CAROUSEL HANDLING
+        _initializeCarouselCards(fullTemplate);
         updatePreviewBody();
       }
     } catch (e) {
       print('❌ Error loading full template details: $e');
       // Keep the basic template info that was already set
+    }
+  }
+
+  void _initializeCarouselCards(TemplateParamModel template) {
+    carouselCards.clear();
+    if (template.templateType == "CAROUSEL" && template.cards != null) {
+      for (var i = 0; i < template.cards!.length; i++) {
+        final cardData = template.cards![i];
+        final card = CarouselCard();
+
+        // Extract card components
+        final cardComponents = cardData["components"] as List? ?? [];
+        for (var comp in cardComponents) {
+          final type = comp["type"] ?? "";
+          if (type == "BODY") {
+            card.body.value = comp["text"] ?? "";
+            card.originalBody.value = comp["text"] ?? "";
+            final regex = RegExp(r'\{\{[0-9]+\}\}');
+            final matches = regex.allMatches(card.body.value);
+
+            // Extract examples if available
+            List<String> examples = [];
+            if (comp["example"] != null &&
+                comp["example"] is Map &&
+                comp["example"]["body_text"] is List) {
+              final bodyExs = comp["example"]["body_text"] as List;
+              if (bodyExs.isNotEmpty && bodyExs[0] is List) {
+                examples = (bodyExs[0] as List)
+                    .map((e) => e.toString())
+                    .toList();
+              }
+            }
+
+            for (int j = 1; j <= matches.length; j++) {
+              final key = "card_${i}_body_$j";
+              ensureParamKey(key);
+              final ctrl = paramControllers[key]!;
+              card.variableControllers.add(ctrl);
+
+              // Store example for this specific variable
+              if (examples.length >= j) {
+                card.variableExamples.add(examples[j - 1]);
+              } else {
+                card.variableExamples.add("");
+              }
+            }
+          } else if (type == "HEADER") {
+            card.mediaType.value = (comp["format"] ?? "IMAGE")
+                .toString()
+                .toUpperCase();
+          } else if (type == "BUTTONS") {
+            if (comp["buttons"] is List) {
+              final btns = (comp["buttons"] as List)
+                  .map((b) => InteractiveButton.fromJson(b))
+                  .toList();
+              card.buttons.assignAll(btns);
+
+              // Detect variables in buttons (e.g. dynamic URL)
+              final regex = RegExp(r'\{\{[0-9]+\}\}');
+              for (var btnIndex = 0; btnIndex < btns.length; btnIndex++) {
+                final btn = btns[btnIndex];
+
+                // Check URL for variables
+                if (btn.url != null && regex.hasMatch(btn.url!)) {
+                  final matches = regex.allMatches(btn.url!);
+                  for (int j = 1; j <= matches.length; j++) {
+                    final key = "card_${i}_btn_${btnIndex}_url_$j";
+                    ensureParamKey(key);
+                    final ctrl = paramControllers[key]!;
+                    card.variableControllers.add(ctrl);
+                  }
+                }
+              }
+            }
+          }
+        }
+        carouselCards.add(card);
+      }
     }
   }
 
@@ -544,16 +699,16 @@ class CreateBroadcastController extends GetxController {
         "Phone Number",
         "First Name",
         "Last Name",
-        "Email",
-        "Company",
-        "Tags",
-        "Notes",
-        "Birthdate",
-        "Anniversary",
-        "Work Anniversary",
-        "Birthdate Month",
-        "Anniversary Month",
-        "Work Anniversary Month",
+        "Email (optional)",
+        "Company (optional)",
+        "Tags (optional)",
+        "Notes (optional)",
+        "Birthdate (optional)",
+        "Anniversary (optional)",
+        "Work Anniversary (optional)",
+        "Birthdate Month (optional)",
+        "Anniversary Month (optional)",
+        "Work Anniversary Month (optional)",
       ],
       [
         "IN",
@@ -658,7 +813,9 @@ class CreateBroadcastController extends GetxController {
             )
             .toList();
 
-        importedContacts.assignAll(contactModels);
+        importedContacts.assignAll(
+          contactModels.where((c) => c.status != 0).toList(),
+        );
 
         // Update contact details and count for popup after import is complete
         calculateEstimatedRecipientsCount();
@@ -674,7 +831,7 @@ class CreateBroadcastController extends GetxController {
   /// Refresh available tags after import
   Future<void> _refreshAvailableTags() async {
     availableTags.assignAll(await ContactsService.instance.getAllTags());
-    allContacts.assignAll(await ContactsService.instance.getAllContacts());
+    allContacts.assignAll((await ContactsService.instance.getAllContacts()));
   }
 
   // Tag selection
@@ -696,7 +853,7 @@ class CreateBroadcastController extends GetxController {
 
       // Add all contacts belonging to this tag
       final contactsOfTag = allContacts
-          .where((c) => c.tags.contains(tagName))
+          .where((c) => c.tags.contains(tagName) && c.status != 0)
           .toList();
 
       for (var c in contactsOfTag) {
@@ -756,7 +913,6 @@ class CreateBroadcastController extends GetxController {
     );
 
     isUploadingMedia.value = false;
-
     if (result["success"] == true) {
       mediaHandleId.value = result["media_id"];
     } else {
@@ -803,6 +959,13 @@ class CreateBroadcastController extends GetxController {
       segmentContacts.removeWhere((e) => e.id == contact.id);
     } else {
       // ADD contact manually
+      if (contact.status == 0) {
+        Utilities.showSnackbar(
+          SnackType.ERROR,
+          'Cannot select Opted-out contact.',
+        );
+        return;
+      }
       segmentContacts.add(contact);
     }
 
@@ -814,7 +977,9 @@ class CreateBroadcastController extends GetxController {
     if (isPreview) return contactDetails;
 
     if (selectedAudience.value == "all") {
-      return allContacts;
+      // Return a temporary filtered list for "all" mode
+      // Note: This matches the old behavior while allow allContacts to hold everyone
+      return allContacts.where((c) => c.status != 0).toList().obs;
     } else if (selectedAudience.value == "import") {
       return importedContacts;
     } else {
@@ -1083,13 +1248,6 @@ class CreateBroadcastController extends GetxController {
       final btn = buttons[i];
       final value = btnValueCtrls[i].text.trim();
 
-      // QUICK REPLY validation
-      if (btn.type == "QUICK_REPLY" && value.isEmpty) {
-        btnValueErrors[i] = "Quick reply text is missing";
-        firstErrorMessage ??= btnValueErrors[i];
-        hasButtonError = true;
-      }
-
       // URL validation
       if (btn.type == "URL" && value.isEmpty) {
         btnValueErrors[i] = "URL cannot be empty";
@@ -1153,6 +1311,7 @@ class CreateBroadcastController extends GetxController {
     selectedFileError.value = "";
     mediaHandleId.value = "";
     isUploadingMedia.value = false;
+    ctaUrlLinkTrackingOptedOut.value = false;
   }
 
   /// Initializes controllers for interactive buttons
@@ -1209,8 +1368,12 @@ class CreateBroadcastController extends GetxController {
       return;
     }
     if (currentStep.value > 0) {
-      currentStep.value--;
-      _navigateToStep(currentStep.value);
+      if (Get.previousRoute.isNotEmpty) {
+        Get.back();
+      } else {
+        currentStep.value--;
+        _navigateToStep(currentStep.value);
+      }
     }
   }
 
@@ -1230,7 +1393,11 @@ class CreateBroadcastController extends GetxController {
         route = Routes.CREATE_BROADCAST;
     }
 
-    Get.toNamed(route);
+    Get.toNamed(route)?.then((_) {
+      if (currentStep.value > 0) {
+        currentStep.value--;
+      }
+    });
   }
 
   void selectTemplate(String templateId) {
@@ -1256,7 +1423,7 @@ class CreateBroadcastController extends GetxController {
     contactDetails.clear();
 
     if (isPreview && contactIdsList.isNotEmpty) {
-      // 🔥 IMPORTANT to avoid duplicates
+      //  IMPORTANT to avoid duplicates
       estimatedCount.value = contactIdsList.length.toString();
 
       if (selectedAudience.value == "import") {
@@ -1318,7 +1485,7 @@ class CreateBroadcastController extends GetxController {
   }
 
   void loadDraft(BroadcastTableModel draftTableModel) async {
-    // 1️⃣ Fetch full Firestore model using ID
+    //  Fetch full Firestore model using ID
     final BroadcastModel? draft = await BroadcastFirebaseService.instance
         .getBroadcast(draftTableModel.id);
 
@@ -1327,15 +1494,16 @@ class CreateBroadcastController extends GetxController {
       return;
     }
 
-    // 2️⃣ Load name + description
+    //  Load name + description
     nameController.value.text = draft.broadcastName;
     descriptionController.value.text = draft.description;
     editingBroadcastId.value = draft.id!;
+    enableRetry.value = draft.enableRetry ?? false;
 
-    // 3️⃣ Load template
+    //  Load template
     selectedTemplate.value = draft.templateId ?? "";
 
-    // 4️⃣ Convert audienceType (0/1/2 → string)
+    //  Convert audienceType (0/1/2 → string)
     switch (draft.audienceType) {
       case 0:
         selectedAudience.value = "all";
@@ -1439,6 +1607,7 @@ class CreateBroadcastController extends GetxController {
 
       // print("🔄 VIEWING BROADCAST: ${broadcast.broadcastName}");
       completedAt.value = broadcast.completedAt;
+      enableRetry.value = broadcast.enableRetry ?? false;
 
       // ----------------------------------------------------
       // 2️⃣ LOAD TEMPLATE FROM TEMPLATE ID
@@ -1473,6 +1642,11 @@ class CreateBroadcastController extends GetxController {
         template.headerFormat,
       );
 
+      // --- CAROUSEL INITIALIZATION ---
+      if (template.templateType == "CAROUSEL") {
+        _initializeCarouselCards(template);
+      }
+
       // print("📎 Attachment Type from template: ${attachmentType.value}");
 
       // ----------------------------------------------------
@@ -1487,10 +1661,34 @@ class CreateBroadcastController extends GetxController {
 
       if (broadcast.templateVariables != null) {
         for (int i = 0; i < broadcast.templateVariables!.length; i++) {
-          variableValues["body_${i + 1}"] = {
+          final key = "body_${i + 1}";
+          variableValues[key] = {
             "type": "static",
             "value": broadcast.templateVariables![i],
           };
+          if (paramControllers.containsKey(key)) {
+            paramControllers[key]!.text = broadcast.templateVariables![i];
+          }
+        }
+      }
+
+      // RESTORE CARD VARIABLES
+      if (broadcast.cardVariables != null) {
+        for (int i = 0; i < broadcast.cardVariables!.length; i++) {
+          final cardData = broadcast.cardVariables![i];
+          final bodyVars = cardData["bodyVariables"] as List?;
+          if (bodyVars != null) {
+            for (int j = 0; j < bodyVars.length; j++) {
+              final key = "card_${i}_body_${j + 1}";
+              variableValues[key] = {
+                "type": "static",
+                "value": bodyVars[j].toString(),
+              };
+              if (paramControllers.containsKey(key)) {
+                paramControllers[key]!.text = bodyVars[j].toString();
+              }
+            }
+          }
         }
       }
 
@@ -1508,14 +1706,37 @@ class CreateBroadcastController extends GetxController {
           selectedFileBytes.value = media.bytes;
           selectedFileName.value = media.name;
         } else {
-          print("❌ Media is NULL - failed to load from Firebase");
+          debugPrint("❌ Media is NULL - failed to load from Firebase");
         }
       } else {
-        print("⚠️ No attachment ID found in broadcast");
+        debugPrint("⚠️ No attachment ID found in broadcast");
       }
 
       // ----------------------------------------------------
-      // 5️⃣ RESTORE NAME FIELD
+      // 5️⃣ RESTORE CAROUSEL MEDIA PREVIEW (from Firebase)
+      // ----------------------------------------------------
+      if (broadcast.cardAttachmentIds != null &&
+          broadcast.cardAttachmentIds!.isNotEmpty) {
+        for (int i = 0; i < broadcast.cardAttachmentIds!.length; i++) {
+          if (i < carouselCards.length) {
+            final attachmentId = broadcast.cardAttachmentIds![i];
+            carouselCards[i].attachmentId.value = attachmentId;
+
+            // Fetch actual media bytes for carousel cards
+            if (attachmentId.isNotEmpty) {
+              final media = await BroadcastFirebaseService.instance
+                  .getBroadcastMedia(attachmentId);
+              if (media != null) {
+                carouselCards[i].fileBytes.value = media.bytes;
+                carouselCards[i].fileName.value = media.name;
+              }
+            }
+          }
+        }
+      }
+
+      // ----------------------------------------------------
+      // 6️⃣ RESTORE NAME FIELD
       // ----------------------------------------------------
       nameController.update((c) {
         c?.text = broadcast.broadcastName;
@@ -1623,6 +1844,7 @@ class CreateBroadcastController extends GetxController {
       status: "draft",
       contactIds: contactIdsList,
       completedAt: null,
+      enableRetry: enableRetry.value,
     );
 
     // Save to Firebase
@@ -1738,15 +1960,29 @@ class CreateBroadcastController extends GetxController {
 
   /// Helper to lookup cost for a specific country and category
   double getCostForCountry(ContactModel contact, String category) {
+    double markup = 0.0;
+
+    // 0. Try Client ID
+    if (chargesData.containsKey(clientID)) {
+      final data = chargesData[clientID];
+      if (category.toUpperCase() == 'MARKETING') {
+        markup = (data['marketing'] as num?)?.toDouble() ?? 0.80;
+      } else {
+        markup = (data['utility'] as num?)?.toDouble() ?? 0.20;
+      }
+    }
+
     // 1. Try ISO Country Code (e.g., 'AE', 'AF')
     if (contact.isoCountryCode != null && contact.isoCountryCode!.isNotEmpty) {
       String isoCode = contact.isoCountryCode!.toUpperCase();
       if (chargesData.containsKey(isoCode)) {
         final data = chargesData[isoCode];
         if (category.toUpperCase() == 'MARKETING') {
-          return (data['marketing'] as num?)?.toDouble() ?? 0.80;
+          return ((data['marketing'] as num?)?.toDouble() ?? 0.80) *
+              (1 + markup / 100);
         } else {
-          return (data['utility'] as num?)?.toDouble() ?? 0.20;
+          return ((data['utility'] as num?)?.toDouble() ?? 0.20) *
+              (1 + markup / 100);
         }
       }
     }
@@ -1756,9 +1992,11 @@ class CreateBroadcastController extends GetxController {
     if (chargesData.containsKey(callingCode)) {
       final data = chargesData[callingCode];
       if (category.toUpperCase() == 'MARKETING') {
-        return (data['marketing'] as num?)?.toDouble() ?? 0.80;
+        return ((data['marketing'] as num?)?.toDouble() ?? 0.80) *
+            (1 + markup / 100);
       } else {
-        return (data['utility'] as num?)?.toDouble() ?? 0.20;
+        return ((data['utility'] as num?)?.toDouble() ?? 0.20) *
+            (1 + markup / 100);
       }
     }
 
@@ -1766,18 +2004,22 @@ class CreateBroadcastController extends GetxController {
     if (chargesData.containsKey('OTHER')) {
       final data = chargesData['OTHER'];
       if (category.toUpperCase() == 'MARKETING') {
-        return (data['marketing'] as num?)?.toDouble() ?? 0.80;
+        return ((data['marketing'] as num?)?.toDouble() ?? 0.80) *
+            (1 + markup / 100);
       } else {
-        return (data['utility'] as num?)?.toDouble() ?? 0.20;
+        return ((data['utility'] as num?)?.toDouble() ?? 0.20) *
+            (1 + markup / 100);
       }
     }
 
     if (chargesData.containsKey('(default)')) {
       final data = chargesData['(default)'];
       if (category.toUpperCase() == 'MARKETING') {
-        return (data['marketing'] as num?)?.toDouble() ?? 0.80;
+        return ((data['marketing'] as num?)?.toDouble() ?? 0.80) *
+            (1 + markup / 100);
       } else {
-        return (data['utility'] as num?)?.toDouble() ?? 0.20;
+        return ((data['utility'] as num?)?.toDouble() ?? 0.20) *
+            (1 + markup / 100);
       }
     }
 
@@ -1785,14 +2027,17 @@ class CreateBroadcastController extends GetxController {
     if (chargesData.containsKey('91')) {
       final data91 = chargesData['91'];
       if (category.toUpperCase() == 'MARKETING') {
-        return (data91['marketing'] as num?)?.toDouble() ?? 0.80;
+        return ((data91['marketing'] as num?)?.toDouble() ?? 0.80) *
+            (1 + markup / 100);
       } else {
-        return (data91['utility'] as num?)?.toDouble() ?? 0.20;
+        return ((data91['utility'] as num?)?.toDouble() ?? 0.20) *
+            (1 + markup / 100);
       }
     }
 
     // Final hardcoded fallback
-    return category.toUpperCase() == 'MARKETING' ? 0.80 : 0.20;
+    return (category.toUpperCase() == 'MARKETING' ? 0.80 : 0.20) *
+        (1 + markup / 100);
   }
 
   double calculateBroadcastCost() {
@@ -1927,7 +2172,8 @@ class CreateBroadcastController extends GetxController {
     });
   }
 
-  void sendBroadcast() async {
+  Future<void> sendBroadcast() async {
+    final stopwatch = Stopwatch()..start();
     try {
       isSending.value = true;
       // ----------------------------
@@ -1947,23 +2193,9 @@ class CreateBroadcastController extends GetxController {
         // ----------------------------
         //  STEP 2: CHECK QUOTA BEFORE ANY UPLOAD/SAVE
         // ----------------------------
-
         final String date = (deliveryOption.value == 1)
             ? selectedScheduleTime.value.toIso8601String().split('T')[0]
             : DateTime.now().toIso8601String().split('T')[0];
-
-        final bool exceed = await BroadcastFirebaseService.instance
-            .willExceedQuota(messageCount, date);
-
-        if (exceed) {
-          Future.delayed(const Duration(milliseconds: 30), () {
-            Utilities.showSnackbar(
-              SnackType.ERROR,
-              "You have reached the daily limit of ${AppConstants.dailyLimit}.",
-            );
-          });
-          return;
-        }
 
         // ----------------------------
         //  STEP 2.5: CHECK WALLET BALANCE
@@ -1976,32 +2208,193 @@ class CreateBroadcastController extends GetxController {
           return;
         }
 
-        Utilities.showOverlayLoadingDialog();
+        broadcastProgress.value = 0.0;
+        showDialog(
+          context: Get.overlayContext!,
+          barrierDismissible: false,
+          builder: (_) => BroadcastProgressDialog(progress: broadcastProgress),
+        );
 
-        //  STEP 3: UPLOAD FILE IF ANY
         // ----------------------------
-        String? attachmentId;
+        //  STEP 3: PRE-GENERATE CLIENT-SIDE BROADCAST ID
+        // ----------------------------
+        final String broadcastId = editingBroadcastId.value.isNotEmpty
+            ? editingBroadcastId.value
+            : FirebaseFirestore.instance
+                  .collection("broadcasts")
+                  .doc(clientID)
+                  .collection("data")
+                  .doc()
+                  .id;
 
-        if (mediaHandleId.value.isNotEmpty &&
-            selectedFileBytes.value != null &&
-            selectedFileName.value.isNotEmpty) {
-          final upload = await uploadFileToFirebase(
-            fileBytes: selectedFileBytes.value!,
-            fileName: selectedFileName.value,
-            folder: 'broadcasts_media/$clientID',
-            mimeType: mimeType.value,
-          );
-          attachmentId = upload.id;
+        // ----------------------------
+        //  STEP 4: CAPTURE/BUILD BROADCAST MODEL
+        // ----------------------------
+        List<String> bodyVars = [];
+        final sortedKeys =
+            variableValues.keys.where((key) => key.startsWith("body_")).toList()
+              ..sort((a, b) {
+                int ai = int.parse(a.split("_")[1]);
+                int bi = int.parse(b.split("_")[1]);
+                return ai.compareTo(bi);
+              });
+
+        for (final key in sortedKeys) {
+          bodyVars.add(variableValues[key]!["value"] ?? "");
         }
 
-        // ----------------------------
-        //  STEP 4: SAVE BROADCAST IN FIREBASE
-        // ----------------------------
-        final String broadcastId = await sendBroadcastToFirebase(attachmentId);
+        BroadcastStatus pendingStatus = BroadcastStatus.pending;
+        BroadcastStatus scheduledStatus = BroadcastStatus.scheduled;
+
+        final broadcast = BroadcastModel(
+          id: broadcastId,
+          broadcastName: nameController.value.text.trim(),
+          description: descriptionController.value.text.trim(),
+          audienceType: getAudienceTypeValue(),
+          status: deliveryOption.value == 0
+              ? pendingStatus.label
+              : scheduledStatus.label,
+          contactIds: getAudienceTypeValue() == 1
+              ? finalRecipients
+                    .map(
+                      (c) =>
+                          "${c.countryCallingCode!.startsWith('+') ? '' : '+'}${c.countryCallingCode}${c.phoneNumber}",
+                    )
+                    .toList()
+              : finalRecipients.map((c) => c.id).toList(),
+          templateId: selectedTemplateId.value,
+          templateVariables: bodyVars,
+          cardVariables: templateType.value == "CAROUSEL"
+              ? List.generate(carouselCards.length, (i) {
+                  List<String> cardBodyVars = [];
+                  final prefix = "card_${i}_body_";
+                  final keys =
+                      variableValues.keys
+                          .where((k) => k.startsWith(prefix))
+                          .toList()
+                        ..sort(
+                          (a, b) => int.parse(
+                            a.split("_").last,
+                          ).compareTo(int.parse(b.split("_").last)),
+                        );
+                  for (final k in keys) {
+                    cardBodyVars.add(variableValues[k]!["value"] ?? "");
+                  }
+                  return {"bodyVariables": cardBodyVars};
+                })
+              : null,
+          mediaId: mediaHandleId.value,
+          attachmentId: null, // will be updated in background
+          cardAttachmentIds: null, // will be updated in background
+          deliveryType: deliveryOption.value,
+          deliveryTimestamp: deliveryOption.value == 1
+              ? selectedScheduleTime.value
+              : DateTime.now(),
+          completedAt: null,
+          adminName: adminName.value.isNotEmpty ? adminName.value : 'Admin',
+          totalCost: totalCost,
+          enableRetry: enableRetry.value,
+        );
 
         // ----------------------------
-        //  STEP 5: SAVE QUOTA
+        //  STEP 5: PRE-GENERATE MESSAGE PAYLOADS & REFS
         // ----------------------------
+        final String messageType =
+            (templateType.value.toUpperCase() == 'TEXT & MEDIA')
+            ? 'MEDIA'
+            : templateType.value.toUpperCase();
+
+        final messagesRef = BroadcastFirebaseService.instance
+            .messagesCollection(broadcastId);
+
+        final List<String> messageIds = [];
+        final List<Map<String, dynamic>> payloadJsons = [];
+
+        for (final contact in finalRecipients) {
+          final messageId = messagesRef.doc().id;
+
+          // Build dynamic variables for THIS contact
+          final bodyVars = buildBodyVarsForContact(contact);
+
+          final phone = "${contact.countryCallingCode}${contact.phoneNumber}";
+          Map<String, dynamic>? headerVars;
+
+          final templateTypeUpper = templateType.value.toUpperCase();
+
+          if (templateTypeUpper == "TEXT") {
+            if (attachmentType.value.isNotEmpty) {
+              headerVars = {"type": "TEXT", "text": attachmentType.value};
+            }
+          }
+
+          if (templateTypeUpper == "INTERACTIVE" ||
+              templateTypeUpper == "TEXT & MEDIA") {
+            headerVars = mediaHandleId.value.isEmpty
+                ? null
+                : {
+                    "type": attachmentType.value,
+                    "data": {
+                      "mediaId": mediaHandleId.value,
+                      "fileName": selectedFileName.value,
+                    },
+                  };
+          }
+
+          final category =
+              selectedTemplateParams.value?.category.toUpperCase() ?? 'UTILITY';
+          final double costPerContactValue = getCostForCountry(
+            contact,
+            category,
+          );
+
+          final version = selectedTemplateParams.value?.version ?? 'v1';
+
+          List<BroadcastCard>? cardVars;
+          if (templateType.value.toUpperCase() == "CAROUSEL") {
+            cardVars = buildCardVariablesForContact(contact);
+            for (final card in cardVars) {
+              final btnList = card.buttonVariable;
+              if (btnList == null) continue;
+              for (int bi = 0; bi < btnList.length; bi++) {
+                final btn = btnList[bi];
+                if (btn.payload == "__QUICK_REPLY_PLACEHOLDER__") {
+                  btnList[bi] = BroadcastButton(
+                    type: btn.type,
+                    payload: "$broadcastId|$messageId",
+                  );
+                }
+              }
+            }
+          }
+
+          final payload = BroadcastMessagePayload(
+            broadcastId: broadcastId,
+            messageId: messageId,
+            payload: Payload(
+              templateName: templateName.value,
+              language: templateLanguage,
+              type: messageType,
+              mobileNo: phone,
+              bodyVariables: bodyVars,
+              headerVariables: headerVars,
+              buttonVariable: buildButtonVariables(
+                version,
+                broadcastId: broadcastId,
+                messageId: messageId,
+              ),
+              cardVariables: cardVars,
+              category: category,
+              version: version,
+            ),
+            status: null,
+            createdAt: DateTime.now(),
+            cost: costPerContactValue,
+          );
+
+          messageIds.add(messageId);
+          payloadJsons.add(payload.toJson());
+        }
+
         final quota = QuotaModel(
           usedQuota: messageCount,
           broadcasts: [
@@ -2012,15 +2405,73 @@ class CreateBroadcastController extends GetxController {
           ],
         );
 
-        await BroadcastFirebaseService.instance.saveQuota(quota, date);
+        // ----------------------------
+        //  STEP 6: CAPTURE UPLOAD & CARD CONFIGS
+        // ----------------------------
+        final Uint8List? mainFileBytes =
+            mediaHandleId.value.isNotEmpty &&
+                selectedFileBytes.value != null &&
+                selectedFileName.value.isNotEmpty
+            ? selectedFileBytes.value
+            : null;
+        final String mainFileName = selectedFileName.value;
+        final String mainMimeType = mimeType.value;
+
+        final List<CarouselCardUploadData> carouselUploads =
+            templateType.value.toUpperCase() == "CAROUSEL"
+            ? carouselCards.map((c) {
+                return CarouselCardUploadData(
+                  fileBytes: c.fileBytes.value,
+                  fileName: c.fileName.value,
+                  mediaType: c.mediaType.value,
+                  mediaHandleId: c.mediaHandleId.value,
+                  attachmentId: c.attachmentId.value,
+                );
+              }).toList()
+            : [];
 
         // ----------------------------
-        //  STEP 6: SAVE PAYLOAD
+        //  STEP 7: START COMPLETE BACKGROUND PROCESSING
         // ----------------------------
-        await savePayloadInBroadcast(broadcastId);
+        final isScheduled = deliveryOption.value == 1;
+        final scheduledTime = selectedScheduleTime.value;
+        final isEditing = editingBroadcastId.value.isNotEmpty;
+
+        await _sendBroadcastInBackground(
+          broadcastId: broadcastId,
+          broadcast: broadcast,
+          messageIds: messageIds,
+          payloadJsons: payloadJsons,
+          quota: quota,
+          quotaDate: date,
+          isScheduled: isScheduled,
+          scheduledTimestamp: scheduledTime,
+          isEditing: isEditing,
+          mainFileBytes: mainFileBytes,
+          mainFileName: mainFileName,
+          mainMimeType: mainMimeType,
+          carouselUploads: carouselUploads,
+        );
+
+        // Show immediate user feedback
+        if (isScheduled) {
+          Utilities.showSnackbar(
+            SnackType.SUCCESS,
+            'Broadcast scheduled successfully!',
+          );
+        } else {
+          Utilities.showSnackbar(
+            SnackType.SUCCESS,
+            'Broadcast has been initiated.',
+          );
+        }
+
+        print(
+          "sendBroadcast() processing thread completed in: ${stopwatch.elapsedMilliseconds}ms",
+        );
 
         // ----------------------------
-        //  STEP 7: RESET UI
+        //  STEP 8: RESET UI IMMEDIATELY
         // ----------------------------
         resetAll();
 
@@ -2033,6 +2484,9 @@ class CreateBroadcastController extends GetxController {
     } finally {
       isSending.value = false;
       Utilities.hideCustomLoader(Get.context!);
+      print(
+        "sendBroadcast() total execution time: ${stopwatch.elapsedMilliseconds}ms",
+      );
     }
   }
 
@@ -2092,6 +2546,103 @@ class CreateBroadcastController extends GetxController {
     return "-";
   }
 
+  List<BroadcastCard> buildCardVariablesForContact(ContactModel contact) {
+    List<BroadcastCard> cards = [];
+
+    for (int i = 0; i < carouselCards.length; i++) {
+      final card = carouselCards[i];
+
+      // 1. Build Header Variables
+      Map<String, dynamic>? headerVars;
+      if (card.mediaHandleId.value.isNotEmpty) {
+        headerVars = {
+          "type": card.mediaType.value.toLowerCase(), // image / video
+          "data": {
+            "mediaId": card.mediaHandleId.value,
+            "fileName": card.fileName.value,
+            "attachmentId": card.attachmentId.value,
+          },
+        };
+      }
+
+      // 2. Build Body Variables
+      List<String> bodyVars = [];
+      final bodyPrefix = "card_${i}_body_";
+      final bodyKeys =
+          variableValues.keys.where((k) => k.startsWith(bodyPrefix)).toList()
+            ..sort((a, b) {
+              int ai = int.parse(a.split("_").last);
+              int bi = int.parse(b.split("_").last);
+              return ai.compareTo(bi);
+            });
+
+      for (final key in bodyKeys) {
+        final map = variableValues[key] ?? {};
+        final type = map["type"] ?? "static";
+        final value = map["value"] ?? "";
+
+        if (type == "dynamic") {
+          bodyVars.add(resolveChipValue(contact, value));
+        } else {
+          bodyVars.add(value);
+        }
+      }
+
+      // 3. Build Button Variables
+      List<BroadcastButton> buttons = [];
+      for (int btnIndex = 0; btnIndex < card.buttons.length; btnIndex++) {
+        final btn = card.buttons[btnIndex];
+        if (btn.type.toUpperCase() == "URL") {
+          final btnPrefix = "card_${i}_btn_${btnIndex}_url_";
+          final btnKeys =
+              variableValues.keys.where((k) => k.startsWith(btnPrefix)).toList()
+                ..sort((a, b) {
+                  int ai = int.parse(a.split("_").last);
+                  int bi = int.parse(b.split("_").last);
+                  return ai.compareTo(bi);
+                });
+
+          String? payloadValue;
+          if (btnKeys.isNotEmpty) {
+            final key = btnKeys.first;
+            final map = variableValues[key] ?? {};
+            final type = map["type"] ?? "static";
+            final value = map["value"] ?? "";
+            payloadValue = (type == "dynamic")
+                ? resolveChipValue(contact, value)
+                : value;
+          }
+
+          buttons.add(
+            BroadcastButton(
+              type: "url",
+              payload: payloadValue ?? "",
+              url: btn.url,
+            ),
+          );
+        } else if (btn.type.toUpperCase() == "QUICK_REPLY") {
+          // payload will be injected with broadcastId|messageId when saving
+          buttons.add(
+            BroadcastButton(
+              type: "quick_reply",
+              payload: "__QUICK_REPLY_PLACEHOLDER__",
+            ),
+          );
+        }
+      }
+
+      cards.add(
+        BroadcastCard(
+          headerVariables: headerVars,
+          bodyVariables: bodyVars,
+          buttonVariable: buttons,
+        ),
+      );
+    }
+
+    return cards;
+  }
+
   List<String> buildBodyVarsForContact(ContactModel contact) {
     List<String> vars = [];
 
@@ -2119,91 +2670,253 @@ class CreateBroadcastController extends GetxController {
     return vars;
   }
 
-  Future<void> savePayloadInBroadcast(String broadcastId) async {
-    if (selectedTemplateId.value.isEmpty) {
-      Utilities.showSnackbar(SnackType.ERROR, "Please select a template");
-      return;
-    }
+  Future<void> _sendBroadcastInBackground({
+    required String broadcastId,
+    required BroadcastModel broadcast,
+    required List<String> messageIds,
+    required List<Map<String, dynamic>> payloadJsons,
+    required QuotaModel quota,
+    required String quotaDate,
+    required bool isScheduled,
+    required DateTime scheduledTimestamp,
+    required bool isEditing,
+    required Uint8List? mainFileBytes,
+    required String mainFileName,
+    required String mainMimeType,
+    required List<CarouselCardUploadData> carouselUploads,
+  }) async {
+    try {
+      final stopwatch = Stopwatch()..start();
 
-    final String messageType = (templateType.value == 'Text & Media')
-        ? 'MEDIA'
-        : templateType.value.toUpperCase();
+      // Initial progress
+      broadcastProgress.value = 0.05;
 
-    for (final contact in finalRecipients) {
-      // 👉 Build dynamic variables for THIS contact
-      final bodyVars = buildBodyVarsForContact(contact);
+      // 1. Upload files in parallel (if any)
+      String? attachmentId;
+      List<String> cardAttachmentIds = [];
+      final List<Future<dynamic>> uploadFutures = [];
 
-      final phone = "${contact.countryCallingCode}${contact.phoneNumber}";
-      Map<String, dynamic>? headerVars;
+      final int totalUploads =
+          (mainFileBytes != null && mainFileName.isNotEmpty ? 1 : 0) +
+          carouselUploads
+              .where(
+                (card) =>
+                    card.fileBytes != null &&
+                    card.fileName.isNotEmpty &&
+                    card.attachmentId.isEmpty,
+              )
+              .length;
+      int completedUploads = 0;
 
-      if (messageType == "TEXT") {
-        // If there is a text header variable
-        if (attachmentType.value.isNotEmpty) {
-          headerVars = {"type": "TEXT", "text": attachmentType.value};
+      Future<UploadResult?>? mainUploadFuture;
+      if (mainFileBytes != null && mainFileName.isNotEmpty) {
+        mainUploadFuture =
+            uploadFileToFirebase(
+              fileBytes: mainFileBytes,
+              fileName: mainFileName,
+              folder: 'broadcasts_media/$clientID',
+              mimeType: mainMimeType,
+            ).then((res) {
+              completedUploads++;
+              broadcastProgress.value =
+                  0.05 + 0.25 * (completedUploads / totalUploads);
+              return res;
+            });
+        uploadFutures.add(mainUploadFuture);
+      }
+
+      final List<Future<UploadResult>> carouselUploadFutures = [];
+      if (carouselUploads.isNotEmpty) {
+        for (var card in carouselUploads) {
+          if (card.fileBytes != null &&
+              card.fileName.isNotEmpty &&
+              card.attachmentId.isEmpty) {
+            final fut =
+                uploadFileToFirebase(
+                  fileBytes: card.fileBytes!,
+                  fileName: card.fileName,
+                  folder: 'broadcasts_media/$clientID',
+                  mimeType: card.mediaType.toUpperCase() == "IMAGE"
+                      ? "image/jpeg"
+                      : "video/mp4",
+                ).then((res) {
+                  completedUploads++;
+                  broadcastProgress.value =
+                      0.05 + 0.25 * (completedUploads / totalUploads);
+                  return res;
+                });
+            carouselUploadFutures.add(fut);
+            uploadFutures.add(fut);
+          }
         }
       }
 
-      if (templateType.value == "Interactive" ||
-          templateType.value == "Text & Media") {
-        headerVars = mediaHandleId.isEmpty
-            ? null
-            : {
-                "type": attachmentType.value, // IMAGE / VIDEO / DOCUMENT
-                "data": {
-                  "mediaId": mediaHandleId.value,
-                  "fileName": selectedFileName.value,
-                },
-              };
+      if (uploadFutures.isNotEmpty) {
+        await Future.wait(uploadFutures);
+
+        if (mainUploadFuture != null) {
+          final mainUploadResult = await mainUploadFuture;
+          attachmentId = mainUploadResult?.id;
+        }
+
+        for (int i = 0; i < carouselUploadFutures.length; i++) {
+          final result = await carouselUploadFutures[i];
+          cardAttachmentIds.add(result.id);
+          carouselUploads[i].attachmentId = result.id;
+        }
+      } else {
+        broadcastProgress.value = 0.30;
       }
 
-      // Get cost per contact based on template category and this specific contact's data
-      final category =
-          selectedTemplateParams.value?.category.toUpperCase() ?? 'UTILITY';
-      final double costPerContactValue = getCostForCountry(contact, category);
+      // Add pre-existing attachment IDs from carousel uploads
+      for (var card in carouselUploads) {
+        if (card.attachmentId.isNotEmpty) {
+          cardAttachmentIds.add(card.attachmentId);
+        }
+      }
 
-      final payload = BroadcastMessagePayload(
-        broadcastId: broadcastId,
-        messageId: null, // will be auto-set by Firestore
-        payload: Payload(
-          templateName: templateName.value,
-          language: templateLanguage,
-          type: messageType,
-          mobileNo: phone,
-          bodyVariables: bodyVars,
-          headerVariables: headerVars,
-          buttonVariable: buildButtonVariables(),
-        ),
-        status: null,
-        createdAt: DateTime.now(),
-        cost: costPerContactValue,
+      // Update the broadcast model with the attachment IDs
+      final updatedBroadcast = BroadcastModel(
+        id: broadcast.id,
+        broadcastName: broadcast.broadcastName,
+        description: broadcast.description,
+        audienceType: broadcast.audienceType,
+        status: broadcast.status,
+        contactIds: broadcast.contactIds,
+        templateId: broadcast.templateId,
+        templateVariables: broadcast.templateVariables,
+        cardVariables: broadcast.cardVariables,
+        mediaId: broadcast.mediaId,
+        attachmentId: attachmentId ?? broadcast.attachmentId,
+        cardAttachmentIds: cardAttachmentIds.isNotEmpty
+            ? cardAttachmentIds
+            : null,
+        deliveryType: broadcast.deliveryType,
+        deliveryTimestamp: broadcast.deliveryTimestamp,
+        completedAt: broadcast.completedAt,
+        adminName: broadcast.adminName,
+        totalCost: broadcast.totalCost,
+        enableRetry: broadcast.enableRetry,
       );
 
-      await BroadcastFirebaseService.instance.addBroadcastMessage(
+      // Save the broadcast document
+      if (isEditing) {
+        await BroadcastFirebaseService.instance.updateDraft(
+          broadcastId,
+          updatedBroadcast,
+        );
+      } else {
+        // Save to Firebase (since we already generated the ID client-side, we write it directly)
+        final ref = FirebaseFirestore.instance
+            .collection("broadcasts")
+            .doc(clientID)
+            .collection("data")
+            .doc(broadcastId);
+        await ref.set(updatedBroadcast.toFirestore());
+      }
+      broadcastProgress.value = 0.35;
+
+      // 2. Commit individual message payloads
+      final messagesRef = BroadcastFirebaseService.instance.messagesCollection(
         broadcastId,
-        payload,
       );
-    }
 
-    await BroadcastQueueService.queueBroadcast(
-      broadcastId: broadcastId,
-      isScheduled: deliveryOption.value == 0 ? false : true,
-      scheduledTimestamp: selectedScheduleTime.value,
-    );
+      final firestore = FirebaseFirestore.instance;
+      final List<WriteBatch> batches = [];
+      WriteBatch currentBatch = firestore.batch();
+      int operationCount = 0;
 
-    if (deliveryOption.value == 1) {
-      Utilities.showSnackbar(
-        SnackType.SUCCESS,
-        'Broadcast scheduled successfully!',
+      for (int i = 0; i < messageIds.length; i++) {
+        final msgRef = messagesRef.doc(messageIds[i]);
+        final Map<String, dynamic> payloadJson = payloadJsons[i];
+
+        // If it is a carousel, we need to update the card variables' attachmentId
+        // with the newly generated attachmentId from background uploads!
+        if (cardAttachmentIds.isNotEmpty &&
+            payloadJson.containsKey("payload") &&
+            payloadJson["payload"] != null) {
+          final payloadData = payloadJson["payload"];
+          if (payloadData.containsKey("cardVariables") &&
+              payloadData["cardVariables"] != null) {
+            final List<dynamic> cards = payloadData["cardVariables"];
+            for (int ci = 0; ci < cards.length; ci++) {
+              if (ci < carouselUploads.length) {
+                final card = cards[ci];
+                if (card.containsKey("headerVariables") &&
+                    card["headerVariables"] != null) {
+                  final header = card["headerVariables"];
+                  if (header.containsKey("data") && header["data"] != null) {
+                    final data = header["data"];
+                    if (data.containsKey("attachmentId") &&
+                        (data["attachmentId"] == null ||
+                            data["attachmentId"].toString().isEmpty)) {
+                      data["attachmentId"] = carouselUploads[ci].attachmentId;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        currentBatch.set(msgRef, payloadJson);
+        operationCount++;
+
+        if (operationCount == 500) {
+          batches.add(currentBatch);
+          currentBatch = firestore.batch();
+          operationCount = 0;
+        }
+      }
+
+      if (operationCount > 0) {
+        batches.add(currentBatch);
+      }
+
+      if (batches.isNotEmpty) {
+        int committedBatches = 0;
+        final List<Future<void>> commitFutures = batches.map((batch) {
+          return batch.commit().then((_) {
+            committedBatches++;
+            broadcastProgress.value =
+                0.35 + 0.45 * (committedBatches / batches.length);
+          });
+        }).toList();
+        await Future.wait(commitFutures);
+      } else {
+        broadcastProgress.value = 0.80;
+      }
+
+      // 3. Save Quota
+      await BroadcastFirebaseService.instance.saveQuota(quota, quotaDate);
+      broadcastProgress.value = 0.85;
+
+      // 4. Queue Broadcast
+      await BroadcastQueueService.queueBroadcast(
+        broadcastId: broadcastId,
+        isScheduled: isScheduled,
+        scheduledTimestamp: scheduledTimestamp,
       );
-    } else {
-      Utilities.showSnackbar(
-        SnackType.SUCCESS,
-        'Broadcast has been initiated.',
+      broadcastProgress.value = 1.0;
+
+      print(
+        "Background broadcast processing completed successfully for: $broadcastId",
       );
+      stopwatch.stop();
+      print(
+        "Background broadcast processing completed successfully for: $broadcastId in ${stopwatch.elapsedMilliseconds}ms",
+      );
+    } catch (e) {
+      print("Error in background broadcast processing: $e");
     }
   }
 
-  List<BroadcastButton> buildButtonVariables() {
+  List<BroadcastButton> buildButtonVariables(
+    // String category,
+    String version, {
+    required String broadcastId,
+    required String messageId,
+  }) {
     List<BroadcastButton> list = [];
 
     for (int i = 0; i < buttons.length; i++) {
@@ -2212,9 +2925,26 @@ class CreateBroadcastController extends GetxController {
       final isDynamic =
           btn.type == "URL" && urlType.length > i && urlType[i] == "Dynamic";
 
+      String? btnUrl;
+      // String? btnCategory;
+
+      if (version == 'v2') {
+        // btnCategory = category;
+        if (btn.type == "URL") {
+          btnUrl = baseUrl;
+        }
+      }
+
       // COPY_CODE → payload = example code
       if (btn.type == "COPY_CODE") {
-        list.add(BroadcastButton(type: btn.type, payload: baseUrl));
+        list.add(
+          BroadcastButton(
+            type: btn.type,
+            payload: baseUrl,
+            url: btnUrl,
+            // category: btnCategory,
+          ),
+        );
       }
       // URL
       else if (btn.type == "URL") {
@@ -2235,81 +2965,66 @@ class CreateBroadcastController extends GetxController {
           finalUrl = "";
         }
 
-        list.add(BroadcastButton(type: btn.type, payload: finalUrl));
+        // Reconstruct the full URL if dynamic replacement is needed
+        String? reconstructedUrl = btnUrl;
+        if (isDynamic &&
+            finalUrl.isNotEmpty &&
+            reconstructedUrl != null &&
+            reconstructedUrl.contains("{{1}}")) {
+          reconstructedUrl = reconstructedUrl.replaceAll("{{1}}", finalUrl);
+        }
+
+        list.add(
+          BroadcastButton(
+            type: btn.type,
+            payload: finalUrl,
+            url: reconstructedUrl,
+            // category: btnCategory,
+          ),
+        );
       }
       // PHONE_NUMBER
       else if (btn.type == "PHONE_NUMBER") {
-        list.add(BroadcastButton(type: btn.type, payload: baseUrl));
+        list.add(
+          BroadcastButton(
+            type: btn.type,
+            payload: baseUrl,
+            url: btnUrl,
+            // category: btnCategory,
+          ),
+        );
       }
-      // QUICK_REPLY → payload = button text
+      // QUICK_REPLY → payload = broadcastId|messageId
       else if (btn.type == "QUICK_REPLY") {
-        list.add(BroadcastButton(type: btn.type, payload: btn.text.trim()));
+        list.add(
+          BroadcastButton(
+            type: btn.type,
+            payload: "$broadcastId|$messageId",
+            url: btnUrl,
+            // category: btnCategory,
+          ),
+        );
       }
       // Fallback
       else {
-        list.add(BroadcastButton(type: btn.type, payload: baseUrl));
+        list.add(
+          BroadcastButton(
+            type: btn.type,
+            payload: baseUrl,
+            url: btnUrl,
+            // category: btnCategory,
+          ),
+        );
       }
     }
 
     return list;
   }
 
-  // List<BroadcastButton> buildButtonVariables() {
-  //   List<BroadcastButton> list = [];
-
-  //   for (int i = 0; i < buttons.length; i++) {
-  //     final btn = buttons[i];
-  //     final valueCtrl = btnValueCtrls[i];
-
-  //     // COPY_CODE → payload = code (example)
-  //     if (btn.type == "COPY_CODE") {
-  //       list.add(
-  //         BroadcastButton(
-  //           type: btn.type,
-  //           payload: valueCtrl.text.trim(), // coupon/promo code
-  //         ),
-  //       );
-  //     }
-  //     // URL → payload = final URL
-  //     else if (btn.type == "URL") {
-  //       list.add(
-  //         BroadcastButton(
-  //           type: btn.type,
-  //           payload: "",
-  //           // payload: valueCtrl.text.trim(), // final URL
-  //         ),
-  //       );
-  //     }
-  //     // PHONE_NUMBER → payload = number
-  //     else if (btn.type == "PHONE_NUMBER") {
-  //       list.add(
-  //         BroadcastButton(
-  //           type: btn.type,
-  //           payload: valueCtrl.text.trim(), // phone number
-  //         ),
-  //       );
-  //     }
-  //     // QUICK_REPLY → payload = button title
-  //     else if (btn.type == "QUICK_REPLY") {
-  //       list.add(
-  //         BroadcastButton(
-  //           type: btn.type,
-  //           payload: btn.text.trim(), // button label works as payload
-  //         ),
-  //       );
-  //     }
-  //     // Unknown button type (safe fallback)
-  //     else {
-  //       list.add(
-  //         BroadcastButton(type: btn.type, payload: valueCtrl.text.trim()),
-  //       );
-  //     }
-  //   }
-
-  //   return list;
-  // }
-
-  Future<String> sendBroadcastToFirebase(String? attactmentId) async {
+  Future<String> sendBroadcastToFirebase(
+    String? attachmentId,
+    List<String> cardAttachmentIds,
+  ) async {
     String broadcastId = "";
     List<String> bodyVars = [];
 
@@ -2348,8 +3063,30 @@ class CreateBroadcastController extends GetxController {
           : finalRecipients.map((c) => c.id).toList(),
       templateId: selectedTemplateId.value,
       templateVariables: bodyVars,
+      cardVariables: templateType.value == "CAROUSEL"
+          ? List.generate(carouselCards.length, (i) {
+              List<String> cardBodyVars = [];
+              final prefix = "card_${i}_body_";
+              final keys =
+                  variableValues.keys
+                      .where((k) => k.startsWith(prefix))
+                      .toList()
+                    ..sort(
+                      (a, b) => int.parse(
+                        a.split("_").last,
+                      ).compareTo(int.parse(b.split("_").last)),
+                    );
+              for (final k in keys) {
+                cardBodyVars.add(variableValues[k]!["value"] ?? "");
+              }
+              return {"bodyVariables": cardBodyVars};
+            })
+          : null,
       mediaId: mediaHandleId.value,
-      attachmentId: attactmentId,
+      attachmentId: attachmentId,
+      cardAttachmentIds: cardAttachmentIds.isNotEmpty
+          ? cardAttachmentIds
+          : null,
       deliveryType: deliveryOption.value,
       deliveryTimestamp: deliveryOption.value == 1
           ? selectedScheduleTime.value
@@ -2357,6 +3094,7 @@ class CreateBroadcastController extends GetxController {
       completedAt: null,
       adminName: adminName.value.isNotEmpty ? adminName.value : 'Admin',
       totalCost: totalCost,
+      enableRetry: enableRetry.value,
     );
     // broadcastId = await BroadcastFirebaseService.instance.saveBroadcast(
     //   broadcast,
@@ -2444,6 +3182,7 @@ class CreateBroadcastController extends GetxController {
     selectedTemplate.value = "";
     templateName.value = "";
     selectedTemplateParams.value = null;
+    ctaUrlLinkTrackingOptedOut.value = false;
 
     // Template fields
     originalTemplateBody.value = "";
@@ -2478,6 +3217,7 @@ class CreateBroadcastController extends GetxController {
     editingBroadcastId.value = "";
     completedAt.value = null;
     isPreview = false;
+    enableRetry.value = false;
 
     // Rebuild empty preview
     updatePreviewBody();
@@ -2511,7 +3251,7 @@ class CreateBroadcastController extends GetxController {
 
         for (String tag in selectedTags) {
           final contactsOfTag = allContacts
-              .where((c) => c.tags.contains(tag))
+              .where((c) => c.tags.contains(tag) && c.status != 0)
               .toList();
 
           for (var c in contactsOfTag) {
@@ -2530,4 +3270,20 @@ class CreateBroadcastController extends GetxController {
       //print("❌ Error refreshing contacts for segment popup: $e");
     }
   }
+}
+
+class CarouselCardUploadData {
+  final Uint8List? fileBytes;
+  final String fileName;
+  final String mediaType;
+  final String mediaHandleId;
+  String attachmentId;
+
+  CarouselCardUploadData({
+    required this.fileBytes,
+    required this.fileName,
+    required this.mediaType,
+    required this.mediaHandleId,
+    required this.attachmentId,
+  });
 }

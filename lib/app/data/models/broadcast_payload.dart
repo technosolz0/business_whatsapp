@@ -53,6 +53,10 @@ class Payload {
   // ⭐ New structured headerVariables map
   final Map<String, dynamic>? headerVariables;
 
+  final String? category;
+  final String? version;
+  final List<BroadcastCard>? cardVariables;
+
   Payload({
     required this.templateName,
     required this.language,
@@ -61,19 +65,44 @@ class Payload {
     required this.bodyVariables,
     this.headerVariables,
     this.buttonVariable,
+    this.category,
+    this.version,
+    this.cardVariables,
   });
 
   Map<String, dynamic> toJson() {
     return {
       "template": templateName,
+      if (category != null) "category": category,
       "language": language,
       "type": type,
       "mobileNo": mobileNo,
       "bodyVariables": bodyVariables,
       "headerVariables": headerVariables,
-      "buttonVariables": buttonVariable
-          ?.map((btn) => btn.toJson())
-          .toList(), // ✅ FIX: Convert objects to JSON
+      "buttonVariables": buttonVariable?.map((btn) => btn.toJson()).toList(),
+      if (version != null) "version": version,
+      if (cardVariables != null)
+        "cardVariables": cardVariables?.map((card) => card.toJson()).toList(),
+    };
+  }
+}
+
+class BroadcastCard {
+  final Map<String, dynamic>? headerVariables;
+  final List<String>? bodyVariables;
+  final List<BroadcastButton>? buttonVariable;
+
+  BroadcastCard({
+    this.headerVariables,
+    this.bodyVariables,
+    this.buttonVariable,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      "headerVariables": headerVariables,
+      "bodyVariables": bodyVariables,
+      "buttonVariables": buttonVariable?.map((btn) => btn.toJson()).toList(),
     };
   }
 }
@@ -81,10 +110,17 @@ class Payload {
 class BroadcastButton {
   final String type;
   String? payload;
+  String? url;
+  String? category;
 
-  BroadcastButton({required this.type, this.payload});
+  BroadcastButton({required this.type, this.payload, this.url, this.category});
 
   Map<String, dynamic> toJson() {
-    return {"type": type, "payload": payload};
+    return {
+      "type": type,
+      "payload": payload,
+      if (url != null) "url": url,
+      if (category != null) "category": category,
+    };
   }
 }

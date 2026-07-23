@@ -16,6 +16,10 @@ class ClientModel {
   double walletBalance;
   DateTime createdAt;
   DateTime updatedAt;
+  bool isBotActivated;
+  bool isUploadQuestionsEnabled;
+  String? storeId;
+  String? qnaId;
 
   ClientModel({
     this.id,
@@ -31,6 +35,10 @@ class ClientModel {
     this.isPremium = true,
     this.subscriptionExpiry,
     this.walletBalance = 0.0,
+    this.isBotActivated = false,
+    this.isUploadQuestionsEnabled = false,
+    this.storeId,
+    this.qnaId,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) : createdAt = createdAt ?? DateTime.now(),
@@ -58,6 +66,10 @@ class ClientModel {
           : null,
       walletBalance: (json['wallet_balance'] ?? json['walletBalance'] ?? 0.0)
           .toDouble(),
+      isBotActivated: json['is_bot_activated'] == true || json['isBotActivated'] == true,
+      isUploadQuestionsEnabled: json['is_upload_questions_enabled'] == true || json['isUploadQuestionsEnabled'] == true,
+      storeId: json['store_id'] ?? json['storeId'],
+      qnaId: json['qna_store_id'] ?? json['qnaId'] ?? json['qnaStoreId'],
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'])
           : json['createdAt'] != null
@@ -85,6 +97,10 @@ class ClientModel {
       'is_premium': isPremium,
       'subscription_expiry': subscriptionExpiry?.toIso8601String(),
       'wallet_balance': walletBalance,
+      'is_bot_activated': isBotActivated,
+      'is_upload_questions_enabled': isUploadQuestionsEnabled,
+      'store_id': storeId,
+      'qna_store_id': qnaId,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
@@ -104,6 +120,10 @@ class ClientModel {
     bool? isPremium,
     DateTime? subscriptionExpiry,
     double? walletBalance,
+    bool? isBotActivated,
+    bool? isUploadQuestionsEnabled,
+    String? storeId,
+    String? qnaId,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -121,6 +141,10 @@ class ClientModel {
       isPremium: isPremium ?? this.isPremium,
       subscriptionExpiry: subscriptionExpiry ?? this.subscriptionExpiry,
       walletBalance: walletBalance ?? this.walletBalance,
+      isBotActivated: isBotActivated ?? this.isBotActivated,
+      isUploadQuestionsEnabled: isUploadQuestionsEnabled ?? this.isUploadQuestionsEnabled,
+      storeId: storeId ?? this.storeId,
+      qnaId: qnaId ?? this.qnaId,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

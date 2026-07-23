@@ -36,6 +36,9 @@ abstract class Routes {
   static const CREATE_CUSTOM_NOTIFICATION = _Paths.CREATE_CUSTOM_NOTIFICATION;
   static const AUTOMATION = _Paths.AUTOMATION;
   static const ZOHO_CRM = _Paths.ZOHO_CRM;
+  static const ACTIVATE_BOT = _Paths.ACTIVATE_BOT;
+  static const BOT_QUESTIONS = _Paths.BOT_QUESTIONS;
+  static const TRAIN_BOT = _Paths.TRAIN_BOT;
 }
 
 abstract class _Paths {
@@ -73,4 +76,7 @@ abstract class _Paths {
   static const CREATE_CUSTOM_NOTIFICATION = '/create-custom-notification';
   static const AUTOMATION = '/automation';
   static const ZOHO_CRM = '/zoho-crm';
+  static const ACTIVATE_BOT = '/activate-bot';
+  static const BOT_QUESTIONS = '/bot-questions';
+  static const TRAIN_BOT = '/train-bot';
 }

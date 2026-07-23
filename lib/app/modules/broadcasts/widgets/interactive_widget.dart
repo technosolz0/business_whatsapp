@@ -76,7 +76,7 @@ class BroadcastActionsWidget extends StatelessWidget {
   }
 
   // ------------------------------------------------------
-  // QUICK REPLY (TEXT DISABLED + VALUE FIELD)
+  // QUICK REPLY (TEXT DISABLED — payload auto-set to broadcastId|messageId)
   // ------------------------------------------------------
   Widget _broadcastQuickReply(InteractiveButton btn, int index) {
     return Row(
@@ -85,43 +85,12 @@ class BroadcastActionsWidget extends StatelessWidget {
 
         const SizedBox(width: 12),
 
-        // DISABLED TEXT FIELD
+        // DISABLED TEXT FIELD (button label from template)
         Expanded(
-          flex: 3,
           child: TextField(
             controller: controller.getTextCtrl(index),
             enabled: false,
             decoration: _disabledInput("Button Text"),
-          ),
-        ),
-
-        const SizedBox(width: 12),
-
-        // VALUE FIELD (ENABLED)
-        Expanded(
-          flex: 3,
-          child: TextField(
-            controller: controller.getValueCtrl(index),
-            decoration: _enabledInput(
-              "Value",
-              errorText:
-                  controller.btnValueErrors.length > index &&
-                      controller.btnValueErrors[index].isNotEmpty
-                  ? controller.btnValueErrors[index]
-                  : null,
-            ),
-            onChanged: (v) {
-              controller.buttons[index] = controller.buttons[index].copyWith(
-                example: [v],
-              );
-
-              // 🔥 Add validation
-              if (v.trim().isEmpty) {
-                controller.btnValueErrors[index] = "Value is required";
-              } else {
-                controller.btnValueErrors[index] = "";
-              }
-            },
           ),
         ),
       ],

@@ -212,36 +212,48 @@ class _SettingsViewState extends State<SettingsView> {
             ],
 
             // Chat Bot Card
-            // if (_isPremiumEnabled) ...[
-            //   _SettingsCard(
-            //     title: "Chat Bot",
-            //     isDark: isDark,
-            //     child: Column(
-            //       children: [
-            //         _LinkTile(
-            //           label: "Activate Bot",
-            //           subtext:
-            //               "Enable automated responses for incoming messages",
-            //           isDark: isDark,
-            //           trailing: Switch(
-            //             value: false,
-            //             onChanged: (v) {},
-            //             activeThumbColor: Colors.blue,
-            //           ),
-            //         ),
-            //         const Divider(height: 32),
-            //         _LinkTile(
-            //           label: "Questions",
-            //           subtext: "Configure questions, answers and logic flow",
-            //           isDark: isDark,
-            //           onTap: () {},
-            //         ),
-            //       ],
-            //     ),
-            //   ),
-
-            //   const SizedBox(height: 16),
-            // ],
+            Obx(() => isBotActivated.value
+                ? Column(
+                    children: [
+                      _SettingsCard(
+                        title: "Chat Bot",
+                        isDark: isDark,
+                        child: Column(
+                          children: [
+                            _LinkTile(
+                              label: "Train Your Bot",
+                              subtext:
+                                  "Upload training documents and train your AI model",
+                              isDark: isDark,
+                              onTap: () {
+                                Get.toNamed(Routes.TRAIN_BOT);
+                                final navController =
+                                    Get.find<NavigationController>();
+                                navController.currentRoute.value = Routes.TRAIN_BOT;
+                                navController.updateRoute();
+                              },
+                            ),
+                            const Divider(height: 32),
+                            _LinkTile(
+                              label: "Questions",
+                              subtext: "Configure questions, answers and logic flow",
+                              isDark: isDark,
+                              onTap: () {
+                                Get.toNamed(Routes.BOT_QUESTIONS);
+                                final navController =
+                                    Get.find<NavigationController>();
+                                navController.currentRoute.value =
+                                    Routes.BOT_QUESTIONS;
+                                navController.updateRoute();
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                  )
+                : const SizedBox.shrink()),
 
             // Account Card
             _SettingsCard(

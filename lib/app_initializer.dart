@@ -99,6 +99,44 @@ class AppInitializer {
               'true'
         : false;
 
+    String encryptedIsBotActivated = getCookieValue('isBotActivated');
+    isBotActivated.value = encryptedIsBotActivated.isNotEmpty
+        ? WebUtils.decryptData(
+                data: encryptedIsBotActivated,
+                secretKey: AppConstants.menuItemsSecret,
+              ) ==
+              'true'
+        : false;
+
+    String encryptedIsUploadQuestionsEnabled = getCookieValue('isUploadQuestionsEnabled');
+    isUploadQuestionsEnabled.value = encryptedIsUploadQuestionsEnabled.isNotEmpty
+        ? WebUtils.decryptData(
+                data: encryptedIsUploadQuestionsEnabled,
+                secretKey: AppConstants.menuItemsSecret,
+              ) ==
+              'true'
+        : false;
+
+    String encryptedIsBroadcastSchedual = getCookieValue('isBroadcastSchedual').isNotEmpty
+        ? getCookieValue('isBroadcastSchedual')
+        : getCookieValue('isBroadcastSchedule');
+    isBroadcastSchedual.value = encryptedIsBroadcastSchedual.isNotEmpty
+        ? WebUtils.decryptData(
+                data: encryptedIsBroadcastSchedual,
+                secretKey: AppConstants.menuItemsSecret,
+              ) ==
+              'true'
+        : false;
+
+    String encryptedIsBroadcastRetryEnabled = getCookieValue('isBroadcastRetryEnabled');
+    isBroadcastRetryEnabled.value = encryptedIsBroadcastRetryEnabled.isNotEmpty
+        ? WebUtils.decryptData(
+                data: encryptedIsBroadcastRetryEnabled,
+                secretKey: AppConstants.menuItemsSecret,
+              ) ==
+              'true'
+        : false;
+
     if (gJwtToken.isNotEmpty) {
       try {
         JWT.verify(gJwtToken, SecretKey(AppConstants.menuItemsSecret));

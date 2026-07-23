@@ -16,6 +16,8 @@ class StatCard extends StatelessWidget {
   final Color? iconColor;
   final String? subtitle;
   final String? broadcastId;
+  final String? broadcastName;
+  final bool showViewDetails;
 
   // Common properties
   final StatCardType type;
@@ -30,7 +32,9 @@ class StatCard extends StatelessWidget {
        icon = null,
        iconColor = null,
        subtitle = null,
-       broadcastId = null;
+       broadcastId = null,
+       broadcastName = null,
+       showViewDetails = false;
 
   const StatCard.broadcast({
     super.key,
@@ -41,6 +45,8 @@ class StatCard extends StatelessWidget {
     required this.subtitle,
     required this.changeColor,
     this.broadcastId,
+    this.broadcastName,
+    this.showViewDetails = false,
   }) : type = StatCardType.broadcast,
        change = null;
 
@@ -174,7 +180,7 @@ class StatCard extends StatelessWidget {
                     : AppColors.textPrimaryLight,
               ),
             ),
-            if (title == 'Total Messages') ...[
+            if (showViewDetails) ...[
               ElevatedButton(
                 onPressed: () {
                   showDialog(

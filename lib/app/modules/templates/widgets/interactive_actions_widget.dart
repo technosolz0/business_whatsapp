@@ -86,24 +86,36 @@ class InteractiveActionsWidget extends StatelessWidget {
 
           // DYNAMIC BUTTON FIELDS
           Obx(() {
+            final hasUrlButton = controller.buttons.any(
+              (btn) => btn.type == "URL",
+            );
             return Column(
-              children: List.generate(controller.buttons.length, (index) {
-                if (!_safeIndex(controller, index)) {
-                  return const SizedBox.shrink();
-                }
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Column(
+                  children: List.generate(controller.buttons.length, (index) {
+                    if (!_safeIndex(controller, index)) {
+                      return const SizedBox.shrink();
+                    }
 
-                final btn = controller.buttons[index];
+                    final btn = controller.buttons[index];
 
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _buildResponsiveButtonRow(
-                    btn,
-                    index,
-                    controller,
-                    isDark,
-                  ),
-                );
-              }),
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _buildResponsiveButtonRow(
+                        btn,
+                        index,
+                        controller,
+                        isDark,
+                      ),
+                    );
+                  }),
+                ),
+                if (hasUrlButton) ...[
+                  const SizedBox(height: 12),
+                  _buildCommonLinkTrackingCheckbox(controller, isDark),
+                ],
+              ],
             );
           }),
         ],
@@ -185,6 +197,50 @@ class InteractiveActionsWidget extends StatelessWidget {
     }
   }
 
+  Widget _buildCommonLinkTrackingCheckbox(
+    CreateTemplateController controller,
+    bool isDark,
+  ) {
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? Colors.grey[800] : Colors.grey[100],
+        borderRadius: BorderRadius.circular(8),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            height: 24,
+            width: 24,
+            child: Obx(
+              () => Checkbox(
+                side: BorderSide(color: Colors.black),
+                value: !controller.ctaUrlLinkTrackingOptedOut.value,
+                activeColor: const Color(0xFF137FEC),
+                onChanged: (val) {
+                  if (val != null) {
+                    controller.ctaUrlLinkTrackingOptedOut.value = !val;
+                  }
+                },
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              "When tracking is enabled, WhatsApp may show a branded link to customers which will redirect to your website",
+              style: TextStyle(
+                fontSize: 13,
+                color: isDark ? Colors.grey[400] : Colors.grey[900],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildActionButton({
     required String label,
     required IconData icon,
@@ -233,7 +289,7 @@ class InteractiveActionsWidget extends StatelessWidget {
 
   Widget buildLabelBox(String label) {
     return SizedBox(
-      width: 120,
+      width: 80,
       child: Text(
         label,
         style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
@@ -263,6 +319,7 @@ class InteractiveActionsWidget extends StatelessWidget {
           TextField(
             controller: controller.getTextCtrl(index),
             maxLength: 25,
+            maxLengthEnforcement: MaxLengthEnforcement.enforced,
             onChanged: (v) {
               final t = v.trim();
               if (t.isEmpty) {
@@ -273,6 +330,7 @@ class InteractiveActionsWidget extends StatelessWidget {
               controller.buttons[index] = btn.copyWith(text: t);
             },
             decoration: InputDecoration(
+              counterText: "",
               labelText: "Button Text",
               filled: true,
               errorText: controller.btnTextErrors[index].isEmpty
@@ -306,13 +364,14 @@ class InteractiveActionsWidget extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(child: buildLabelBox('Quick Reply')),
-        const SizedBox(width: 12),
+        buildLabelBox('Quick Reply'),
+        const SizedBox(width: 8),
         Expanded(
           flex: 6,
           child: TextField(
             controller: controller.getTextCtrl(index),
             maxLength: 25,
+            maxLengthEnforcement: MaxLengthEnforcement.enforced,
             onChanged: (v) {
               final t = v.trim();
               if (t.isEmpty) {
@@ -323,6 +382,7 @@ class InteractiveActionsWidget extends StatelessWidget {
               controller.buttons[index] = btn.copyWith(text: t);
             },
             decoration: InputDecoration(
+              counterText: "",
               labelText: "Button Text",
               filled: true,
               errorText: controller.btnTextErrors[index].isEmpty
@@ -378,7 +438,9 @@ class InteractiveActionsWidget extends StatelessWidget {
             TextField(
               controller: controller.getTextCtrl(index),
               maxLength: 25,
+              maxLengthEnforcement: MaxLengthEnforcement.enforced,
               decoration: InputDecoration(
+                counterText: "",
                 labelText: "Button Text",
                 filled: true,
                 errorText: controller.btnTextErrors[index].isEmpty
@@ -423,15 +485,17 @@ class InteractiveActionsWidget extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         buildLabelBox(btn.type),
-        const SizedBox(width: 12),
+        const SizedBox(width: 8),
 
         if (btn.type != "COPY_CODE") ...[
-          Expanded(
-            flex: 1,
+          SizedBox(
+            width: 180,
             child: TextField(
               controller: controller.getTextCtrl(index),
               maxLength: 25,
+              maxLengthEnforcement: MaxLengthEnforcement.enforced,
               decoration: InputDecoration(
+                counterText: "",
                 labelText: "Button Text",
                 filled: true,
                 errorText: controller.btnTextErrors[index].isEmpty
@@ -463,7 +527,7 @@ class InteractiveActionsWidget extends StatelessWidget {
               },
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
         ],
 
         Expanded(
@@ -504,7 +568,9 @@ class InteractiveActionsWidget extends StatelessWidget {
             controller: controller.getValueCtrl(index),
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             maxLength: 15,
+            maxLengthEnforcement: MaxLengthEnforcement.enforced,
             decoration: InputDecoration(
+              counterText: "",
               labelText: "Phone Number",
               filled: true,
               errorText: controller.btnValueErrors[index].isEmpty
@@ -568,7 +634,9 @@ class InteractiveActionsWidget extends StatelessWidget {
       return TextField(
         controller: controller.getValueCtrl(index),
         maxLength: 15,
+        maxLengthEnforcement: MaxLengthEnforcement.enforced,
         decoration: InputDecoration(
+          counterText: "",
           labelText: "Sample Value",
           filled: true,
           errorText: controller.btnValueErrors[index].isEmpty
@@ -655,7 +723,7 @@ class InteractiveActionsWidget extends StatelessWidget {
       children: [
         if (isUrl)
           SizedBox(
-            width: 120,
+            width: 140,
             child: _urlTypeDropdown(
               isDark,
               currentType,
@@ -665,7 +733,7 @@ class InteractiveActionsWidget extends StatelessWidget {
               dynamicCtrl,
             ),
           ),
-        const SizedBox(width: 16),
+        const SizedBox(width: 8),
         Expanded(
           child: _urlOrValueField(
             isDark,
@@ -678,9 +746,9 @@ class InteractiveActionsWidget extends StatelessWidget {
           ),
         ),
         if (isUrl && currentType == "Dynamic") ...[
-          const SizedBox(width: 16),
+          const SizedBox(width: 8),
           SizedBox(
-            width: 120,
+            width: 160,
             child: _dynamicField(
               isDark,
               controller,
@@ -749,7 +817,9 @@ class InteractiveActionsWidget extends StatelessWidget {
     return TextField(
       controller: urlCtrl,
       maxLength: 2000,
+      maxLengthEnforcement: MaxLengthEnforcement.enforced,
       decoration: InputDecoration(
+        counterText: "",
         labelText: btn.type == "URL"
             ? (currentType == "Dynamic"
                   ? "URL Pattern (without dynamic part)"
@@ -769,16 +839,29 @@ class InteractiveActionsWidget extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: Color(0xFF137FEC), width: 1.5),
         ),
+        errorText: controller.btnValueErrors[index].isEmpty
+            ? null
+            : controller.btnValueErrors[index],
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Colors.red),
+        ),
       ),
       onChanged: (v) {
         final urlPattern = v.trim();
 
-        // 🔥 KEY FIX: For dynamic URLs, append {{1}} to the pattern
         if (btn.type == "URL" && currentType == "Dynamic") {
           // Store pattern with {{1}} placeholder for WhatsApp API
           controller.buttons[index] = btn.copyWith(
             url: urlPattern.isEmpty ? "" : "$urlPattern{{1}}",
           );
+
+          // Validation
+          if (urlPattern.isNotEmpty && !urlPattern.startsWith("https://")) {
+            controller.setValueError(index, "URL must start with https://");
+          } else {
+            controller.clearButtonError(index, isValue: true);
+          }
 
           // If dynamic value exists, update example too
           if (dynamicCtrl.text.isNotEmpty) {
@@ -789,9 +872,16 @@ class InteractiveActionsWidget extends StatelessWidget {
         } else {
           // Static URL - use as-is
           controller.buttons[index] = btn.copyWith(url: urlPattern);
-        }
 
-        controller.clearButtonError(index, isValue: true);
+          // Validation
+          if (btn.type == "URL" &&
+              urlPattern.isNotEmpty &&
+              !urlPattern.startsWith("https://")) {
+            controller.setValueError(index, "URL must start with https://");
+          } else {
+            controller.clearButtonError(index, isValue: true);
+          }
+        }
       },
     );
   }
@@ -807,9 +897,11 @@ class InteractiveActionsWidget extends StatelessWidget {
     return TextField(
       controller: dynamicCtrl,
       maxLength: 200,
+      maxLengthEnforcement: MaxLengthEnforcement.enforced,
       decoration: InputDecoration(
-        labelText: "Dynamic Value (Example)",
-        hintText: "e.g., projects",
+        counterText: "",
+        labelText: "Dynamic Value",
+        hintText: "e.g. contact-us",
         filled: true,
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
@@ -820,6 +912,13 @@ class InteractiveActionsWidget extends StatelessWidget {
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: Color(0xFF137FEC), width: 1.5),
+        ),
+        errorText: controller.btnValueErrors[index].isEmpty
+            ? null
+            : controller.btnValueErrors[index],
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Colors.red),
         ),
       ),
       onChanged: (v) {

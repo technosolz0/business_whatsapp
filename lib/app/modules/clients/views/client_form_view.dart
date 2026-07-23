@@ -251,6 +251,47 @@ class _ClientFormViewState extends State<ClientFormView> {
                     isDark: isDark,
                     isRequired: true,
                   ),
+                  const SizedBox(height: 16),
+                  _buildCheckbox(
+                    value: controller.isBotActivated,
+                    label: 'Chatbot Enabled',
+                    isDark: isDark,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildCheckbox(
+                    value: controller.isUploadQuestionsEnabled,
+                    label: 'QnA Upload Enabled',
+                    isDark: isDark,
+                  ),
+                  const SizedBox(height: 16),
+                  Obx(() => controller.storeIdController.text.isNotEmpty
+                      ? Column(
+                          children: [
+                            _buildTextField(
+                              controller: controller.storeIdController,
+                              label: 'Store ID',
+                              hint: '',
+                              isDark: isDark,
+                              readOnly: true,
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+                        )
+                      : const SizedBox.shrink()),
+                  Obx(() => controller.qnaIdController.text.isNotEmpty
+                      ? Column(
+                          children: [
+                            _buildTextField(
+                              controller: controller.qnaIdController,
+                              label: 'QnA Store ID',
+                              hint: '',
+                              isDark: isDark,
+                              readOnly: true,
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+                        )
+                      : const SizedBox.shrink()),
                 ],
               )
             else
@@ -308,6 +349,64 @@ class _ClientFormViewState extends State<ClientFormView> {
                 ],
               ),
             const SizedBox(height: 16),
+
+            // Row 3.5: Chatbot & QnA Settings
+            if (!isMobile)
+              Column(
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 28),
+                          child: _buildCheckbox(
+                            value: controller.isBotActivated,
+                            label: 'Chatbot Enabled',
+                            isDark: isDark,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 28),
+                          child: _buildCheckbox(
+                            value: controller.isUploadQuestionsEnabled,
+                            label: 'QnA Upload Enabled',
+                            isDark: isDark,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Obx(() => controller.storeIdController.text.isNotEmpty
+                            ? _buildTextField(
+                                controller: controller.storeIdController,
+                                label: 'Store ID',
+                                hint: '',
+                                isDark: isDark,
+                                readOnly: true,
+                              )
+                            : const SizedBox.shrink()),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Obx(() => controller.qnaIdController.text.isNotEmpty
+                            ? _buildTextField(
+                                controller: controller.qnaIdController,
+                                label: 'QnA Store ID',
+                                hint: '',
+                                isDark: isDark,
+                                readOnly: true,
+                              )
+                            : const SizedBox.shrink()),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ),
 
             // Row 4: Logo
             if (isMobile)
@@ -372,6 +471,7 @@ class _ClientFormViewState extends State<ClientFormView> {
     required String hint,
     required bool isDark,
     bool isRequired = false,
+    bool readOnly = false,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -398,6 +498,7 @@ class _ClientFormViewState extends State<ClientFormView> {
         const SizedBox(height: 8),
         TextFormField(
           controller: controller,
+          readOnly: readOnly,
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyle(

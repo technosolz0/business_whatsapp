@@ -68,6 +68,9 @@ class NavigationController extends GetxController {
         case Routes.SETTINGS:
         case Routes.BUSINESS_PROFILE:
         case Routes.ZOHO_CRM:
+        case Routes.ACTIVATE_BOT:
+        case Routes.BOT_QUESTIONS:
+        case Routes.TRAIN_BOT:
           selectedIndex.value = 7;
           break;
         case Routes.CLIENTS:

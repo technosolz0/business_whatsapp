@@ -1,12 +1,17 @@
 import 'package:business_whatsapp/app/Utilities/utilities.dart';
 import 'package:business_whatsapp/app/common%20widgets/common_snackbar.dart';
 import 'package:business_whatsapp/app/controllers/navigation_controller.dart';
+import 'package:business_whatsapp/app/core/theme/app_colors.dart';
 import 'package:business_whatsapp/app/data/models/broadcast_model.dart';
 import 'package:business_whatsapp/app/data/services/broadcast_firebase_service.dart';
 import 'package:business_whatsapp/app/routes/app_pages.dart';
+import 'package:business_whatsapp/main.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../common widgets/common_alert_dialog_delete.dart';
+import '../../../common widgets/custom_button.dart';
 import '../../../data/models/broadcast_status.dart';
 import '../../../data/models/broadcast_table_model.dart';
 import 'create_broadcast_controller.dart';
@@ -158,6 +163,9 @@ class BroadcastsController extends GetxController {
       case 'delete':
         confirmDelete(broadcast);
         break;
+      case 'stop':
+        confirmStopRetry(broadcast);
+        break;
     }
   }
 
@@ -194,7 +202,29 @@ class BroadcastsController extends GetxController {
     );
   }
 
-  void deleteBroadcast({
+  void confirmStopRetry(BroadcastTableModel broadcast) {
+    Get.dialog(
+      StopRetryDialog(
+        onConfirm: () async {
+          try {
+            await service.stopBroadcastRetry(broadcast.id);
+            Utilities.showSnackbar(
+              SnackType.SUCCESS,
+              "Auto retry stopped for '${broadcast.broadcastName}'",
+            );
+            await loadBroadcasts(page: currentPage.value);
+          } catch (e) {
+            Utilities.showSnackbar(
+              SnackType.ERROR,
+              "Failed to stop auto retry",
+            );
+          }
+        },
+      ),
+    );
+  }
+
+  Future<void> deleteBroadcast({
     String? id,
     String? name,
     DateTime? createdAt,
@@ -205,6 +235,7 @@ class BroadcastsController extends GetxController {
   }) async {
     try {
       Utilities.showOverlayLoadingDialog();
+
       await BroadcastFirebaseService.instance.deleteBroadcast(
         id!,
         createdAt,
@@ -218,6 +249,7 @@ class BroadcastsController extends GetxController {
         SnackType.SUCCESS,
         '$name is deleted successfully!',
       );
+      Utilities.hideOverlayLoadingDialog();
 
       await loadBroadcasts(page: currentPage.value);
     } catch (e) {
@@ -235,13 +267,42 @@ class BroadcastsController extends GetxController {
       sent: model.sent ?? 0,
       delivered: model.delivered ?? 0,
       read: model.read ?? 0,
+      clicks: model.clicks ?? 0,
+      replied: model.replied ?? 0,
       failed: model.failed ?? 0,
       actionLabel: model.status == "draft" ? "Edit" : "View",
       templateId: model.templateId,
       audienceType: model.audienceType.toString(),
       invocationFailures: model.invocationFailures ?? 0,
       completedAt: model.completedAt,
+      scheduledAt: model.deliveryTimestamp,
+      enableRetry: model.enableRetry ?? false,
+      retryCampaignStatus: model.retryCampaignStatus ?? '',
+      totalCost: model.totalCost,
     );
+  }
+
+  /// Fetches the chargeable_amount (actual spent) for a given broadcast
+  /// from profile/{clientID}/data/wallet/broadcast_history/{broadcastId}
+  Future<double?> fetchChargeableAmount(String broadcastId) async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('profile')
+          .doc(clientID)
+          .collection('data')
+          .doc('wallet')
+          .collection('broadcast_history')
+          .doc(broadcastId)
+          .get();
+      if (!doc.exists) return null;
+      final data = doc.data()!;
+      final val = data['chargeable_amount'];
+      if (val == null) return null;
+      if (val is num) return val.toDouble();
+      return null;
+    } catch (e) {
+      return null;
+    }
   }
 
   BroadcastStatus _convertStatus(String status) {
@@ -372,14 +433,7 @@ class BroadcastsController extends GetxController {
         navController.currentRoute.value = Routes.CREATE_BROADCAST;
         navController.selectedIndex.value = 5; // Broadcasts index
         navController.routeTrigger.value++;
-
-        // Ensure step is still correct after navigation (preview mode should handle this)
-        // print(
-        //   '🔄 Step after navigation: ${createController.currentStep.value}',
-        // );
       });
-
-      // print('✅ Broadcast view navigation completed');
     } catch (e, stackTrace) {
       print('❌ Error viewing broadcast: $e');
       print('Stack trace: $stackTrace');
@@ -400,17 +454,211 @@ class BroadcastsController extends GetxController {
 
   void closeCreateForm() async {
     isCreatingBroadcast.value = false;
-    // Navigate back to broadcasts list
-    await Get.offNamedUntil(
-      Routes.BROADCASTS,
-      ModalRoute.withName(Routes.DASHBOARD),
-    );
 
-    await loadBroadcasts(page: currentPage.value);
-    // Update navigation controller state
+    // 1. Reset pagination and filters to ensure new broadcast is visible on top
+    currentPage.value = 1;
+    selectedFilter.value = 'All';
+    searchQuery.value = '';
+    searchController.clear();
+
+    // 2. Load the latest broadcasts (page 1)
+    await loadBroadcasts(page: 1);
+
+    // 3. Update navigation controller state BEFORE navigation
     final navController = Get.find<NavigationController>();
     navController.currentRoute.value = Routes.BROADCASTS;
     navController.selectedIndex.value = 5; // Broadcasts index
     navController.routeTrigger.value++;
+
+    // 4. Navigate back to broadcasts list
+    // offAllNamed ensures a clean state and avoids history issues on web
+    Get.offAllNamed(Routes.BROADCASTS);
+  }
+
+  @override
+  void onClose() {
+    super.onClose();
+  }
+}
+
+class StopRetryDialog extends StatefulWidget {
+  final Future<void> Function() onConfirm;
+
+  const StopRetryDialog({super.key, required this.onConfirm});
+
+  @override
+  State<StopRetryDialog> createState() => _StopRetryDialogState();
+}
+
+class _StopRetryDialogState extends State<StopRetryDialog> {
+  bool _isLoading = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      backgroundColor: Colors.transparent,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 520),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.cardDark : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header & Content
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Title Row
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.warning_rounded,
+                        color: Color(0xFFC62828),
+                        size: 28,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          "Stop Auto Retry?",
+                          style: GoogleFonts.plusJakartaSans(
+                            color: isDark
+                                ? AppColors.textPrimaryDark
+                                : AppColors.textPrimaryLight,
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  // Content text
+                  Text(
+                    "Stopping auto-retries will prevent any further delivery attempts for these messages. Are you sure you want to proceed?",
+                    style: GoogleFonts.plusJakartaSans(
+                      color: isDark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondaryLight,
+                      fontSize: 15,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Footer Section
+            Container(
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.sectionDark : const Color(0xFFF8F9FA),
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(12),
+                  bottomRight: Radius.circular(12),
+                ),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  OutlinedButton(
+                    onPressed: _isLoading
+                        ? null
+                        : () => Navigator.of(context).pop(),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: isDark
+                          ? AppColors.textPrimaryDark
+                          : const Color(0xFF1F2937),
+                      side: BorderSide(
+                        color: isDark
+                            ? AppColors.borderDark
+                            : const Color(0xFFD1D5DB),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: Text(
+                      "Cancel",
+                      style: GoogleFonts.plusJakartaSans(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: _isLoading
+                        ? null
+                        : () async {
+                            setState(() {
+                              _isLoading = true;
+                            });
+                            try {
+                              Get.closeAllSnackbars();
+                              await widget.onConfirm();
+                              if (context.mounted) {
+                                final route = ModalRoute.of(context);
+                                if (route != null && route.isCurrent) {
+                                  Navigator.of(context).pop();
+                                }
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                setState(() {
+                                  _isLoading = false;
+                                });
+                              }
+                            }
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFC62828),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
+                            ),
+                          )
+                        : Text(
+                            "Stop Retries",
+                            style: GoogleFonts.plusJakartaSans(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                            ),
+                          ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

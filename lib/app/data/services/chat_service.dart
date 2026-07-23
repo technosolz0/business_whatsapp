@@ -31,6 +31,24 @@ class ChatService {
         });
   }
 
+  /// Fetch list of chats for a client from Firestore (one-time fetch)
+  Future<List<ChatModel>> getChatsFromFirestore(String clientId) async {
+    try {
+      final snapshot = await _firestore
+          .collection('chats')
+          .doc(clientId)
+          .collection('data')
+          .orderBy('updatedAt', descending: true)
+          .get();
+      return snapshot.docs
+          .map((doc) => ChatModel.fromFirestore(doc.data(), doc.id))
+          .toList();
+    } catch (e) {
+      debugPrint('Error in getChatsFromFirestore: $e');
+      rethrow;
+    }
+  }
+
   /// Listen to messages for a specific chat in real-time
   Stream<List<MessageModel>> getMessagesStream(String chatId, String clientId) {
     return _firestore

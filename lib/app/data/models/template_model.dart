@@ -21,6 +21,11 @@ class TemplateModels {
   final List<String> variables;
   final DateTime? createdAt;
   final List<InteractiveButton> buttons;
+  
+  final List<dynamic>? cards; // Carousel cards
+  final String? version;
+  final bool? ctaUrlLinkTrackingOptedOut;
+
   TemplateModels({
     required this.id,
     required this.name,
@@ -38,6 +43,9 @@ class TemplateModels {
     required this.headerVariables,
     required this.buttons,
     this.createdAt,
+    this.cards,
+    this.version,
+    this.ctaUrlLinkTrackingOptedOut,
   });
 
   // --------------------------
@@ -120,6 +128,9 @@ class TemplateModels {
           ? DateTime.tryParse(json["createdAt"])
           : null,
       buttons: buttons,
+      cards: json["cards"],
+      version: json["version"]?.toString(),
+      ctaUrlLinkTrackingOptedOut: json["ctaUrlLinkTrackingOptedOut"],
     );
   }
 
@@ -195,6 +206,9 @@ class TemplateModels {
           ? DateTime.tryParse(json["createdAt"])
           : null,
       buttons: buttons,
+      cards: json["cards"],
+      version: json["version"]?.toString(),
+      ctaUrlLinkTrackingOptedOut: json["ctaUrlLinkTrackingOptedOut"],
     );
   }
 
@@ -289,6 +303,9 @@ class TemplateModels {
       "type": type,
       "createdAt": createdAt?.toIso8601String(),
       "components": components,
+      "cards": cards,
+      "version": version,
+      "ctaUrlLinkTrackingOptedOut": ctaUrlLinkTrackingOptedOut,
     };
   }
 }

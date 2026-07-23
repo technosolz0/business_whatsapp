@@ -3,6 +3,8 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:business_whatsapp/app/Utilities/api_endpoints.dart';
+import 'package:business_whatsapp/app/Utilities/network_utilities.dart';
 import '../../../data/models/client_model.dart';
 import '../../../data/services/clients_service.dart';
 import '../../../routes/app_pages.dart';
@@ -21,6 +23,8 @@ class AddClientController extends GetxController {
       TextEditingController();
   final TextEditingController walletController = TextEditingController();
   final TextEditingController adminLimitController = TextEditingController();
+  final TextEditingController storeIdController = TextEditingController();
+  final TextEditingController qnaIdController = TextEditingController();
 
   // Form key
   // Form key
@@ -32,6 +36,8 @@ class AddClientController extends GetxController {
   final Rx<DateTime?> subscriptionEndDate = Rx<DateTime?>(null);
   final RxBool isPremium = false.obs;
   final RxBool isCRMEnabled = false.obs;
+  final RxBool isBotActivated = false.obs;
+  final RxBool isUploadQuestionsEnabled = false.obs;
   final Rx<File?> logoFile = Rx<File?>(null);
   // final Rx<File?> faviconFile = Rx<File?>(null); // Removed
   final RxString logoFileName = ''.obs;
@@ -90,6 +96,10 @@ class AddClientController extends GetxController {
         isCRMEnabled.value = client.isCRMEnabled;
         isPremium.value = client.isPremium;
         subscriptionEndDate.value = client.subscriptionExpiry;
+        isBotActivated.value = client.isBotActivated;
+        isUploadQuestionsEnabled.value = client.isUploadQuestionsEnabled;
+        storeIdController.text = client.storeId ?? '';
+        qnaIdController.text = client.qnaId ?? '';
 
         if (client.logoUrl != null && client.logoUrl!.isNotEmpty) {
           logoFileName.value = 'Current Logo';
@@ -175,6 +185,39 @@ class AddClientController extends GetxController {
 
       // Favicon upload logic removed
 
+      String? sId = existingClient?.storeId;
+      String? qId = existingClient?.qnaId;
+
+      final dio = NetworkUtilities.getDioClient();
+
+      if (isBotActivated.value && (sId == null || sId.isEmpty)) {
+        try {
+          final res = await dio.post(
+            ApiEndpoints.createChatbotStore,
+            data: {'displayName': '${nameController.text.trim()} Bot Store'},
+          );
+          if (res.data != null && res.data['success'] == true) {
+            sId = res.data['data']['id'];
+          }
+        } catch (e) {
+          print('Error creating store for bot: $e');
+        }
+      }
+
+      if (isUploadQuestionsEnabled.value && (qId == null || qId.isEmpty)) {
+        try {
+          final res = await dio.post(
+            ApiEndpoints.createChatbotStore,
+            data: {'displayName': '${nameController.text.trim()} QnA Store'},
+          );
+          if (res.data != null && res.data['success'] == true) {
+            qId = res.data['data']['id'];
+          }
+        } catch (e) {
+          print('Error creating store for QnA: $e');
+        }
+      }
+
       final client = ClientModel(
         id: clientId,
         name: nameController.text.trim(),
@@ -189,6 +232,10 @@ class AddClientController extends GetxController {
         isPremium: isPremium.value,
         subscriptionExpiry: subscriptionEndDate.value,
         walletBalance: double.tryParse(walletController.text.trim()) ?? 0.0,
+        isBotActivated: isBotActivated.value,
+        isUploadQuestionsEnabled: isUploadQuestionsEnabled.value,
+        storeId: sId,
+        qnaId: qId,
         createdAt: existingClient?.createdAt ?? DateTime.now(),
         updatedAt: DateTime.now(),
       );

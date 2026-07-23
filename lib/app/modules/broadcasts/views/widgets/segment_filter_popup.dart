@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../controllers/create_broadcast_controller.dart';
+import '../../../../data/services/tag_service.dart';
 
 class SegmentFilterPopup extends StatefulWidget {
   final CreateBroadcastController controller;
@@ -232,7 +233,7 @@ class _SegmentFilterPopupState extends State<SegmentFilterPopup> {
                 return ListView.separated(
                   controller: _scrollController,
                   itemCount: list.length,
-                  separatorBuilder: (_, __) =>
+                  separatorBuilder: (_, _) =>
                       Divider(height: 1, color: borderColor),
                   itemBuilder: (context, index) {
                     final c = list[index];
@@ -243,46 +244,84 @@ class _SegmentFilterPopupState extends State<SegmentFilterPopup> {
                     if (fullName.isEmpty) fullName = "Unknown User";
                     String initial = f.isNotEmpty ? f[0].toUpperCase() : "U";
 
+                    final isOptedOut = c.status == 0;
+
                     return Obx(() {
                       final isChecked = widget.controller.segmentContacts.any(
                         (x) => x.id == c.id,
                       );
 
-                      return ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: isDark
-                              ? Colors.blue.shade900
-                              : Colors.blue.shade100,
-                          child: Text(
-                            initial,
-                            style: TextStyle(
-                              color: isDark
-                                  ? Colors.blue.shade200
-                                  : Colors.blueAccent,
+                      return Opacity(
+                        opacity: isOptedOut ? 0.5 : 1.0,
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: isDark
+                                ? Colors.blue.shade900
+                                : Colors.blue.shade100,
+                            child: Text(
+                              initial,
+                              style: TextStyle(
+                                color: isDark
+                                    ? Colors.blue.shade200
+                                    : Colors.blueAccent,
+                              ),
                             ),
                           ),
-                        ),
-                        title: Text(
-                          fullName,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15,
-                            color: primaryText,
+                          title: Row(
+                            children: [
+                              Text(
+                                fullName,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 15,
+                                  color: primaryText,
+                                ),
+                              ),
+                              if (isOptedOut) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(
+                                      color: Colors.red.withValues(alpha: 0.5),
+                                      width: 0.5,
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    "Opted-out",
+                                    style: TextStyle(
+                                      color: Colors.red,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
+                          subtitle: Text(
+                            c.phoneNumber,
+                            style: TextStyle(color: secondaryText),
+                          ),
+                          trailing: Checkbox(
+                            value: isChecked,
+                            activeColor: isDark
+                                ? Colors.blue.shade300
+                                : Colors.blueAccent,
+                            checkColor: Colors.white,
+                            onChanged: isOptedOut
+                                ? null
+                                : (_) => widget.controller.toggleContact(c),
+                          ),
+                          onTap: isOptedOut
+                              ? null
+                              : () => widget.controller.toggleContact(c),
                         ),
-                        subtitle: Text(
-                          c.phoneNumber,
-                          style: TextStyle(color: secondaryText),
-                        ),
-                        trailing: Checkbox(
-                          value: isChecked,
-                          activeColor: isDark
-                              ? Colors.blue.shade300
-                              : Colors.blueAccent,
-                          checkColor: Colors.white,
-                          onChanged: (_) => widget.controller.toggleContact(c),
-                        ),
-                        onTap: () => widget.controller.toggleContact(c),
                       );
                     });
                   },
@@ -296,6 +335,20 @@ class _SegmentFilterPopupState extends State<SegmentFilterPopup> {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
+                // ElevatedButton(
+                //   onPressed: () async {
+                //     // Store tags before clearing and navigation
+                //     final tagsToStore = widget.controller.selectedTags.toList();
+                //     if (tagsToStore.isNotEmpty) {
+                //       await TagService().storeSegmentTags(tagsToStore);
+                //     }
+                //     print("tagsToStore:*********************** $tagsToStore");
+                //     Navigator.of(context).pop();
+                //   },
+                //   child: const Text("Test"),
+                // ),
+
+                // const SizedBox(width: 10),
                 ElevatedButton.icon(
                   onPressed: () {
                     widget.controller.selectedAudience.value = "custom";

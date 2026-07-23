@@ -10,6 +10,7 @@ import '../controllers/broadcasts_controller.dart';
 import '../widgets/broadcasts_table.dart';
 import '../widgets/overview_section.dart';
 import 'create_broadcast_view.dart';
+import '../widgets/broadcast_terms_dialog.dart';
 
 class BroadcastsView extends GetView<BroadcastsController> {
   const BroadcastsView({super.key});
@@ -29,26 +30,20 @@ class BroadcastsView extends GetView<BroadcastsController> {
       return const CreateBroadcastView();
     }
 
-    return StandardPageLayout(
-      title: 'Broadcasts',
-      subtitle: 'Manage and schedule your broadcast campaigns.',
-      headerActions: [
-        Obx(
-          () => CustomButton(
-            label: 'Create Broadcast',
-            onPressed: controller.createBroadcast,
-            isDisabled: !SubscriptionGuard.canEdit(),
-            icon: Icons.add,
-            type: ButtonType.primary,
-          ),
-        ),
-      ],
-      toolbarWidgets: [
-        Expanded(flex: 3, child: _buildSearchBar()),
-        const SizedBox(width: 12),
-        SizedBox(width: 200, child: _buildFilterDropdown()),
-      ],
-      child: Row(
+    final content = BroadcastsTable(
+      controller: controller,
+      onActionTap: (broadcast, action) async {
+        controller.onBroadcastAction(broadcast, action);
+      },
+    );
+
+    final bool useScrollableLayout = Responsive.isMobile(context) || MediaQuery.of(context).size.height < 700;
+
+    Widget mainContent;
+    if (useScrollableLayout) {
+      mainContent = content;
+    } else {
+      mainContent = Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
@@ -67,7 +62,6 @@ class BroadcastsView extends GetView<BroadcastsController> {
           ),
           Obx(() {
             if (controller.selectedBroadcast.value == null ||
-                Responsive.isMobile(context) ||
                 Responsive.isTablet(context)) {
               return const SizedBox.shrink();
             }
@@ -98,7 +92,34 @@ class BroadcastsView extends GetView<BroadcastsController> {
             );
           }),
         ],
-      ),
+      );
+    }
+
+    return StandardPageLayout(
+      title: 'Broadcasts',
+      subtitle: 'Manage and schedule your broadcast campaigns.',
+      isContentScrollable: useScrollableLayout,
+      headerActions: [
+        Obx(
+          () => CustomButton(
+            label: 'Create Broadcast',
+            onPressed: () {
+              Get.dialog(
+                BroadcastTermsDialog(onAccepted: controller.createBroadcast),
+              );
+            },
+            isDisabled: !SubscriptionGuard.canEdit(),
+            icon: Icons.add,
+            type: ButtonType.primary,
+          ),
+        ),
+      ],
+      toolbarWidgets: [
+        Expanded(flex: 3, child: _buildSearchBar()),
+        const SizedBox(width: 12),
+        SizedBox(width: 200, child: _buildFilterDropdown()),
+      ],
+      child: mainContent,
     );
   }
 
@@ -107,6 +128,7 @@ class BroadcastsView extends GetView<BroadcastsController> {
 
     return TextField(
       controller: controller.searchController,
+      maxLength: 50,
       onChanged: controller.updateSearchQuery,
       decoration: InputDecoration(
         hintText: 'Search by broadcast name...',

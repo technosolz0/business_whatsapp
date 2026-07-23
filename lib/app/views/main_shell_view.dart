@@ -25,6 +25,9 @@ import '../modules/custom_notifications/views/create_custom_notification_view.da
 import '../modules/charges/views/charges_view.dart';
 import '../modules/automation/views/automation_view.dart';
 import '../modules/zoho_crm/views/zoho_crm_view.dart';
+import '../modules/chat_bot/views/activate_bot_view.dart';
+import '../modules/chat_bot/views/bot_question.dart';
+import '../modules/chat_bot/views/train_bot_view.dart';
 import '../modules/dashboard/controllers/dashboard_controller.dart';
 import '../modules/templates/controllers/templates_controller.dart';
 import '../modules/templates/controllers/create_template_controller.dart';
@@ -274,6 +277,12 @@ class _MainShellViewState extends State<MainShellView> {
         return AutomationView(key: ValueKey(Routes.AUTOMATION));
       case Routes.ZOHO_CRM:
         return ZohoCrmView(key: ValueKey(Routes.ZOHO_CRM));
+      case Routes.ACTIVATE_BOT:
+        return ActivateBotView(key: ValueKey(Routes.ACTIVATE_BOT));
+      case Routes.BOT_QUESTIONS:
+        return BotQuestionView(key: ValueKey(Routes.BOT_QUESTIONS));
+      case Routes.TRAIN_BOT:
+        return TrainBotView(key: ValueKey(Routes.TRAIN_BOT));
       default:
         return DashboardView(key: ValueKey(Routes.DASHBOARD));
     }

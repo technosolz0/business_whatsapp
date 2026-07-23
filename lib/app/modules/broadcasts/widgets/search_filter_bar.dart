@@ -35,6 +35,7 @@ class SearchFilterBar extends StatelessWidget {
             flex: 3,
             child: TextField(
               controller: controller,
+              maxLength: 50,
               onChanged: onSearchChanged,
               decoration: InputDecoration(
                 hintText: 'Search by broadcast name...',

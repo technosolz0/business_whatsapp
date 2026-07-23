@@ -1,4 +1,5 @@
 import 'package:business_whatsapp/app/data/models/interactive_model.dart';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/create_broadcast_controller.dart';
@@ -31,68 +32,104 @@ class BroadcastPreviewWidget extends StatelessWidget {
           child: Container(
             width: double.infinity,
             constraints: const BoxConstraints(maxWidth: 320),
-            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
-              borderRadius: BorderRadius.circular(32),
+              color: isDark ? const Color(0xFF0F172A) : Colors.black,
+              borderRadius: BorderRadius.circular(38),
               border: Border.all(
                 color: isDark
                     ? const Color(0xFF334155)
-                    : const Color(0xFFCBD5E1),
-                width: 4,
+                    : const Color(0xFF1E293B),
+                width: 8,
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(30),
               child: Container(
-                height: 500,
+                height: 600,
                 decoration: BoxDecoration(
-                  image: DecorationImage(
+                  image: const DecorationImage(
                     image: NetworkImage(
-                      'https://lh3.googleusercontent.com/aida-public/AB6AXuB-FjsI-viOsQXQtxdTTE_pz9iM1HPLIWqQpEGsvzR3Y0H7QdRDjmTadalkSNPTM4frUNS30xcqPOiEoNczaCl4qp-N4pqwOeC1_CuwVhYXCvSzQ060IeaM86ea8DpkZjsUqdcYJEDMsQJangWVnvY-lIoZftvjaddQihedFblo6ZgcNN7UoXNbbtYJbrcZyAPu3BLXL1CK0b-8ixXJjORMWkXAeBjktf8gnk81rqBEcySmA4djg1KD84DyITEwl9P5jbY1THnPzz0',
+                      'https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png',
                     ),
                     fit: BoxFit.cover,
+                    opacity: 0.4,
                   ),
+                  color: isDark
+                      ? const Color(0xFF0B141A)
+                      : const Color(0xFFE5DDD5),
                 ),
                 child: Column(
                   children: [
-                    _buildHeaderBar(),
+                    // --- STATUS BAR ---
+                    _buildStatusBar(isDark),
 
-                    // ------------------------------------------------------
-                    // CHAT BUBBLE (DYNAMIC CONTENT)
-                    // ------------------------------------------------------
+                    // --- HEADER ---
+                    _buildHeaderBar(isDark),
+
+                    // --- CHAT CONTENT ---
                     Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Align(
-                          alignment: Alignment.topLeft,
-                          child: Container(
-                            constraints: const BoxConstraints(maxWidth: 270),
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? const Color(0xFF0F172A)
-                                  : Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.1),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
+                      child: Obx(() {
+                        final isCarousel =
+                            controller.templateType.value == "CAROUSEL";
+                        final body = controller.templateBody.value;
+                        final header = controller.templateHeader.value;
 
-                            // 🌟 DYNAMIC CONTENT INSIDE BUBBLE
-                            child: SingleChildScrollView(
-                              child: Obx(() {
-                                return _buildBubbleContent(controller, isDark);
-                              }),
-                            ),
+                        return ListView(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 16,
                           ),
-                        ),
-                      ),
+                          children: [
+                            if (!isCarousel ||
+                                body.isNotEmpty ||
+                                header.isNotEmpty)
+                              Align(
+                                alignment: Alignment.topLeft,
+                                child: Container(
+                                  constraints: const BoxConstraints(
+                                    maxWidth: 250,
+                                  ),
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? const Color(0xFF1F2C34)
+                                        : Colors.white,
+                                    borderRadius: const BorderRadius.only(
+                                      topRight: Radius.circular(12),
+                                      bottomLeft: Radius.circular(12),
+                                      bottomRight: Radius.circular(12),
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.05),
+                                        blurRadius: 2,
+                                        offset: const Offset(0, 1),
+                                      ),
+                                    ],
+                                  ),
+                                  child: _buildBubbleContent(
+                                    controller,
+                                    isDark,
+                                  ),
+                                ),
+                              ),
+                            SizedBox(height: 8),
+                            if (isCarousel)
+                              _buildCarouselPreview(isDark, controller),
+                          ],
+                        );
+                      }),
                     ),
+
+                    // --- INPUT BAR SIMULATION ---
+                    _buildBottomInputBar(isDark),
                   ],
                 ),
               ),
@@ -104,35 +141,136 @@ class BroadcastPreviewWidget extends StatelessWidget {
   }
 
   // ------------------------------------------------------
-  // HEADER BAR (unchanged)
+  // STATUS BAR
   // ------------------------------------------------------
-  Widget _buildHeaderBar() {
+  Widget _buildStatusBar(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const Text(
+            '10:42',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          // Notch Simulation
+          Container(
+            width: 60,
+            height: 18,
+            decoration: BoxDecoration(
+              color: Colors.black,
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          const Row(
+            children: [
+              Icon(Icons.signal_cellular_4_bar, color: Colors.white, size: 12),
+              SizedBox(width: 4),
+              Icon(Icons.wifi, color: Colors.white, size: 12),
+              SizedBox(width: 4),
+              Icon(Icons.battery_full, color: Colors.white, size: 12),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ------------------------------------------------------
+  // BOTTOM INPUT BAR
+  // ------------------------------------------------------
+  Widget _buildBottomInputBar(bool isDark) {
     return Container(
       padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.2)),
       child: Row(
         children: [
-          CircleAvatar(radius: 16, backgroundColor: Colors.grey[300]),
+          Expanded(
+            child: Container(
+              height: 36,
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1F2C34) : Colors.white,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: const Row(
+                children: [
+                  Icon(
+                    Icons.emoji_emotions_outlined,
+                    color: Colors.grey,
+                    size: 20,
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    'Message',
+                    style: TextStyle(color: Colors.grey, fontSize: 13),
+                  ),
+                  Spacer(),
+                  Icon(Icons.attach_file, color: Colors.grey, size: 20),
+                  SizedBox(width: 8),
+                  Icon(Icons.camera_alt, color: Colors.grey, size: 20),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          const CircleAvatar(
+            radius: 18,
+            backgroundColor: Color(0xFF00A884),
+            child: Icon(Icons.mic, color: Colors.white, size: 20),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ------------------------------------------------------
+  // HEADER BAR (unchanged)
+  // ------------------------------------------------------
+  Widget _buildHeaderBar(bool isDark) {
+    final bgColor = isDark ? const Color(0xFF1F2C34) : const Color(0xFF075E54);
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(4, 4, 8, 8),
+      decoration: BoxDecoration(color: bgColor),
+      child: Row(
+        children: [
+          const Icon(Icons.arrow_back, color: Colors.white, size: 20),
+          const CircleAvatar(
+            radius: 16,
+            backgroundImage: NetworkImage(
+              'https://cdn-icons-png.flaticon.com/512/3135/3135715.png',
+            ),
+          ),
           const SizedBox(width: 8),
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Business Name',
+                  'WhatsApp Business',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   'online',
-                  style: TextStyle(color: Color(0xFFE2E8F0), fontSize: 12),
+                  style: TextStyle(color: Colors.white70, fontSize: 11),
                 ),
               ],
             ),
           ),
+          const Icon(Icons.videocam, color: Colors.white, size: 20),
+          const SizedBox(width: 12),
+          const Icon(Icons.call, color: Colors.white, size: 18),
+          const SizedBox(width: 8),
+          const Icon(Icons.more_vert, color: Colors.white, size: 20),
         ],
       ),
     );
@@ -146,42 +284,58 @@ class BroadcastPreviewWidget extends StatelessWidget {
     final header = c.templateHeader.value;
 
     return Column(
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (c.attachmentType.value.isNotEmpty) _buildMediaPreview(c, isDark),
-        const SizedBox(height: 8),
-        if (body.isEmpty) Text("Please select a template to see preview."),
+        if (c.attachmentType.value.isNotEmpty) const SizedBox(height: 6),
 
-        if (header.isNotEmpty)
-          Text(
-            header,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : Colors.black87,
-            ),
+        if (body.isEmpty &&
+            header.isEmpty &&
+            c.templateType.value != "CAROUSEL")
+          const Text(
+            "Select a template to preview.",
+            style: TextStyle(fontSize: 13, color: Colors.grey),
           ),
 
-        if (header.isNotEmpty) const SizedBox(height: 6),
+        if (header.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: _buildHighlightedPreviewText(
+              header,
+              c.appliedValues,
+              isDark,
+              isHeader: true,
+            ),
+          ),
 
         _buildHighlightedPreviewText(
           body.isEmpty ? c.originalTemplateBody.value : body,
           c.appliedValues,
           isDark,
         ),
-        if (c.templateType == "Interactive") ...[
-          const SizedBox(height: 12),
+
+        if (c.templateType.value == "INTERACTIVE") ...[
+          const SizedBox(height: 8),
           _buildInteractivePreview(isDark, c),
         ],
-        const SizedBox(height: 6),
+
+        const SizedBox(height: 4),
         Align(
           alignment: Alignment.bottomRight,
-          child: Text(
-            '10:42 AM',
-            style: TextStyle(
-              fontSize: 12,
-              color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '10:42 AM',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: isDark ? Colors.white54 : Colors.black54,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(Icons.done_all, size: 14, color: Colors.blue[400]),
+            ],
           ),
         ),
       ],
@@ -201,12 +355,14 @@ class BroadcastPreviewWidget extends StatelessWidget {
   Widget _buildHighlightedPreviewText(
     String text,
     List<String> appliedValues,
-    bool isDark,
-  ) {
+    bool isDark, {
+    bool isHeader = false,
+  }) {
     // ⭐ Normalize dashes so they always have spaces
     text = normalizeDashSpacing(text);
 
     final defaultColor = isDark ? Colors.white70 : Colors.black87;
+    final headerColor = isDark ? Colors.white : Colors.black;
     final highlightColor = Colors.blue;
 
     final spans = <TextSpan>[];
@@ -237,7 +393,7 @@ class BroadcastPreviewWidget extends StatelessWidget {
               style: TextStyle(
                 color: highlightColor,
                 fontWeight: FontWeight.bold,
-                fontSize: 14,
+                fontSize: isHeader ? 14 : 13,
               ),
             ),
           );
@@ -251,14 +407,22 @@ class BroadcastPreviewWidget extends StatelessWidget {
         spans.add(
           TextSpan(
             text: text[index],
-            style: TextStyle(color: defaultColor, fontSize: 14),
+            style: TextStyle(
+              color: isHeader ? headerColor : defaultColor,
+              fontSize: isHeader ? 14 : 13,
+              fontWeight: isHeader ? FontWeight.bold : FontWeight.normal,
+            ),
           ),
         );
         index++;
       }
     }
 
-    return RichText(text: TextSpan(children: spans));
+    return RichText(
+      text: TextSpan(children: spans),
+      maxLines: isHeader ? 2 : 10,
+      overflow: TextOverflow.ellipsis,
+    );
   }
 
   // ------------------------------------------------------
@@ -431,6 +595,200 @@ class BroadcastPreviewWidget extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCarouselPreview(bool isDark, CreateBroadcastController c) {
+    if (c.carouselCards.isEmpty) return const SizedBox.shrink();
+
+    return ScrollConfiguration(
+      behavior: const MaterialScrollBehavior().copyWith(
+        dragDevices: {
+          PointerDeviceKind.touch,
+          PointerDeviceKind.mouse,
+          PointerDeviceKind.trackpad,
+        },
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            height: 380, // Increased height for better visibility
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
+              ),
+              itemCount: c.carouselCards.length,
+              padding: const EdgeInsets.only(bottom: 12),
+              separatorBuilder: (context, index) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final card = c.carouselCards[index];
+                return _buildCarouselCardPreview(isDark, card);
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCarouselCardPreview(bool isDark, dynamic card) {
+    return Obx(() {
+      final cardColor = isDark ? const Color(0xFF1F2C34) : Colors.white;
+      final textColor = isDark ? Colors.white : Colors.black87;
+
+      return Container(
+        width: 240, // More realistic width for WhatsApp cards
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Card Media
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(12),
+              ),
+              child: _buildCardMediaPreview(card, isDark),
+            ),
+
+            // Card Body
+            Padding(
+              padding: const EdgeInsets.all(10.0),
+              child: _buildHighlightedPreviewText(
+                card.body.value.isEmpty
+                    ? "Card body text goes here..."
+                    : card.body.value,
+                card.appliedValues,
+                isDark,
+              ),
+            ),
+
+            const Spacer(),
+
+            // Card Buttons
+            if (card.buttons.isNotEmpty)
+              Column(
+                children: card.buttons.map<Widget>((btn) {
+                  return Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    decoration: BoxDecoration(
+                      border: Border(
+                        top: BorderSide(
+                          color: isDark ? Colors.white10 : Colors.black12,
+                        ),
+                      ),
+                    ),
+                    child: Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (btn.type == "URL")
+                            const Icon(
+                              Icons.open_in_new,
+                              size: 14,
+                              color: Colors.blue,
+                            ),
+                          if (btn.type == "PHONE_NUMBER")
+                            const Icon(
+                              Icons.phone,
+                              size: 14,
+                              color: Colors.blue,
+                            ),
+                          if (btn.type != "URL" && btn.type != "PHONE_NUMBER")
+                            const Icon(
+                              Icons.reply,
+                              size: 14,
+                              color: Colors.blue,
+                            ),
+                          const SizedBox(width: 6),
+                          Text(
+                            btn.text.isEmpty ? "Button" : btn.text,
+                            style: const TextStyle(
+                              color: Colors.blue,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+
+            // Time + Status
+            Padding(
+              padding: const EdgeInsets.only(right: 8, bottom: 4),
+              child: Align(
+                alignment: Alignment.bottomRight,
+                child: Text(
+                  '10:42 AM',
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: isDark ? Colors.white54 : Colors.black54,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  Widget _buildCardMediaPreview(dynamic card, bool isDark) {
+    if (card.fileBytes.value == null) {
+      return Container(
+        height: 140,
+        color: isDark ? Colors.black26 : Colors.grey[200],
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                card.mediaType.value == 'IMAGE' ? Icons.image : Icons.videocam,
+                color: Colors.grey,
+                size: 32,
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                "No Media",
+                style: TextStyle(color: Colors.grey, fontSize: 11),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (card.mediaType.value == 'IMAGE') {
+      return Image.memory(
+        card.fileBytes.value!,
+        height: 140,
+        width: double.infinity,
+        fit: BoxFit.cover,
+      );
+    }
+
+    return Container(
+      height: 140,
+      width: double.infinity,
+      color: Colors.black,
+      child: const Center(
+        child: Icon(Icons.play_circle_fill, color: Colors.white, size: 40),
       ),
     );
   }

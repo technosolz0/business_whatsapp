@@ -77,6 +77,15 @@ class ApiEndpoints {
       '$serverUrl/generateZohoAccessAndRefreshToken';
   static const String exportToZoho = '$serverUrl/exportToZoho';
 
+  // Chatbot Endpoints
+  static const String createChatbotStore = "$serverUrl/chatbot/create";
+  static const String uploadChatbotDoc = "$serverUrl/chatbot/upload";
+  static const String updateChatbotDoc = "$serverUrl/chatbot/update";
+  static const String deleteChatbotDoc = "$serverUrl/chatbot/delete";
+  static const String listChatbotDocs = "$serverUrl/chatbot/list";
+  static const String updateChatbotQuestion = "$serverUrl/chatbot/questions/update";
+  static const String deleteChatbotQuestion = "$serverUrl/chatbot/questions/delete";
+
   // Other
   static const String getPhoneNumber = '$serverUrl/getPhoneNumber';
 

@@ -32,7 +32,7 @@ class ContactDetailsPopup extends StatelessWidget {
             Row(
               children: [
                 Text(
-                  "Contact Details",
+                  "Estimated Recipients",
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
@@ -98,7 +98,7 @@ class ContactDetailsPopup extends StatelessWidget {
             // ---------------- CONTACT LIST ----------------
             Expanded(
               child: Obx(() {
-                final list = controller.contactDetails;
+                final list = controller.filteredDetailsContacts;
 
                 if (list.isEmpty) {
                   return Center(

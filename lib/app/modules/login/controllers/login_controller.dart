@@ -157,11 +157,15 @@ class LoginController extends GetxController {
             String cName = clientData['name'] ?? 'Messaging Portal';
             String cLogo = clientData['logoUrl'] ?? '';
             bool crmEnabled = clientData['isCRMEnabled'] == true;
+            bool botActivated = clientData['isBotActivated'] == true;
+            bool uploadQuestionsEnabled = clientData['isUploadQuestionsEnabled'] == true;
 
             // Update Globals
             clientName.value = cName;
             clientLogo.value = cLogo;
             isCRMEnabled.value = crmEnabled;
+            isBotActivated.value = botActivated;
+            isUploadQuestionsEnabled.value = uploadQuestionsEnabled;
 
             // Store in Cookies
             WebUtils.addCookie(
@@ -182,6 +186,20 @@ class LoginController extends GetxController {
               key: 'isCRMEnabled_$clientId',
               value: WebUtils.encryptData(
                 data: crmEnabled.toString(),
+                secretKey: AppConstants.menuItemsSecret,
+              ),
+            );
+            WebUtils.addCookie(
+              key: 'isBotActivated_$clientId',
+              value: WebUtils.encryptData(
+                data: botActivated.toString(),
+                secretKey: AppConstants.menuItemsSecret,
+              ),
+            );
+            WebUtils.addCookie(
+              key: 'isUploadQuestionsEnabled_$clientId',
+              value: WebUtils.encryptData(
+                data: uploadQuestionsEnabled.toString(),
                 secretKey: AppConstants.menuItemsSecret,
               ),
             );

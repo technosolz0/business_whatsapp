@@ -9,6 +9,7 @@ class SampleVariableInput extends StatefulWidget {
   final RxString errorText;
   final Function(String type, String value) onValueChanged;
   final CreateBroadcastController ctrl;
+  final String? hintText;
 
   const SampleVariableInput({
     super.key,
@@ -18,6 +19,7 @@ class SampleVariableInput extends StatefulWidget {
     required this.controller,
     required this.errorText,
     required this.onValueChanged,
+    this.hintText,
   });
 
   @override
@@ -73,43 +75,61 @@ class _SampleVariableInputState extends State<SampleVariableInput> {
                 widget.ctrl.updatePreviewBody();
               },
               builder: (context, candidate, rejected) {
-                return Obx(() {
-                  return TextField(
-                    controller: widget.controller,
-                    onChanged: (value) {
-                      if (_isProgrammaticUpdate) return;
+                return ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: widget.controller,
+                  builder: (context, textValue, _) {
+                    final bool hasValue = textValue.text.isNotEmpty;
+                    return Obx(() {
+                      return TextField(
+                        controller: widget.controller,
+                        onChanged: (value) {
+                          if (_isProgrammaticUpdate) return;
 
-                      widget.errorText.value = "";
-                      widget.onValueChanged("static", value);
-                      widget.ctrl.updatePreviewBody();
-                    },
-                    decoration: InputDecoration(
-                      hintText: "Sample value",
-                      errorText: widget.errorText.value.isNotEmpty
-                          ? widget.errorText.value
-                          : null,
-                      filled: true,
-                      fillColor: isDark
-                          ? const Color(0xFF2D2D2D)
-                          : const Color(0xFFF9FAFB),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(6),
-                        borderSide: BorderSide(
-                          color: isDark
-                              ? const Color(0xFF4B5563)
-                              : Colors.grey[300]!,
+                          widget.errorText.value = "";
+                          widget.onValueChanged("static", value);
+                          widget.ctrl.updatePreviewBody();
+                        },
+                        decoration: InputDecoration(
+                          hintText: widget.hintText ?? "Sample value",
+                          errorText: widget.errorText.value.isNotEmpty
+                              ? widget.errorText.value
+                              : null,
+                          filled: true,
+                          fillColor: hasValue
+                              ? Colors.green.withValues(alpha: 0.05)
+                              : (isDark
+                                    ? const Color(0xFF2D2D2D)
+                                    : const Color(0xFFF9FAFB)),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: BorderSide(
+                              color: hasValue
+                                  ? Colors.green
+                                  : (isDark
+                                        ? const Color(0xFF4B5563)
+                                        : Colors.grey[300]!),
+                              width: hasValue ? 1.5 : 1,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: BorderSide(
+                              color: hasValue ? Colors.green : Colors.blue,
+                              width: 2,
+                            ),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 12,
+                          ),
                         ),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 12,
-                      ),
-                    ),
-                  );
-                });
+                      );
+                    });
+                  },
+                );
               },
             ),
           ),

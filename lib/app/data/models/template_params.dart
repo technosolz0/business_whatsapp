@@ -9,6 +9,7 @@ class TemplateParamModel {
   final String templateType;
   final String headerFormat; // TEXT | IMAGE | VIDEO | DOCUMENT
   final String category; // MARKETING | UTILITY | etc.
+  final String version; // v1 | v2
 
   final String? headerText; // From header
   final List<String> headerExamples;
@@ -20,6 +21,9 @@ class TemplateParamModel {
 
   /// NEW → Count of all {{x}} variables inside button texts + examples
   final int buttonVars;
+
+  final List<Map<String, dynamic>>? cards;
+  final bool ctaUrlLinkTrackingOptedOut;
 
   TemplateParamModel({
     required this.id,
@@ -37,6 +41,9 @@ class TemplateParamModel {
     required this.buttons,
 
     required this.buttonVars, // NEW FIELD
+    this.cards,
+    this.version = 'v1',
+    this.ctaUrlLinkTrackingOptedOut = false,
   });
 
   int get totalParams => headerVars + bodyVars + buttonVars;
@@ -56,6 +63,9 @@ class TemplateParamModel {
     List<String>? bodyExamples,
     List<InteractiveButton>? buttons,
     int? buttonVars,
+    List<Map<String, dynamic>>? cards,
+    String? version,
+    bool? ctaUrlLinkTrackingOptedOut,
   }) {
     return TemplateParamModel(
       id: id ?? this.id,
@@ -72,6 +82,10 @@ class TemplateParamModel {
       bodyExamples: bodyExamples ?? this.bodyExamples,
       buttons: buttons ?? this.buttons,
       buttonVars: buttonVars ?? this.buttonVars,
+      cards: cards ?? this.cards,
+      version: version ?? this.version,
+      ctaUrlLinkTrackingOptedOut:
+          ctaUrlLinkTrackingOptedOut ?? this.ctaUrlLinkTrackingOptedOut,
     );
   }
 
@@ -88,6 +102,11 @@ class TemplateParamModel {
       // text field
       if (btn.text.isNotEmpty) {
         count += regex.allMatches(btn.text).length;
+      }
+
+      // url field (for Dynamic URLs)
+      if (btn.url != null && btn.url!.isNotEmpty) {
+        count += regex.allMatches(btn.url!).length;
       }
 
       // example values (COPY_CODE, URL example etc.)

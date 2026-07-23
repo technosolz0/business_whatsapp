@@ -6,12 +6,14 @@ class TemplateFormFieldLabel extends StatelessWidget {
   final String label;
   final String? helpText;
   final bool isOptional;
+  final bool isRequired;
 
   const TemplateFormFieldLabel({
     super.key,
     required this.label,
     this.helpText,
     this.isOptional = false,
+    this.isRequired = false,
   });
 
   @override
@@ -34,18 +36,25 @@ class TemplateFormFieldLabel extends StatelessWidget {
                     ? const Color(0xFFD1D5DB)
                     : const Color(0xFF242424),
               ),
-              children: isOptional
-                  ? [
-                      TextSpan(
-                        text: ' (Optional)',
-                        style: TextStyle(
-                          color: isDark
-                              ? const Color(0xFF9CA3AF)
-                              : const Color(0xFF6B7280),
-                        ),
-                      ),
-                    ]
-                  : [],
+              children: [
+                if (isRequired)
+                  const TextSpan(
+                    text: ' *',
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                if (isOptional)
+                  TextSpan(
+                    text: ' (Optional)',
+                    style: TextStyle(
+                      color: isDark
+                          ? const Color(0xFF9CA3AF)
+                          : const Color(0xFF6B7280),
+                    ),
+                  ),
+              ],
             ),
           ),
           if (helpText != null) ...[

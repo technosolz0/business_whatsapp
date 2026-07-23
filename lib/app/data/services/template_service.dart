@@ -36,6 +36,9 @@ class TemplateService {
     String? mediaType, // 🔥 IMAGE | VIDEO | DOCUMENT
 
     List<InteractiveButton>? buttons, // 🔥 Interactive buttons
+    List<dynamic>? cards, // 🔥 Carousel cards
+    String? version,
+    bool? ctaUrlLinkTrackingOptedOut,
   }) async {
     try {
       final payload = {
@@ -59,6 +62,12 @@ class TemplateService {
 
         // Buttons (convert objects → maps)
         "buttons": buttons?.map((e) => e.toJson()).toList(),
+
+        // Carousel / Extras
+        if (cards != null) "cards": cards,
+        if (version != null) "version": version,
+        if (ctaUrlLinkTrackingOptedOut != null)
+          "ctaUrlLinkTrackingOptedOut": ctaUrlLinkTrackingOptedOut,
       };
 
       final response = await _dio.post(createUrl, data: payload);
@@ -74,6 +83,9 @@ class TemplateService {
     int limit = 10,
     String? after,
     String? before,
+    String? status,
+    String? category,
+    String? language,
   }) async {
     try {
       final response = await _dio.get(
@@ -83,6 +95,9 @@ class TemplateService {
           if (after != null) "after": after,
           if (before != null) "before": before,
           "clientId": clientID,
+          if (status != null && status != 'All') "status": status,
+          if (category != null && category != 'All') "category": category,
+          if (language != null && language != 'All') "language": language,
         },
       );
 

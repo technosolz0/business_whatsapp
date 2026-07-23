@@ -7,6 +7,6 @@ class TemplatesBinding extends Bindings {
   @override
   void dependencies() {
     Get.put<TemplatesController>(TemplatesController());
-    Get.lazyPut<CreateTemplateController>(() => CreateTemplateController());
+    Get.lazyPut<CreateTemplateController>(() => CreateTemplateController(), fenix: false);
   }
 }

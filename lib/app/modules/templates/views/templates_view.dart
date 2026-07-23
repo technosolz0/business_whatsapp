@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:business_whatsapp/app/common%20widgets/shimmer_widgets.dart';
 import 'package:business_whatsapp/app/core/theme/app_colors.dart';
 import 'package:business_whatsapp/app/Utilities/responsive.dart';
+import 'package:business_whatsapp/app/utilities/constants/app_constants.dart';
 import '../../../common widgets/custom_button.dart';
 import '../../../common widgets/standard_page_layout.dart';
 import '../../../Utilities/subscription_guard.dart';
@@ -29,13 +30,16 @@ class TemplatesView extends GetView<TemplatesController> {
           showBackButton: true,
           onBack: controller.cancelCreation,
           isContentScrollable: true,
-          child: const CreateTemplateView(),
+          child:  CreateTemplateView(),
         );
       }
+
+      final bool useScrollableLayout = Responsive.isMobile(context) || MediaQuery.of(context).size.height < 700;
 
       return StandardPageLayout(
         title: 'Templates',
         subtitle: 'Create and manage your WhatsApp message templates.',
+        isContentScrollable: useScrollableLayout,
         headerActions: [
           CustomButton(
             label: 'Create Template',
@@ -47,11 +51,12 @@ class TemplatesView extends GetView<TemplatesController> {
         ],
         toolbarWidgets: [
           Expanded(child: _buildSearchField()),
-          const SizedBox(width: 16),
+          if (!Responsive.isMobile(context)) const SizedBox(width: 16),
           _buildFilters(context),
         ],
         child: Obx(() {
-          if (controller.isLoading.value) {
+          // Show shimmer only on initial load (empty list + main loader active)
+          if (controller.isLoading.value && controller.templates.isEmpty) {
             return const TableShimmer(rows: 10, columns: 5);
           }
 
@@ -60,10 +65,22 @@ class TemplatesView extends GetView<TemplatesController> {
             onActionTap: (template, action) {
               controller.onTemplateAction(template, action);
             },
+            currentPage: controller.currentPage.value,
             hasNextPage: controller.nextCursor != null,
-            hasPreviousPage: controller.prevCursor != null,
+            hasPreviousPage:
+                controller.currentPage.value > 1 && controller.prevCursor != null,
+            isLoading: controller.isLoading.value ||
+                controller.isNextLoading.value ||
+                controller.isPrevLoading.value,
+            isNextLoading: controller.isNextLoading.value,
+            isPrevLoading: controller.isPrevLoading.value,
             onNextPage: controller.loadNextPage,
             onPreviousPage: controller.loadPreviousPage,
+            pageSize: controller.pageSize.value,
+            availablePageSizes: controller.availablePageSizes,
+            onPageSizeChanged: controller.updatePageSize,
+            startItem: controller.startItem,
+            endItem: controller.endItem,
           );
         }),
       );
@@ -75,6 +92,11 @@ class TemplatesView extends GetView<TemplatesController> {
 
     return TextField(
       onChanged: controller.setSearchQuery,
+      maxLength: 50,
+      controller: TextEditingController(text: controller.searchQuery.value)
+        ..selection = TextSelection.fromPosition(
+          TextPosition(offset: controller.searchQuery.value.length),
+        ),
       style: TextStyle(
         color: isDark ? AppColors.textPrimaryDark : AppColors.textPrimaryLight,
       ),
@@ -88,6 +110,15 @@ class TemplatesView extends GetView<TemplatesController> {
           Icons.search,
           color: isDark ? AppColors.gray500 : Colors.grey[400],
           size: 20,
+        ),
+        suffixIcon: Obx(
+          () => controller.searchQuery.value.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.close, size: 20),
+                  onPressed: () => controller.setSearchQuery(''),
+                  color: isDark ? AppColors.gray500 : Colors.grey[400],
+                )
+              : const SizedBox.shrink(),
         ),
         filled: true,
         fillColor: isDark ? AppColors.cardDark : Colors.white,
@@ -118,7 +149,7 @@ class TemplatesView extends GetView<TemplatesController> {
   Widget _buildFilters(BuildContext context) {
     return Wrap(
       spacing: 8,
-      runSpacing: 8,
+      runSpacing: AppConstants.formSpacingMobile,
       children: [
         _buildFilterDropdown(
           label: 'Status',
@@ -142,70 +173,7 @@ class TemplatesView extends GetView<TemplatesController> {
     );
   }
 
-  // Widget _buildFilterDropdown({
-  //   required String label,
-  //   required List<String> items,
-  //   required RxString selectedValue,
-  //   required Function(String) onChanged,
-  // }) {
-  //   return Obx(() {
-  //     final isDark = Theme.of(Get.context!).brightness == Brightness.dark;
-  //     final isMobile = Responsive.isMobile(Get.context!);
-
-  //     final placeholder = items.first;
-  //     final menuItems = items.skip(1).toList();
-
-  //     final dropdownValue = selectedValue.value == placeholder
-  //         ? null
-  //         : selectedValue.value;
-
-  //     return Container(
-  //       height: 48,
-  //       padding: const EdgeInsets.symmetric(horizontal: 12),
-  //       decoration: BoxDecoration(
-  //         color: isDark ? AppColors.cardDark : Colors.white,
-  //         borderRadius: BorderRadius.circular(8),
-  //         border: Border.all(
-  //           color: isDark ? AppColors.borderDark : AppColors.borderLight,
-  //         ),
-  //       ),
-  //       child: DropdownButtonHideUnderline(
-  //         child: DropdownButton2<String>(
-  //           isExpanded: isMobile,
-  //           value: dropdownValue,
-
-  //           hint: Text(
-  //             label,
-  //             style: TextStyle(
-  //               color: isDark
-  //                   ? AppColors.textPrimaryDark
-  //                   : AppColors.textPrimaryLight,
-  //             ),
-  //           ),
-
-  //           /// 🔥 MAX HEIGHT ADDED HERE
-  //           dropdownStyleData: DropdownStyleData(
-  //             maxHeight: 250, // 👈 Set your max height here
-  //             decoration: BoxDecoration(
-  //               color: isDark ? AppColors.cardDark : Colors.white,
-  //             ),
-  //           ),
-
-  //           items: menuItems.map((value) {
-  //             return DropdownMenuItem(value: value, child: Text(value));
-  //           }).toList(),
-
-  //           onChanged: (newValue) {
-  //             if (newValue != null) {
-  //               selectedValue.value = newValue;
-  //               onChanged(newValue);
-  //             }
-  //           },
-  //         ),
-  //       ),
-  //     );
-  //   });
-  // }
+  
   Widget _buildFilterDropdown({
     required String label,
     required List<String> items,

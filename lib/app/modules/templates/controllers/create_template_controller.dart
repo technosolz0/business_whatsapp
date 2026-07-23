@@ -1,26 +1,34 @@
 import 'dart:typed_data';
+import 'dart:async';
+import 'dart:html' as html;
 
 import 'package:business_whatsapp/app/Utilities/media_utils.dart';
 import 'package:business_whatsapp/app/Utilities/utilities.dart';
 import 'package:business_whatsapp/app/controllers/navigation_controller.dart';
 import 'package:business_whatsapp/app/data/models/interactive_model.dart';
+// import 'package:business_whatsapp/app/core/utils/utilities.dart';
 import 'package:business_whatsapp/app/data/models/template_model.dart';
 import 'package:business_whatsapp/app/data/services/template_firebase_service.dart';
 import 'package:business_whatsapp/app/data/services/template_service.dart';
 import 'package:business_whatsapp/app/modules/templates/controllers/templates_controller.dart';
 import 'package:business_whatsapp/app/routes/app_pages.dart';
-import 'package:business_whatsapp/app/Utilities/api_endpoints.dart';
+import 'package:business_whatsapp/app/Utilities/whatsapp_text_controller.dart';
+import 'package:business_whatsapp/main.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-
+import '../../../data/models/carousel_card_model.dart';
+import '../../../data/models/interactive_model.dart';
 import '../../../common widgets/common_snackbar.dart';
 
 class CreateTemplateController extends GetxController {
+  // MARK: - Properties
+  StreamSubscription? _beforeUnloadSubscription;
   // ===========================================================================
-  // 🟦 FORM CONTROLLERS
+  // FORM CONTROLLERS
   // ===========================================================================
   final TextEditingController nameCtrl = TextEditingController();
-  final TextEditingController formatCtrl = TextEditingController();
+  final WhatsAppTextEditingController formatCtrl =
+      WhatsAppTextEditingController();
   final TextEditingController headerCtrl = TextEditingController();
   final TextEditingController footerCtrl = TextEditingController();
   final TextEditingController searchCtrl = TextEditingController();
@@ -31,10 +39,10 @@ class CreateTemplateController extends GetxController {
   final FocusNode footerFocus = FocusNode();
 
   // ===========================================================================
-  // 🟦 RX FORM VALUES
+  // RX FORM VALUES
   // ===========================================================================
   final RxString templateCategory = ''.obs;
-  final RxString templateLanguage = ''.obs;
+  final RxString templateLanguage = 'en'.obs;
   final RxString templateType = ''.obs;
 
   final RxString templateName = ''.obs;
@@ -42,10 +50,11 @@ class CreateTemplateController extends GetxController {
   final RxString templateHeader = ''.obs;
   final RxString templateFooter = ''.obs;
 
+  final RxString templateVersion = 'v2'.obs;
   final RxInt previewRefresh = 0.obs;
 
   // ===========================================================================
-  // 🟦 MEDIA (Upload, Validation)
+  // MEDIA (Upload, Validation)
   // ===========================================================================
   final RxString selectedMediaType = ''.obs;
   final List<String> mediaOptions = ['Image', 'Video', 'Document'];
@@ -59,14 +68,16 @@ class CreateTemplateController extends GetxController {
   RxString phoneCountryCode = "+91".obs;
 
   // ===========================================================================
-  // 🟦 MODES (Edit / Copy)
+  // MODES (Edit / Copy)
   // ===========================================================================
   final RxBool isEditMode = false.obs;
   final RxBool isCopyMode = false.obs;
+  final RxBool isViewMode = false.obs;
   TemplateModels? editingTemplate;
+  final RxBool ctaUrlLinkTrackingOptedOut = true.obs;
 
   // ===========================================================================
-  // 🟦 ACTION COUNTERS
+  // ACTION COUNTERS
   // ===========================================================================
   final RxString interactiveAction = 'all'.obs;
   final RxInt quickRepliesCount = 10.obs;
@@ -86,7 +97,16 @@ class CreateTemplateController extends GetxController {
   RxList<String> btnValueErrors = <String>[].obs;
 
   // ===========================================================================
-  // 🟦 ERRORS
+  // CAROUSEL
+  // ===========================================================================
+  final RxList<CarouselCard> carouselCards = <CarouselCard>[].obs;
+  final RxInt selectedCardIndex = 0.obs;
+  final WhatsAppTextEditingController cardFormatCtrl =
+      WhatsAppTextEditingController();
+  ScrollController carouselScrollCtrl = ScrollController();
+
+  // ===========================================================================
+  // ERRORS
   // ===========================================================================
   final RxString nameError = ''.obs;
   final RxString languageError = ''.obs;
@@ -97,21 +117,21 @@ class CreateTemplateController extends GetxController {
   final RxBool isSubmitting = false.obs;
 
   // ===========================================================================
-  // 🟦 VARIABLE SAMPLE VALUE FIELDS
+  // VARIABLE SAMPLE VALUE FIELDS
   // ===========================================================================
   RxList<TextEditingController> variableControllers =
       <TextEditingController>[].obs;
   RxList<String> sampleValueErrors = <String>[].obs;
 
   // ===========================================================================
-  // 🟦 LIMITS
+  // LIMITS
   // ===========================================================================
   final RxInt formatCharCount = 0.obs;
   final int maxFormatChars = 1024;
   final int maxFooterChars = 60;
 
   // ===========================================================================
-  // 🟦 DROPDOWNS
+  // DROPDOWNS
   // ===========================================================================
   final List<String> categoryOptions = [
     'Select message categories',
@@ -142,14 +162,12 @@ class CreateTemplateController extends GetxController {
     ],
   };
 
-  // ===========================================================================
-  // 🟦 INIT
-  // ===========================================================================
+  // MARK: - Lifecycle
   @override
   void onInit() {
     super.onInit();
 
-    // Sync text → Rx
+    // Sync text -> Rx
     nameCtrl.addListener(() => templateName.value = nameCtrl.text);
     formatCtrl.addListener(() => updateTemplateFormat(formatCtrl.text));
     headerCtrl.addListener(() => templateHeader.value = headerCtrl.text);
@@ -167,15 +185,23 @@ class CreateTemplateController extends GetxController {
     footerFocus.addListener(() {
       if (!footerFocus.hasFocus) validateFooter();
     });
+
+    // Handle browser refresh/close
+    if (GetPlatform.isWeb) {
+      _beforeUnloadSubscription = html.window.onBeforeUnload.listen((event) {
+        if (!isFormBlank) {
+          (event as html.BeforeUnloadEvent).returnValue =
+              'You have unsaved changes.';
+        }
+      });
+    }
   }
 
   // ===========================================================================
-  // 🟦 MEDIA HANDLING
+  // MEDIA HANDLING
   // ===========================================================================\
 
-  // ===========================================================================
-  // 🟦 MEDIA HANDLING (Unified)
-  // ===========================================================================
+  // MARK: - Media & File Handling
   void updateMediaType(String? type) {
     if (type == null) return;
 
@@ -385,7 +411,7 @@ class CreateTemplateController extends GetxController {
   // }
 
   // ===========================================================================
-  // 🟦 NORMALIZE HELPERS
+  // NORMALIZE HELPERS
   // ===========================================================================
   String normalizeCategory(String value) {
     switch (value.toLowerCase()) {
@@ -400,6 +426,7 @@ class CreateTemplateController extends GetxController {
 
   String normalizeType(String value) {
     value = value.toLowerCase();
+    if (value.contains("carousel")) return "Carousel";
     if (value.contains("interactive")) return "Interactive";
     if (value.contains("media")) return "Text & Media";
     return "Text";
@@ -421,12 +448,11 @@ class CreateTemplateController extends GetxController {
     }
   }
 
-  // ===========================================================================
-  // 🟦 LOAD TEMPLATE FOR COPY
-  // ===========================================================================
+  // MARK: - Copy & View Modes
   Future<void> loadTemplateForCopy(TemplateModels template) async {
     isEditMode.value = false;
     isCopyMode.value = true;
+    isViewMode.value = false;
 
     // RESET NAME (user must enter new)
     nameCtrl.text = "";
@@ -436,6 +462,9 @@ class CreateTemplateController extends GetxController {
     templateCategory.value = normalizeCategory(template.category!);
     templateLanguage.value = template.language;
     templateType.value = normalizeType(template.type);
+    templateVersion.value = template.version ?? "v2";
+    ctaUrlLinkTrackingOptedOut.value =
+        template.ctaUrlLinkTrackingOptedOut ?? true;
 
     // BODY
     formatCtrl.text = template.body;
@@ -455,7 +484,7 @@ class CreateTemplateController extends GetxController {
     selectedFileName.value = "";
     mediaHandleId.value = "";
 
-    // APPLY BODY FORMAT → auto-detect variables
+    // APPLY BODY FORMAT -> auto-detect variables
     updateTemplateFormat(template.body);
 
     // COPY SAMPLE VARIABLE VALUES
@@ -489,7 +518,7 @@ class CreateTemplateController extends GetxController {
         final hasExample = btn.example != null && btn.example!.isNotEmpty;
         final hasUrl = btn.url != null && btn.url!.isNotEmpty;
 
-        // 🔥 KEY FIX: Check if URL contains {{1}} placeholder
+        // KEY FIX: Check if URL contains {{1}} placeholder
         final isDynamic = hasUrl && btn.url!.contains("{{1}}");
 
         if (isDynamic && hasExample) {
@@ -641,6 +670,54 @@ class CreateTemplateController extends GetxController {
       }
     }
 
+    // ===============================
+    // COPY CAROUSEL CARDS
+    // ===============================
+    carouselCards.clear();
+    if (template.type == 'Carousel' && template.cards != null) {
+      for (final cardMap in template.cards!) {
+        final card = CarouselCard();
+        final components = cardMap["components"] as List? ?? [];
+
+        for (final comp in components) {
+          final type = comp["type"] as String?;
+          if (type == "HEADER") {
+            card.mediaType.value = normalizeMediaType(
+              comp["format"] ?? "IMAGE",
+            );
+            // If there's an example handle, we could use it, but usually we just need the format
+          } else if (type == "BODY") {
+            final text = comp["text"] ?? "";
+            card.body.value = text;
+            card.originalBody.value = text;
+            _updateCardVariableFields(card, text);
+
+            // Populate sample values if present
+            if (comp["example"]?["body_text"] != null) {
+              final bodyText = comp["example"]["body_text"];
+              if (bodyText is List && bodyText.isNotEmpty) {
+                final vars = List<String>.from(bodyText[0] ?? []);
+                for (int i = 0; i < card.variableControllers.length; i++) {
+                  if (i < vars.length) {
+                    card.variableControllers[i].text = vars[i];
+                  }
+                }
+              }
+            }
+          } else if (type == "BUTTONS") {
+            final cardButtons = comp["buttons"] as List? ?? [];
+            card.buttons.assignAll(
+              cardButtons.map((b) => InteractiveButton.fromJson(b)).toList(),
+            );
+          }
+        }
+        carouselCards.add(card);
+      }
+      if (carouselCards.isNotEmpty) {
+        selectCarouselCard(0);
+      }
+    }
+
     // Reset counters properly
     quickRepliesCount.value =
         10 - buttons.where((b) => b.type == "QUICK_REPLY").length;
@@ -654,9 +731,25 @@ class CreateTemplateController extends GetxController {
         1 - buttons.where((b) => b.type == "COPY_CODE").length;
   }
 
-  // ===========================================================================
-  // 🟦 VALIDATIONS
-  // ===========================================================================
+  Future<void> loadTemplateForView(TemplateModels template) async {
+    await loadTemplateForCopy(template);
+    isViewMode.value = true;
+    isCopyMode.value = false;
+    isEditMode.value = false;
+
+    // Restore name since loadTemplateForCopy clears it
+    nameCtrl.text = template.name;
+    templateName.value = template.name;
+  }
+
+  String normalizeMediaType(String format) {
+    format = format.toUpperCase();
+    if (format == "VIDEO") return "Video";
+    if (format == "DOCUMENT") return "Document";
+    return "Image";
+  }
+
+  // MARK: - Form Validations
   Future<bool> validateTemplateName({bool requestFocus = false}) async {
     final name = nameCtrl.text.trim();
 
@@ -700,8 +793,9 @@ class CreateTemplateController extends GetxController {
   }
 
   // ===========================================================================
-  // 🟦 VARIABLE DETECTION
+  // VARIABLE DETECTION
   // ===========================================================================
+  // MARK: - Format & Category Sync
   void updateTemplateFormat(String value) {
     templateFormat.value = value;
     formatCharCount.value = value.length;
@@ -717,6 +811,15 @@ class CreateTemplateController extends GetxController {
 
     final needed = detectedVars.length;
 
+    // Update supporting lists FIRST (errors) so they are ready when variableControllers changes
+    while (sampleValueErrors.length < needed) {
+      sampleValueErrors.add("");
+    }
+    while (sampleValueErrors.length > needed) {
+      sampleValueErrors.removeLast();
+    }
+
+    // Then update the trigger list
     while (variableControllers.length < needed) {
       final c = TextEditingController();
       c.addListener(() => previewRefresh.value++);
@@ -727,17 +830,21 @@ class CreateTemplateController extends GetxController {
       variableControllers.removeLast().dispose();
     }
 
-    while (sampleValueErrors.length < needed) sampleValueErrors.add("");
-    while (sampleValueErrors.length > needed) sampleValueErrors.removeLast();
-
     previewRefresh.value++;
   }
 
   // ===========================================================================
-  // 🟦 DROPDOWN UPDATERS
+  // DROPDOWN UPDATERS
   // ===========================================================================
   void updateTemplateCategory(String? v) {
-    if (v != null) templateCategory.value = v;
+    if (v != null) {
+      templateCategory.value = v;
+      // If category is not Marketing, Carousel is not allowed
+      if ((v != 'Marketing' || !isCarouselTemplateEnabled.value) &&
+          templateType.value == 'Carousel') {
+        updateTemplateType('Text');
+      }
+    }
   }
 
   void updateTemplateLanguage(String? v) {
@@ -763,10 +870,288 @@ class CreateTemplateController extends GetxController {
     btnValueErrors.clear();
     urlType.clear();
     dynamicValueCtrl.clear();
+
+    if (v == 'Carousel') {
+      // Reset selectedCardIndex BEFORE adding cards to avoid stale index
+      selectedCardIndex.value = 0;
+      if (carouselCards.isEmpty) {
+        addCarouselCard();
+      }
+    } else {
+      // Clear cards FIRST, then reset index — prevents Obx from reading
+      // stale index on a list that is already shrinking.
+      carouselCards.clear();
+      selectedCardIndex.value = 0;
+      // Recreate scroll controller to avoid "attached to more than one position"
+      if (carouselScrollCtrl.hasClients) {
+        carouselScrollCtrl.dispose();
+        carouselScrollCtrl = ScrollController();
+      }
+    }
   }
 
   // ===========================================================================
-  // 🟦 API ERROR HANDLER
+  // CAROUSEL METHODS
+  // ===========================================================================
+  // MARK: - Carousel Support
+  void addCarouselCard() {
+    if (carouselCards.length >= 10) return;
+    carouselCards.add(CarouselCard());
+    selectedCardIndex.value = carouselCards.length - 1;
+    _syncCardToControllers();
+
+    // Auto-scroll to the end
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (carouselScrollCtrl.hasClients) {
+        carouselScrollCtrl.animateTo(
+          carouselScrollCtrl.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+    previewRefresh.value++;
+  }
+
+  void removeCarouselCard(int index) {
+    if (carouselCards.length <= 1) return;
+
+    // Adjust selectedCardIndex BEFORE removing so the UI never reads an
+    // out-of-bounds position during the reactive rebuild.
+    final newIndex = (index < selectedCardIndex.value)
+        ? selectedCardIndex.value - 1
+        : (selectedCardIndex.value >= carouselCards.length - 1)
+        ? (carouselCards.length - 2).clamp(0, 9)
+        : selectedCardIndex.value;
+
+    // Temporarily clamp to 0 so no Obx reads an invalid index
+    selectedCardIndex.value = 0;
+    carouselCards.removeAt(index);
+    // Now set the real intended index (list is already shorter)
+    selectedCardIndex.value = newIndex.clamp(0, carouselCards.length - 1);
+    _syncCardToControllers();
+    previewRefresh.value++;
+  }
+
+  void selectCarouselCard(int index) {
+    selectedCardIndex.value = index;
+    _syncCardToControllers();
+  }
+
+  void _syncCardToControllers() {
+    if (carouselCards.isEmpty) return;
+    final card = carouselCards[selectedCardIndex.value];
+    cardFormatCtrl.text = card.body.value;
+
+    // We can also sync buttons if needed, but the view will handle it via Obx
+  }
+
+  void updateCardBody(String value) {
+    if (carouselCards.isEmpty) return;
+    final card = carouselCards[selectedCardIndex.value];
+    card.body.value = value;
+    _updateCardVariableFields(card, value);
+  }
+
+  void _updateCardVariableFields(CarouselCard card, String text) {
+    final regex = RegExp(r'{{(\d+)}}');
+    final matches = regex.allMatches(text);
+
+    final detectedVars =
+        matches.map((e) => int.parse(e.group(1)!)).toSet().toList()..sort();
+
+    final needed = detectedVars.length;
+
+    while (card.variableControllers.length < needed) {
+      final c = TextEditingController();
+      c.addListener(() => previewRefresh.value++);
+      card.variableControllers.add(c);
+    }
+
+    while (card.variableControllers.length > needed) {
+      card.variableControllers.removeLast().dispose();
+    }
+
+    while (card.sampleValueErrors.length < needed) {
+      card.sampleValueErrors.add("");
+    }
+    while (card.sampleValueErrors.length > needed) {
+      card.sampleValueErrors.removeLast();
+    }
+
+    previewRefresh.value++;
+  }
+
+  void updateCardMedia(String? type) {
+    if (type == null || carouselCards.isEmpty) return;
+
+    if (selectedCardIndex.value == 0) {
+      // If we're updating the first card, update ALL cards to have the same media type
+      for (var card in carouselCards) {
+        if (card.mediaType.value != type) {
+          card.mediaType.value = type;
+          card.fileBytes.value = null;
+          card.fileName.value = '';
+          card.mediaHandleId.value = '';
+        }
+      }
+    } else {
+      // For other cards, just update the current one (though UI should disable this)
+      final card = carouselCards[selectedCardIndex.value];
+      if (card.mediaType.value != type) {
+        card.mediaType.value = type;
+        card.fileBytes.value = null;
+        card.fileName.value = '';
+        card.mediaHandleId.value = '';
+      }
+    }
+    previewRefresh.value++;
+  }
+
+  Future<void> pickCardFile() async {
+    if (carouselCards.isEmpty) return;
+    final card = carouselCards[selectedCardIndex.value];
+
+    final result = await MediaUtils.pickAndValidateFile(
+      mediaType: card.mediaType.value,
+      maxSizeMB: 10,
+    );
+
+    if (!result.success) {
+      selectedFileError.value = result.error!;
+      return;
+    }
+
+    card.fileBytes.value = result.bytes;
+    card.fileName.value = result.fileName!;
+    final mime = result.mimeType!;
+
+    await uploadCardMedia(mime);
+  }
+
+  Future<void> uploadCardMedia(String mime) async {
+    final card = carouselCards[selectedCardIndex.value];
+    if (card.fileBytes.value == null) return;
+
+    isUploadingMedia.value = true;
+
+    final result = await TemplateService.instance.uploadMediaToInterakt(
+      fileBytes: card.fileBytes.value!,
+      fileName: card.fileName.value,
+      mimeType: mime,
+    );
+
+    isUploadingMedia.value = false;
+
+    if (result["success"] == true) {
+      card.mediaHandleId.value = result["media_handle_id"];
+    } else {
+      selectedFileError.value = "Failed to upload media.";
+    }
+  }
+
+  void addCardButton() {
+    if (carouselCards.isEmpty) return;
+    final card = carouselCards[selectedCardIndex.value];
+    if (card.buttons.length >= 2) return;
+    card.buttons.add(InteractiveButton(type: 'QUICK_REPLY', text: ''));
+    card.countryCodes.add("+91");
+    card.buttonTextErrors.add("");
+    card.buttonValueErrors.add("");
+    previewRefresh.value++;
+  }
+
+  void removeCardButton(int index) {
+    if (carouselCards.isEmpty) return;
+    final card = carouselCards[selectedCardIndex.value];
+    if (index < card.buttons.length) {
+      card.buttons.removeAt(index);
+      card.countryCodes.removeAt(index);
+      if (index < card.buttonTextErrors.length) {
+        card.buttonTextErrors.removeAt(index);
+      }
+      if (index < card.buttonValueErrors.length) {
+        card.buttonValueErrors.removeAt(index);
+      }
+      previewRefresh.value++;
+    }
+  }
+
+  void updateCardButtonType(int index, String type) {
+    if (carouselCards.isEmpty) return;
+    final card = carouselCards[selectedCardIndex.value];
+    if (index < card.buttons.length) {
+      card.buttons[index] = card.buttons[index].copyWith(type: type);
+      if (index < card.buttonValueErrors.length) {
+        card.buttonValueErrors[index] = "";
+      }
+      previewRefresh.value++;
+    }
+  }
+
+  void updateCardButtonText(int index, String text) {
+    if (carouselCards.isEmpty) return;
+    final card = carouselCards[selectedCardIndex.value];
+    if (index < card.buttons.length) {
+      card.buttons[index] = card.buttons[index].copyWith(text: text);
+      if (index < card.buttonTextErrors.length) {
+        card.buttonTextErrors[index] = "";
+      }
+      previewRefresh.value++;
+    }
+  }
+
+  void updateCardButtonValue(int index, String value) {
+    if (carouselCards.isEmpty) return;
+    final card = carouselCards[selectedCardIndex.value];
+    if (index < card.buttons.length) {
+      final btn = card.buttons[index];
+      if (index < card.buttonValueErrors.length) {
+        card.buttonValueErrors[index] = "";
+      }
+
+      if (btn.type == 'URL') {
+        // Real-time URL validation
+        if (value.isNotEmpty && !value.startsWith("https://")) {
+          if (index < card.buttonValueErrors.length) {
+            card.buttonValueErrors[index] = "URL must start with https://";
+          }
+        }
+        card.buttons[index] = btn.copyWith(url: value);
+      } else if (btn.type == 'PHONE_NUMBER') {
+        while (card.countryCodes.length <= index) {
+          card.countryCodes.add("+91");
+        }
+        final countryCode = card.countryCodes[index];
+        card.buttons[index] = btn.copyWith(phoneNumber: "$countryCode$value");
+      }
+      previewRefresh.value++;
+    }
+  }
+
+  void updateCardPhoneCountryCode(int index, String code) {
+    if (carouselCards.isEmpty) return;
+    final card = carouselCards[selectedCardIndex.value];
+    if (index < card.buttons.length) {
+      while (card.countryCodes.length <= index) {
+        card.countryCodes.add("+91");
+      }
+      final oldCode = card.countryCodes[index];
+      card.countryCodes[index] = code;
+      final btn = card.buttons[index];
+      if (btn.type == 'PHONE_NUMBER') {
+        String rawPhone = btn.phoneNumber ?? "";
+        if (rawPhone.startsWith(oldCode)) {
+          rawPhone = rawPhone.substring(oldCode.length);
+        }
+        card.buttons[index] = btn.copyWith(phoneNumber: "$code$rawPhone");
+      }
+      previewRefresh.value++;
+    }
+  }
+
+  // ===========================================================================
+  // API ERROR HANDLER
   // ===========================================================================
   void handleApiError(Map<String, dynamic> error) {
     final errorCode = error["error_subcode"];
@@ -888,7 +1273,7 @@ class CreateTemplateController extends GetxController {
   }
 
   // ===========================================================================
-  // 🟦 SUBMIT FORM
+  // SUBMIT FORM
   // ===========================================================================
   Future<bool> validateForm() async {
     if (templateCategory.value.isEmpty ||
@@ -915,12 +1300,14 @@ class CreateTemplateController extends GetxController {
       return false;
     }
 
-    if (!validateHeader(requestFocus: true)) return false;
-    if (!validateFooter(requestFocus: true)) return false;
-
     if (templateFormat.value.isEmpty) {
       formatError.value = 'Template format is required.';
       return false;
+    }
+
+    if (templateType.value != "Carousel") {
+      if (!validateHeader(requestFocus: true)) return false;
+      if (!validateFooter(requestFocus: true)) return false;
     }
 
     // Media validations
@@ -960,14 +1347,140 @@ class CreateTemplateController extends GetxController {
         return false;
       }
     }
-    if (buttons.isNotEmpty) {
-      final isButtonValidate = validateButtons();
-      //print('isButtonValidate: $isButtonValidate');
-      if (!isButtonValidate) return false;
+
+    if (templateType.value == "Carousel") {
+      if (!validateCarouselForm()) return false;
+    } else {
+      if (buttons.isNotEmpty) {
+        final isButtonValidate = validateButtons();
+        if (!isButtonValidate) return false;
+      }
     }
+
     return true;
   }
 
+  bool validateCarouselForm() {
+    // 1. Card count validation
+    if (carouselCards.length < 2) {
+      Utilities.showSnackbar(
+        SnackType.ERROR,
+        "Minimum 2 cards are required for Carousel.",
+      );
+      return false;
+    }
+    if (carouselCards.length > 10) {
+      Utilities.showSnackbar(
+        SnackType.ERROR,
+        "Maximum 10 cards are allowed for Carousel.",
+      );
+      return false;
+    }
+
+    final firstCard = carouselCards.first;
+    final firstMediaType = firstCard.mediaType.value;
+    final firstButtonsCount = firstCard.buttons.length;
+    final firstButtonTypes = firstCard.buttons.map((b) => b.type).toList();
+
+    for (int i = 0; i < carouselCards.length; i++) {
+      final card = carouselCards[i];
+      final cardNum = i + 1;
+
+      // 2. Media Consistency and Presence
+      if (card.mediaType.value != firstMediaType) {
+        Utilities.showSnackbar(
+          SnackType.ERROR,
+          "All cards must have the same media type as the first card ($firstMediaType). Check Card $cardNum.",
+        );
+        return false;
+      }
+
+      if (card.mediaHandleId.value.isEmpty) {
+        Utilities.showSnackbar(
+          SnackType.ERROR,
+          "Media upload is required for Card $cardNum.",
+        );
+        return false;
+      }
+
+      // Body validation
+      // if (card.body.value.trim().isEmpty) {
+      //   Utilities.showSnackbar(
+      //     SnackType.ERROR,
+      //     "Message content is required for Card $cardNum.",
+      //   );
+      //   return false;
+      // }
+
+      // 3. Button Consistency and Validation
+      if (card.buttons.length != firstButtonsCount) {
+        Utilities.showSnackbar(
+          SnackType.ERROR,
+          "All cards must have the same number of buttons. Check Card $cardNum.",
+        );
+        return false;
+      }
+
+      for (int j = 0; j < card.buttons.length; j++) {
+        final btn = card.buttons[j];
+        if (btn.type != firstButtonTypes[j]) {
+          Utilities.showSnackbar(
+            SnackType.ERROR,
+            "Button types must match across all cards. Check Button ${j + 1} in Card $cardNum.",
+          );
+          return false;
+        }
+
+        // Standard button field validation
+        if (btn.type != 'COPY_CODE' && btn.text.trim().isEmpty) {
+          Utilities.showSnackbar(
+            SnackType.ERROR,
+            "Label is required for Button ${j + 1} in Card $cardNum.",
+          );
+          return false;
+        }
+        if (btn.type == 'URL') {
+          if (btn.url == null || btn.url!.trim().isEmpty) {
+            Utilities.showSnackbar(
+              SnackType.ERROR,
+              "URL is required for Button ${j + 1} in Card $cardNum.",
+            );
+            return false;
+          }
+          if (!btn.url!.startsWith("https://")) {
+            Utilities.showSnackbar(
+              SnackType.ERROR,
+              "URL must start with https:// for Button ${j + 1} in Card $cardNum.",
+            );
+            return false;
+          }
+        }
+        if (btn.type == 'PHONE_NUMBER' &&
+            (btn.phoneNumber == null || btn.phoneNumber!.trim().isEmpty)) {
+          Utilities.showSnackbar(
+            SnackType.ERROR,
+            "Phone number is required for Button ${j + 1} in Card $cardNum.",
+          );
+          return false;
+        }
+      }
+
+      // 4. Variable Sample Value Validation
+      for (int k = 0; k < card.variableControllers.length; k++) {
+        if (card.variableControllers[k].text.trim().isEmpty) {
+          Utilities.showSnackbar(
+            SnackType.ERROR,
+            "Sample value is required for variable {{${k + 1}}} in Card $cardNum.",
+          );
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
+  // MARK: - Template Creation & Submit
   void submitTemplate() async {
     final isValid = await validateForm();
     //print("isValid: $isValid");
@@ -975,6 +1488,8 @@ class CreateTemplateController extends GetxController {
 
     isSubmitting.value = true;
     try {
+      // If unchecked (opted out is true), use version 'v1'. If checked, use version 'v2'.
+      templateVersion.value = ctaUrlLinkTrackingOptedOut.value ? 'v1' : 'v2';
       // if (isEditMode.value) {
       //   _updateTemplate();
       // }
@@ -985,13 +1500,29 @@ class CreateTemplateController extends GetxController {
   }
 
   // ===========================================================================
-  // 🟦 CREATE NEW TEMPLATE
+  // CREATE NEW TEMPLATE
   // ===========================================================================
   Future<void> _createNewTemplate() async {
     final templateController = Get.find<TemplatesController>();
     Utilities.showOverlayLoadingDialog();
 
     final sampleVals = variableControllers.map((c) => c.text.trim()).toList();
+
+    final apiCards = templateType.value == "Carousel"
+        ? carouselCards
+              .map(
+                (card) => {
+                  "mediaType": card.mediaType.value.toLowerCase(),
+                  "media_handle_id": card.mediaHandleId.value,
+                  "body": card.body.value,
+                  "bodyExampleValues": card.variableControllers
+                      .map((c) => c.text.trim())
+                      .toList(),
+                  "buttons": card.buttons.map((b) => b.toJson()).toList(),
+                },
+              )
+              .toList()
+        : null;
 
     final response = await TemplateService.instance.createInteraktTemplate(
       name: nameCtrl.text.trim(),
@@ -1006,6 +1537,9 @@ class CreateTemplateController extends GetxController {
       mediaHandleId: mediaHandleId.value,
       mediaType: selectedMediaType.value,
       buttons: buttons,
+      cards: apiCards,
+      version: templateVersion.value,
+      ctaUrlLinkTrackingOptedOut: ctaUrlLinkTrackingOptedOut.value,
     );
 
     if (response["success"] == true) {
@@ -1023,6 +1557,37 @@ class CreateTemplateController extends GetxController {
       } else {
         Utilities.showSnackbar(SnackType.INFO, "Template Submitted for Review");
       }
+      final firestoreCards = templateType.value == "Carousel"
+          ? carouselCards
+                .map(
+                  (card) => {
+                    "components": [
+                      {
+                        "type": "HEADER",
+                        "format": card.mediaType.value.toUpperCase(),
+                        "example": {
+                          "header_handle": [card.mediaHandleId.value],
+                        },
+                      },
+                      {
+                        "type": "BODY",
+                        "text": card.body.value,
+                        "example": {
+                          "body_text": card.variableControllers
+                              .map((c) => c.text.trim())
+                              .toList(),
+                        },
+                      },
+                      {
+                        "type": "BUTTONS",
+                        "buttons": card.buttons.map((b) => b.toJson()).toList(),
+                      },
+                    ],
+                  },
+                )
+                .toList()
+          : null;
+
       final template = TemplateModels(
         id: data["id"].toString(),
         name: nameCtrl.text.trim(),
@@ -1043,6 +1608,9 @@ class CreateTemplateController extends GetxController {
         headerFormat: selectedMediaType.value,
         headerVariables: [],
         buttons: buttons,
+        cards: firestoreCards,
+        version: templateVersion.value,
+        ctaUrlLinkTrackingOptedOut: ctaUrlLinkTrackingOptedOut.value,
       );
 
       await TemplateFirestoreService.instance.saveTemplate(template);
@@ -1061,25 +1629,12 @@ class CreateTemplateController extends GetxController {
       templateController.loadInitialTemplates();
     } else {
       Utilities.hideCustomLoader(Get.context!);
-      final msg = response["message"];
-      if (msg != null && msg is Map && msg["error"] is Map) {
-        handleApiError(msg["error"]);
-      } else {
-        String errorMsg = "Something went wrong. Please try again.";
-        if (msg is String) {
-          errorMsg = msg;
-        } else if (msg is Map && msg["error"] is String) {
-          errorMsg = msg["error"];
-        }
-        Utilities.showSnackbar(SnackType.ERROR, errorMsg);
-      }
+      handleApiError(response["message"]["error"]);
     }
   }
 
-
-
   // ===========================================================================
-  // 🟦 UPDATE TEMPLATE (EDIT MODE) — *Commented edit code kept intact*
+  // UPDATE TEMPLATE (EDIT MODE) - *Commented edit code kept intact*
   // ===========================================================================
   /*
   void loadTemplateForEdit(TemplateModels template) {
@@ -1117,23 +1672,31 @@ class CreateTemplateController extends GetxController {
   // Future<void> _updateTemplate() async { ... }
 
   // ===========================================================================
-  // 🟦 RESET FORM
+  // RESET FORM
   // ===========================================================================
   void resetForm() {
     templateCategory.value = "";
-    templateLanguage.value = "";
+    templateLanguage.value = "en";
     templateType.value = "";
-
     nameCtrl.clear();
     headerCtrl.clear();
     footerCtrl.clear();
     formatCtrl.clear();
     buttons.clear();
+    for (var c in btnTextCtrls) {
+      c.dispose();
+    }
     btnTextCtrls.clear();
+    for (var c in btnValueCtrls) {
+      c.dispose();
+    }
     btnValueCtrls.clear();
     btnTextErrors.clear();
     btnValueErrors.clear();
     urlType.clear();
+    for (var c in dynamicValueCtrl) {
+      c.dispose();
+    }
     dynamicValueCtrl.clear();
     quickRepliesCount.value = 10;
     urlCount.value = 2;
@@ -1143,13 +1706,16 @@ class CreateTemplateController extends GetxController {
     templateHeader.value = "";
     templateFooter.value = "";
     templateFormat.value = "";
+    templateVersion.value = "v2";
     nameError.value = '';
     languageError.value = '';
     formatError.value = '';
     headerError.value = '';
     footerError.value = '';
 
-    for (var c in variableControllers) c.dispose();
+    for (var c in variableControllers) {
+      c.dispose();
+    }
     variableControllers.clear();
     sampleValueErrors.clear();
     previewRefresh.value++;
@@ -1160,24 +1726,37 @@ class CreateTemplateController extends GetxController {
     selectedFileBytes.value = null;
     mediaHandleId.value = "";
     isUploadingMedia.value = false;
+    ctaUrlLinkTrackingOptedOut.value = true;
+
+    // Carousel Reset
+    selectedCardIndex.value = 0;
+    for (var card in carouselCards) {
+      card.dispose();
+    }
+    carouselCards.clear();
+    cardFormatCtrl.clear();
+
+    previewRefresh.value++;
   }
 
   // ===========================================================================
-  // 🟦 INTERACTIVE TEMPLATE ACTIONS
+  // INTERACTIVE TEMPLATE ACTIONS
   // ===========================================================================
   void updateInteractiveAction(String value) => interactiveAction.value = value;
 
+  // MARK: - Interactive Buttons
   void addQuickReply() {
     if (quickRepliesCount.value > 0) {
-      buttons.add(InteractiveButton(type: "QUICK_REPLY", text: ""));
+      // Update supporting lists first
       btnTextCtrls.add(TextEditingController());
       btnValueCtrls.add(TextEditingController());
-
       urlType.add(""); // KEEP INDEX ALIGNMENT
       dynamicValueCtrl.add(TextEditingController());
-
       btnTextErrors.add("");
       btnValueErrors.add("");
+
+      // Then update the trigger list
+      buttons.add(InteractiveButton(type: "QUICK_REPLY", text: ""));
 
       quickRepliesCount.value--;
     }
@@ -1228,16 +1807,16 @@ class CreateTemplateController extends GetxController {
 
   void addCopyCode() {
     if (copyCodeCount.value > 0) {
-      buttons.add(InteractiveButton(type: "COPY_CODE", text: "", example: []));
-
+      // Update supporting lists first
       btnTextCtrls.add(TextEditingController());
       btnValueCtrls.add(TextEditingController());
-
       urlType.add(""); // Important
       dynamicValueCtrl.add(TextEditingController());
-
       btnTextErrors.add("");
       btnValueErrors.add("");
+
+      // Then update the trigger list
+      buttons.add(InteractiveButton(type: "COPY_CODE", text: "", example: []));
 
       copyCodeCount.value--;
     }
@@ -1245,7 +1824,7 @@ class CreateTemplateController extends GetxController {
 
   void setTextError(int index, String message) {
     if (index < btnTextErrors.length) btnTextErrors[index] = message;
-    btnTextErrors.refresh(); // 🔥 REQUIRED
+    btnTextErrors.refresh(); // REQUIRED
   }
 
   void setValueError(int index, String msg) {
@@ -1254,10 +1833,88 @@ class CreateTemplateController extends GetxController {
   }
 
   // ===========================================================================
-  // 🟦 CANCEL CREATION
+  // CANCEL CREATION
   // ===========================================================================
-  void cancelCreation() {
-    //print("Previous Route: ${Get.previousRoute}");
+  bool get isFormBlank {
+    // Disable beforeunload warning if the user is not actively on the template creation page
+    final currentRoute = Get.currentRoute.split('?').first;
+    if (currentRoute != Routes.CREATE_TEMPLATE) {
+      return true;
+    }
+
+    if (isViewMode.value) return true;
+
+    // Check if basic fields are empty
+    bool isBasicBlank =
+        nameCtrl.text.trim().isEmpty &&
+        formatCtrl.text.trim().isEmpty &&
+        headerCtrl.text.trim().isEmpty &&
+        footerCtrl.text.trim().isEmpty &&
+        (templateCategory.value.isEmpty ||
+            templateCategory.value == 'Select message categories') &&
+        (templateLanguage.value.isEmpty || templateLanguage.value == 'en') &&
+        (templateType.value.isEmpty ||
+            templateType.value == 'Select message type') &&
+        selectedMediaType.value.isEmpty &&
+        selectedFileName.value.isEmpty &&
+        buttons.isEmpty;
+
+    // If it's a carousel, check cards
+    if (templateType.value == 'Carousel') {
+      if (carouselCards.isEmpty) return isBasicBlank;
+
+      bool anyCardHasContent = carouselCards.any(
+        (card) =>
+            card.body.value.isNotEmpty ||
+            card.fileName.value.isNotEmpty ||
+            card.buttons.isNotEmpty,
+      );
+      return isBasicBlank && !anyCardHasContent;
+    }
+
+    return isBasicBlank;
+  }
+
+  void cancelCreation() async {
+    if (isFormBlank || isViewMode.value) {
+      _performBackNavigation();
+      return;
+    }
+
+    final shouldPop = await Get.dialog<bool>(
+      AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Discard Template?'),
+        content: const Text(
+          'You have unsaved changes in your template. Are you sure you want to leave? Your progress will be lost.',
+          style: TextStyle(fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: const Text('Keep Editing'),
+          ),
+          ElevatedButton(
+            onPressed: () => Get.back(result: true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('Discard'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldPop == true) {
+      _performBackNavigation();
+    }
+  }
+
+  void _performBackNavigation() {
     Get.offNamed(Routes.TEMPLATES);
 
     // Update navigation controller state for mobile compatibility
@@ -1279,6 +1936,9 @@ class CreateTemplateController extends GetxController {
       if (btn.type == "URL") {
         if (btn.url == null || btn.url!.trim().isEmpty) {
           setValueError(i, "Required");
+          valid = false;
+        } else if (!btn.url!.startsWith("https://")) {
+          setValueError(i, "URL must start with https://");
           valid = false;
         }
 
@@ -1333,12 +1993,47 @@ class CreateTemplateController extends GetxController {
   }) {
     if (isText) {
       btnTextErrors[index] = "";
-      btnTextErrors.refresh(); // 🔥
+      btnTextErrors.refresh(); //
     }
     if (isValue) {
       btnValueErrors[index] = "";
-      btnValueErrors.refresh(); // 🔥
+      btnValueErrors.refresh(); //
     }
+  }
+
+  @override
+  void onClose() {
+    nameCtrl.dispose();
+    formatCtrl.dispose();
+    headerCtrl.dispose();
+    footerCtrl.dispose();
+    searchCtrl.dispose();
+    nameFocus.dispose();
+    formatFocus.dispose();
+    headerFocus.dispose();
+    footerFocus.dispose();
+    cardFormatCtrl.dispose();
+    carouselScrollCtrl.dispose();
+
+    for (var controller in btnTextCtrls) {
+      controller.dispose();
+    }
+    for (var controller in btnValueCtrls) {
+      controller.dispose();
+    }
+    for (var controller in dynamicValueCtrl) {
+      controller.dispose();
+    }
+    for (var controller in variableControllers) {
+      controller.dispose();
+    }
+    for (var card in carouselCards) {
+      card.dispose();
+    }
+
+    _beforeUnloadSubscription?.cancel();
+
+    super.onClose();
   }
 
   String sanitizeUrl(String url) {

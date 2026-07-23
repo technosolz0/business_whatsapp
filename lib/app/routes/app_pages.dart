@@ -19,6 +19,7 @@ import 'package:business_whatsapp/app/modules/custom_notifications/bindings/cust
 import 'package:business_whatsapp/app/modules/charges/bindings/charges_binding.dart';
 import 'package:business_whatsapp/app/modules/automation/bindings/automation_binding.dart';
 import 'package:business_whatsapp/app/modules/zoho_crm/bindings/zoho_crm_binding.dart';
+import 'package:business_whatsapp/app/modules/chat_bot/bindings/chat_bot.dart';
 import 'package:business_whatsapp/app/routes/route_guard.dart';
 import 'package:business_whatsapp/app/views/main_shell_view.dart';
 
@@ -198,6 +199,24 @@ class AppPages {
       name: _Paths.ZOHO_CRM,
       page: () => MainShellView(),
       binding: ZohoCrmBinding(),
+      middlewares: [AuthenticatedRoutes()],
+    ),
+    GetPage(
+      name: _Paths.ACTIVATE_BOT,
+      page: () => MainShellView(),
+      binding: ChatBotBinding(),
+      middlewares: [AuthenticatedRoutes()],
+    ),
+    GetPage(
+      name: _Paths.BOT_QUESTIONS,
+      page: () => MainShellView(),
+      binding: ChatBotBinding(),
+      middlewares: [AuthenticatedRoutes()],
+    ),
+    GetPage(
+      name: _Paths.TRAIN_BOT,
+      page: () => MainShellView(),
+      binding: ChatBotBinding(),
       middlewares: [AuthenticatedRoutes()],
     ),
   ];

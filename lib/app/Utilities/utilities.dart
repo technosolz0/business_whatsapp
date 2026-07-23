@@ -84,6 +84,8 @@ class Utilities {
     clientName.value = '';
     clientLogo.value = '';
     isCRMEnabled.value = false;
+    isBotActivated.value = false;
+    isUploadQuestionsEnabled.value = false;
 
     // 2. Clear Local Storage & Cookies
     await GetStorage().erase();
