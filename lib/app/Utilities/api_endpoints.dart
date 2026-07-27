@@ -60,6 +60,15 @@ class ApiEndpoints {
   static const String patchBroadcast = "$serverUrl/patchBroadcast";
   static const String deleteScheduledBroadcast =
       "$serverUrl/deleteScheduledBroadcast";
+  static const String getBroadcasts = "$serverUrl/getBroadcasts";
+  static const String getBroadcastDetails = "$serverUrl/getBroadcastDetails";
+  static const String createBroadcast = "$serverUrl/createBroadcast";
+  static const String deleteBroadcast = "$serverUrl/deleteBroadcast";
+  static const String getBroadcastChargeableAmount =
+      "$serverUrl/getBroadcastChargeableAmount";
+  static const String getUsedQuota = "$serverUrl/getUsedQuota";
+  static const String getActiveBroadcastsCount =
+      "$serverUrl/getActiveBroadcastsCount";
 
   // Milestones
   static const String getApprovedMediaTemplates =

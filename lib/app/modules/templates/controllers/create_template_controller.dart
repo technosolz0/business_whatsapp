@@ -8,7 +8,6 @@ import 'package:business_whatsapp/app/controllers/navigation_controller.dart';
 import 'package:business_whatsapp/app/data/models/interactive_model.dart';
 // import 'package:business_whatsapp/app/core/utils/utilities.dart';
 import 'package:business_whatsapp/app/data/models/template_model.dart';
-import 'package:business_whatsapp/app/data/services/template_firebase_service.dart';
 import 'package:business_whatsapp/app/data/services/template_service.dart';
 import 'package:business_whatsapp/app/modules/templates/controllers/templates_controller.dart';
 import 'package:business_whatsapp/app/routes/app_pages.dart';
@@ -17,7 +16,6 @@ import 'package:business_whatsapp/main.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../data/models/carousel_card_model.dart';
-import '../../../data/models/interactive_model.dart';
 import '../../../common widgets/common_snackbar.dart';
 
 class CreateTemplateController extends GetxController {
@@ -1557,64 +1555,6 @@ class CreateTemplateController extends GetxController {
       } else {
         Utilities.showSnackbar(SnackType.INFO, "Template Submitted for Review");
       }
-      final firestoreCards = templateType.value == "Carousel"
-          ? carouselCards
-                .map(
-                  (card) => {
-                    "components": [
-                      {
-                        "type": "HEADER",
-                        "format": card.mediaType.value.toUpperCase(),
-                        "example": {
-                          "header_handle": [card.mediaHandleId.value],
-                        },
-                      },
-                      {
-                        "type": "BODY",
-                        "text": card.body.value,
-                        "example": {
-                          "body_text": card.variableControllers
-                              .map((c) => c.text.trim())
-                              .toList(),
-                        },
-                      },
-                      {
-                        "type": "BUTTONS",
-                        "buttons": card.buttons.map((b) => b.toJson()).toList(),
-                      },
-                    ],
-                  },
-                )
-                .toList()
-          : null;
-
-      final template = TemplateModels(
-        id: data["id"].toString(),
-        name: nameCtrl.text.trim(),
-        category: data["category"] ?? "",
-        language: templateLanguage.value,
-        type: templateType.value,
-        userCategory: templateCategory.value,
-        status: data["status"] ?? "",
-        headerText:
-            (selectedMediaType.value.isNotEmpty && headerCtrl.text.isEmpty)
-            ? null
-            : headerCtrl.text.trim(),
-        body: formatCtrl.text.trim(),
-        footer: footerCtrl.text.isEmpty ? null : footerCtrl.text.trim(),
-        variables: sampleVals,
-        createdAt: DateTime.now(),
-        // headerImage: '',
-        headerFormat: selectedMediaType.value,
-        headerVariables: [],
-        buttons: buttons,
-        cards: firestoreCards,
-        version: templateVersion.value,
-        ctaUrlLinkTrackingOptedOut: ctaUrlLinkTrackingOptedOut.value,
-      );
-
-      await TemplateFirestoreService.instance.saveTemplate(template);
-
       resetForm();
       Utilities.hideCustomLoader(Get.context!);
 

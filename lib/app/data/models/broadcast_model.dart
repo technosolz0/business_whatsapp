@@ -124,6 +124,62 @@ class BroadcastModel {
   }
 
   /// -------------------------------
+  /// JSON (API) → Model
+  /// -------------------------------
+  factory BroadcastModel.fromJson(Map<String, dynamic> json, {String? id}) {
+    final deliveryData = json['deliveryTime'];
+
+    DateTime? parseDateTime(dynamic value) {
+      if (value == null) return null;
+      if (value is String) return DateTime.tryParse(value);
+      if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
+      return null;
+    }
+
+    return BroadcastModel(
+      id: id ?? json['id']?.toString() ?? json['broadcastId']?.toString(),
+      broadcastName: json['broadcastName'] ?? json['broadcast_name'] ?? '',
+      description: json['description'] ?? '',
+      audienceType: json['audienceType'] ?? json['audience_type'] ?? 0,
+      status: json['status'] ?? 'draft',
+
+      delivered: json['delivered'],
+      sent: json['sent'],
+      read: json['read'],
+      invocationFailures: json['invocationFailures'] ?? json['invocation_failures'],
+      failed: json['failed'],
+      templateId: json['templateId'] ?? json['template_id'],
+      templateVariables: json['templateVariables'] ?? json['template_variables'],
+
+      mediaId: json['mediaId'] ?? json['media_id'],
+      attachmentId: json['attachmentId'] ?? json['attachment_id'],
+
+      contactIds: json['contactIds'] != null
+          ? List<String>.from(json['contactIds'])
+          : json['contact_ids'] != null
+          ? List<String>.from(json['contact_ids'])
+          : [],
+
+      deliveryType: deliveryData is Map ? deliveryData['type'] : json['delivery_type'],
+      deliveryTimestamp: parseDateTime(deliveryData is Map ? deliveryData['timestamp'] : (json['delivery_timestamp'] ?? json['delivery_time'])),
+      completedAt: parseDateTime(json['completedAt'] ?? json['completed_at']),
+      adminName: json['adminName'] ?? json['admin_name'],
+      totalCost: (json['totalCost'] ?? json['total_cost'] ?? json['totalCost'] ?? 0.0) as double?,
+
+      clicks: json['clicks'],
+      replied: json['replied'],
+      enableRetry: json['enableRetry'] ?? json['enable_retry'],
+      retryCampaignStatus: json['retryCampaignStatus'] ?? json['retry_campaign_status'],
+      cardVariables: json['cardVariables'] ?? json['card_variables'],
+      cardAttachmentIds: json['cardAttachmentIds'] != null
+          ? List<String>.from(json['cardAttachmentIds'])
+          : json['card_attachment_ids'] != null
+          ? List<String>.from(json['card_attachment_ids'])
+          : null,
+    );
+  }
+
+  /// -------------------------------
   /// Model → Firestore
   /// -------------------------------
   Map<String, dynamic> toFirestore() {

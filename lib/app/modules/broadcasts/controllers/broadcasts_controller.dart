@@ -6,6 +6,8 @@ import 'package:business_whatsapp/app/data/models/broadcast_model.dart';
 import 'package:business_whatsapp/app/data/services/broadcast_firebase_service.dart';
 import 'package:business_whatsapp/app/routes/app_pages.dart';
 import 'package:business_whatsapp/main.dart';
+import 'package:business_whatsapp/app/Utilities/api_endpoints.dart';
+import 'package:business_whatsapp/app/Utilities/network_utilities.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -283,22 +285,21 @@ class BroadcastsController extends GetxController {
   }
 
   /// Fetches the chargeable_amount (actual spent) for a given broadcast
-  /// from profile/{clientID}/data/wallet/broadcast_history/{broadcastId}
   Future<double?> fetchChargeableAmount(String broadcastId) async {
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('profile')
-          .doc(clientID)
-          .collection('data')
-          .doc('wallet')
-          .collection('broadcast_history')
-          .doc(broadcastId)
-          .get();
-      if (!doc.exists) return null;
-      final data = doc.data()!;
-      final val = data['chargeable_amount'];
-      if (val == null) return null;
-      if (val is num) return val.toDouble();
+      final dio = NetworkUtilities.getDioClient();
+      final response = await dio.get(
+        ApiEndpoints.getBroadcastChargeableAmount,
+        queryParameters: {
+          'broadcastId': broadcastId,
+          'clientId': clientID,
+        },
+      );
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final val = response.data['chargeable_amount'];
+        if (val == null) return null;
+        if (val is num) return val.toDouble();
+      }
       return null;
     } catch (e) {
       return null;

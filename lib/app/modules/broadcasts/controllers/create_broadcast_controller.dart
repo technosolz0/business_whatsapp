@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:business_whatsapp/app/Utilities/api_endpoints.dart';
 import 'package:csv/csv.dart';
 import 'package:file_saver/file_saver.dart';
 
@@ -336,43 +337,24 @@ class CreateBroadcastController extends GetxController {
 
   void loadTemplates() async {
     try {
-      // Fetch approved templates from the new API
       final dio = NetworkUtilities.getDioClient();
       final response = await dio.get(
-        'https://getapprovedtemplates-d3b4t36f7q-uc.a.run.app',
+        ApiEndpoints.getApprovedTemplates,
         queryParameters: {'clientId': clientID},
       );
 
       if (response.statusCode == 200) {
         final data = response.data;
         if (data['success'] == true) {
-          final apiTemplates = data['data'] as List<dynamic>;
-
-          // Convert API response to TemplateParamModel format
-          // Since API only provides name/id, we'll create minimal models
-          // and fetch full details from Firebase when template is selected
+          final apiTemplates =
+              (data['data'] is Map ? data['data']['data'] : data['data'])
+                  as List<dynamic>;
           final templates = apiTemplates.map((template) {
-            return TemplateParamModel(
-              id: template['id'].toString(),
-              name: template['name'].toString(),
-              language: 'en', // Default language
-              headerVars: 0,
-              bodyVars: 0,
-              headerFormat: '',
-              templateType: 'Text',
-              category: template['category'].toString(),
-              headerText: null,
-              headerExamples: [],
-              bodyText: '',
-              bodyExamples: [],
-              buttons: null,
-              buttonVars: 0,
-              version: template['version']?.toString() ?? 'v1',
+            return TemplateFirestoreService.instance.parseTemplate(
+              Map<String, dynamic>.from(template),
             );
           }).toList();
-
           templateList.value = templates;
-          // print('✅ Loaded ${templates.length} approved templates from API');
         } else {
           throw Exception('API returned success: false');
         }
@@ -381,13 +363,11 @@ class CreateBroadcastController extends GetxController {
       }
     } catch (e) {
       print('❌ Error loading templates from API: $e');
-      // Fallback to Firebase if API fails
-      // print('🔄 Falling back to Firebase templates');
       try {
         templateList.value = await TemplateFirestoreService.instance
             .getAllTemplatesForBroadcast();
       } catch (fbError) {
-        debugPrint('❌ Error loading templates from Firebase fallback: $fbError');
+        debugPrint('❌ Error loading templates from fallback: $fbError');
       }
     }
   }
@@ -2304,8 +2284,12 @@ class CreateBroadcastController extends GetxController {
             ? 'MEDIA'
             : templateType.value.toUpperCase();
 
-        final messagesRef = BroadcastFirebaseService.instance
-            .messagesCollection(broadcastId);
+        final messagesRef = FirebaseFirestore.instance
+            .collection("broadcasts")
+            .doc(clientID)
+            .collection("data")
+            .doc(broadcastId)
+            .collection("messages");
 
         final List<String> messageIds = [];
         final List<Map<String, dynamic>> payloadJsons = [];
@@ -2799,55 +2783,33 @@ class CreateBroadcastController extends GetxController {
         enableRetry: broadcast.enableRetry,
       );
 
-      // Save the broadcast document
-      if (isEditing) {
-        await BroadcastFirebaseService.instance.updateDraft(
-          broadcastId,
-          updatedBroadcast,
-        );
-      } else {
-        // Save to Firebase (since we already generated the ID client-side, we write it directly)
-        final ref = FirebaseFirestore.instance
-            .collection("broadcasts")
-            .doc(clientID)
-            .collection("data")
-            .doc(broadcastId);
-        await ref.set(updatedBroadcast.toFirestore());
-      }
       broadcastProgress.value = 0.35;
 
-      // 2. Commit individual message payloads
-      final messagesRef = BroadcastFirebaseService.instance.messagesCollection(
-        broadcastId,
-      );
-
-      final firestore = FirebaseFirestore.instance;
-      final List<WriteBatch> batches = [];
-      WriteBatch currentBatch = firestore.batch();
-      int operationCount = 0;
-
+      // Prepare contacts payload
+      final List<Map<String, dynamic>> contactsPayload = [];
       for (int i = 0; i < messageIds.length; i++) {
-        final msgRef = messagesRef.doc(messageIds[i]);
         final Map<String, dynamic> payloadJson = payloadJsons[i];
+        final payloadData = payloadJson["payload"] ?? {};
 
-        // If it is a carousel, we need to update the card variables' attachmentId
-        // with the newly generated attachmentId from background uploads!
+        // If it is a carousel, update card attachmentIds with background uploads
         if (cardAttachmentIds.isNotEmpty &&
             payloadJson.containsKey("payload") &&
             payloadJson["payload"] != null) {
-          final payloadData = payloadJson["payload"];
-          if (payloadData.containsKey("cardVariables") &&
-              payloadData["cardVariables"] != null) {
-            final List<dynamic> cards = payloadData["cardVariables"];
+          final List<dynamic>? cards = payloadData["cardVariables"];
+          if (cards != null) {
             for (int ci = 0; ci < cards.length; ci++) {
               if (ci < carouselUploads.length) {
                 final card = cards[ci];
-                if (card.containsKey("headerVariables") &&
+                if (card is Map &&
+                    card.containsKey("headerVariables") &&
                     card["headerVariables"] != null) {
                   final header = card["headerVariables"];
-                  if (header.containsKey("data") && header["data"] != null) {
+                  if (header is Map &&
+                      header.containsKey("data") &&
+                      header["data"] != null) {
                     final data = header["data"];
-                    if (data.containsKey("attachmentId") &&
+                    if (data is Map &&
+                        data.containsKey("attachmentId") &&
                         (data["attachmentId"] == null ||
                             data["attachmentId"].toString().isEmpty)) {
                       data["attachmentId"] = carouselUploads[ci].attachmentId;
@@ -2859,36 +2821,18 @@ class CreateBroadcastController extends GetxController {
           }
         }
 
-        currentBatch.set(msgRef, payloadJson);
-        operationCount++;
-
-        if (operationCount == 500) {
-          batches.add(currentBatch);
-          currentBatch = firestore.batch();
-          operationCount = 0;
-        }
+        contactsPayload.add({
+          "mobileNo": payloadData["mobileNo"] ?? "",
+          "bodyVariables": payloadData["bodyVariables"] ?? [],
+        });
       }
 
-      if (operationCount > 0) {
-        batches.add(currentBatch);
-      }
+      broadcastProgress.value = 0.50;
+      await BroadcastFirebaseService.instance.saveBroadcast(
+        updatedBroadcast,
+        contacts: contactsPayload,
+      );
 
-      if (batches.isNotEmpty) {
-        int committedBatches = 0;
-        final List<Future<void>> commitFutures = batches.map((batch) {
-          return batch.commit().then((_) {
-            committedBatches++;
-            broadcastProgress.value =
-                0.35 + 0.45 * (committedBatches / batches.length);
-          });
-        }).toList();
-        await Future.wait(commitFutures);
-      } else {
-        broadcastProgress.value = 0.80;
-      }
-
-      // 3. Save Quota
-      await BroadcastFirebaseService.instance.saveQuota(quota, quotaDate);
       broadcastProgress.value = 0.85;
 
       // 4. Queue Broadcast
