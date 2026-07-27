@@ -96,6 +96,7 @@ class AddAdminsController extends GetxController {
     isEditing = false;
     createdDate = '';
     lastLoggedIn = '';
+    Get.parameters.clear();
   }
 
   /// Fetch all clients from Firestore

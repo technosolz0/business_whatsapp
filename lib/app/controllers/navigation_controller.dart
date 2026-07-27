@@ -1,3 +1,4 @@
+import 'package:business_whatsapp/app/modules/add_admins/controllers/add_admins_controller.dart';
 import 'package:get/get.dart';
 import '../routes/app_pages.dart';
 import '../modules/contacts/controllers/contacts_controller.dart';
@@ -100,6 +101,11 @@ class NavigationController extends GetxController {
   // 🔥 Contain your clear/reset logic WITHOUT initializing controllers
   // -------------------------------------------------------------------
   void _applyResetLogic(int index) {
+    // ADD ADMINS RESET
+    if (index == 1 && Get.isRegistered<AddAdminsController>()) {
+      Get.delete<AddAdminsController>(force: true);
+    }
+
     // CONTACTS RESET
     if (index == 3 && Get.isRegistered<ContactsController>()) {
       final c = Get.find<ContactsController>();
