@@ -2768,6 +2768,8 @@ class CreateBroadcastController extends GetxController {
         status: broadcast.status,
         contactIds: broadcast.contactIds,
         templateId: broadcast.templateId,
+        templateName: broadcast.templateName ?? templateName.value,
+        language: broadcast.language ?? templateLanguage,
         templateVariables: broadcast.templateVariables,
         cardVariables: broadcast.cardVariables,
         mediaId: broadcast.mediaId,
@@ -3006,6 +3008,8 @@ class CreateBroadcastController extends GetxController {
                 .toList()
           : finalRecipients.map((c) => c.id).toList(),
       templateId: selectedTemplateId.value,
+      templateName: templateName.value,
+      language: templateLanguage,
       templateVariables: bodyVars,
       cardVariables: templateType.value == "CAROUSEL"
           ? List.generate(carouselCards.length, (i) {

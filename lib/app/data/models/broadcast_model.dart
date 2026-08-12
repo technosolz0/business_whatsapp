@@ -16,6 +16,8 @@ class BroadcastModel {
   final int? read;
 
   final String? templateId;
+  final String? templateName;
+  final String? language;
   final List<dynamic>? templateVariables;
 
   final String? mediaId;
@@ -55,6 +57,8 @@ class BroadcastModel {
     this.invocationFailures,
     this.failed,
     this.templateId,
+    this.templateName,
+    this.language,
     this.templateVariables,
     this.mediaId,
     this.attachmentId,
@@ -93,6 +97,8 @@ class BroadcastModel {
       invocationFailures: data['invocationFailures'],
       failed: data['failed'],
       templateId: data['templateId'],
+      templateName: data['templateName'] ?? data['template_name'],
+      language: data['language'],
       templateVariables: data['templateVariables'] != null
           ? List<dynamic>.from(data['templateVariables'])
           : null,
@@ -149,6 +155,8 @@ class BroadcastModel {
       invocationFailures: json['invocationFailures'] ?? json['invocation_failures'],
       failed: json['failed'],
       templateId: json['templateId'] ?? json['template_id'],
+      templateName: json['templateName'] ?? json['template_name'],
+      language: json['language'],
       templateVariables: json['templateVariables'] ?? json['template_variables'],
 
       mediaId: json['mediaId'] ?? json['media_id'],
@@ -194,6 +202,8 @@ class BroadcastModel {
       'read': read,
       'adminName': adminName,
       'templateId': templateId,
+      'templateName': templateName,
+      'language': language,
       'templateVariables': templateVariables,
       'mediaId': mediaId,
       'attachmentId': attachmentId,
@@ -216,6 +226,50 @@ class BroadcastModel {
   }
 
   /// -------------------------------
+  /// JSON for HTTP REST API
+  /// -------------------------------
+  Map<String, dynamic> toApiJson() {
+    return {
+      'broadcastName': broadcastName,
+      'description': description,
+      'audienceType': audienceType,
+      'status': status,
+
+      'delivered': delivered,
+      'sent': sent,
+      'read': read,
+      'adminName': adminName,
+      'templateId': templateId,
+      'templateName': templateName,
+      'language': language,
+      'templateVariables': templateVariables,
+      'mediaId': mediaId,
+      'attachmentId': attachmentId,
+
+      'contactIds': contactIds,
+
+      'deliveryTime': {
+        'type': deliveryType,
+        'timestamp': deliveryTimestamp?.toUtc().toIso8601String(),
+      },
+      'deliveryType': deliveryType,
+      'deliveryTimestamp': deliveryTimestamp?.toUtc().toIso8601String(),
+      'completedAt': completedAt?.toUtc().toIso8601String(),
+      'totalCost': totalCost,
+
+      'clicks': clicks,
+      'replied': replied,
+      'enableRetry': enableRetry,
+      'retryCampaignStatus': retryCampaignStatus,
+      'cardVariables': cardVariables,
+      'cardAttachmentIds': cardAttachmentIds,
+
+      'updatedAt': DateTime.now().toUtc().toIso8601String(),
+      'createdAt': DateTime.now().toUtc().toIso8601String(),
+    };
+  }
+
+  /// -------------------------------
   /// Minimal JSON for saving a DRAFT
   /// -------------------------------
   Map<String, dynamic> toDraftJson() {
@@ -227,8 +281,8 @@ class BroadcastModel {
       "contactIds": contactIds, // List<String>
       'adminName': adminName,
       // Timestamps
-      "createdAt": FieldValue.serverTimestamp(),
-      "updatedAt": FieldValue.serverTimestamp(),
+      "createdAt": DateTime.now().toUtc().toIso8601String(),
+      "updatedAt": DateTime.now().toUtc().toIso8601String(),
     };
   }
 
@@ -242,6 +296,8 @@ class BroadcastModel {
     int? sent,
     int? read,
     String? templateId,
+    String? templateName,
+    String? language,
     List<dynamic>? templateVariables,
     String? mediaId,
     String? attachmentId,
@@ -269,6 +325,8 @@ class BroadcastModel {
       read: read ?? this.read,
 
       templateId: templateId ?? this.templateId,
+      templateName: templateName ?? this.templateName,
+      language: language ?? this.language,
       templateVariables: templateVariables ?? this.templateVariables,
 
       mediaId: mediaId ?? this.mediaId,

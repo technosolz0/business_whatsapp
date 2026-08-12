@@ -6,7 +6,6 @@ import 'package:business_whatsapp/main.dart';
 import 'package:dio/dio.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
-
 class BroadcastFirebaseService {
   BroadcastFirebaseService._();
   static final instance = BroadcastFirebaseService._();
@@ -17,11 +16,7 @@ class BroadcastFirebaseService {
     try {
       final response = await _dio.post(
         ApiEndpoints.createBroadcast,
-        data: {
-          ...model.toDraftJson(),
-          "clientId": clientID,
-          "id": model.id,
-        },
+        data: {...model.toDraftJson(), "clientId": clientID, "id": model.id},
       );
       if (response.statusCode == 200 && response.data['success'] == true) {
         return response.data['broadcastId'] ?? '';
@@ -32,16 +27,21 @@ class BroadcastFirebaseService {
     return '';
   }
 
-  Future<String> saveBroadcast(BroadcastModel model, {List<Map<String, dynamic>>? contacts}) async {
+  Future<String> saveBroadcast(
+    BroadcastModel model, {
+    List<Map<String, dynamic>>? contacts,
+  }) async {
     try {
-      final payload = model.toFirestore();
+      final payload = model.toApiJson();
       payload['clientId'] = clientID;
       payload['id'] = model.id;
       if (contacts != null) {
         payload['contacts'] = contacts;
       }
       if (model.deliveryTimestamp != null) {
-        payload['deliveryTimestamp'] = model.deliveryTimestamp!.toUtc().toIso8601String();
+        payload['deliveryTimestamp'] = model.deliveryTimestamp!
+            .toUtc()
+            .toIso8601String();
       }
       final response = await _dio.post(
         ApiEndpoints.createBroadcast,
@@ -64,10 +64,12 @@ class BroadcastFirebaseService {
     try {
       final response = await _dio.patch(
         "${ApiEndpoints.patchBroadcast}?broadcastId=$id",
-        data: model.toFirestore(),
+        data: model.toApiJson(),
       );
       if (response.statusCode != 200) {
-        throw Exception("Failed to update draft: status ${response.statusCode}");
+        throw Exception(
+          "Failed to update draft: status ${response.statusCode}",
+        );
       }
     } catch (e) {
       print("Error updating draft: $e");
@@ -88,7 +90,8 @@ class BroadcastFirebaseService {
         queryParameters: {
           'clientId': clientID,
           'broadcastId': id,
-          if (createdAt != null) 'completedAt': createdAt.toUtc().toIso8601String(),
+          if (createdAt != null)
+            'completedAt': createdAt.toUtc().toIso8601String(),
           if (sent != null) 'sent': sent,
           if (delivered != null) 'delivered': delivered,
           if (read != null) 'read': read,
@@ -154,11 +157,18 @@ class BroadcastFirebaseService {
     return 0;
   }
 
-  Future<List<BroadcastModel>> getBroadcastsPaginated({required int page, required int pageSize}) async {
+  Future<List<BroadcastModel>> getBroadcastsPaginated({
+    required int page,
+    required int pageSize,
+  }) async {
     try {
       final response = await _dio.get(
         ApiEndpoints.getBroadcasts,
-        queryParameters: {'clientId': clientID, 'page': page, 'pageSize': pageSize},
+        queryParameters: {
+          'clientId': clientID,
+          'page': page,
+          'pageSize': pageSize,
+        },
       );
       if (response.statusCode == 200 && response.data['success'] == true) {
         final List<dynamic> list = response.data['data'] ?? [];
@@ -232,7 +242,9 @@ class BroadcastFirebaseService {
 
   Future<BroadcastMedia?> getBroadcastMedia(String id) async {
     try {
-      final storageRef = FirebaseStorage.instance.ref('broadcasts_media/$clientID/$id');
+      final storageRef = FirebaseStorage.instance.ref(
+        'broadcasts_media/$clientID/$id',
+      );
       final list = await storageRef.listAll();
 
       if (list.items.isEmpty) {

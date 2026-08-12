@@ -1,5 +1,7 @@
 import 'package:business_whatsapp/main.dart';
 import 'package:business_whatsapp/app/common%20widgets/shimmer_widgets.dart';
+import 'package:business_whatsapp/app/Utilities/api_endpoints.dart';
+import 'package:business_whatsapp/app/Utilities/network_utilities.dart';
 import 'package:flutter/material.dart';
 import 'package:file_saver/file_saver.dart';
 import 'package:excel/excel.dart'
@@ -58,11 +60,10 @@ class _MessageDetailsDialogState extends State<MessageDetailsDialog> {
     bool reset = false,
     bool isExport = false,
   }) async {
-    if ((_isLoading || !_hasMore) && !reset && !isExport) return;
     if (widget.broadcastId == null) return;
+    if ((_isLoading || !_hasMore) && !reset && !isExport) return;
 
     if (isExport) {
-      // Handle export separately
       _exportAllMessages();
       return;
     }
@@ -71,134 +72,77 @@ class _MessageDetailsDialogState extends State<MessageDetailsDialog> {
       _isLoading = true;
       if (reset) {
         _messages.clear();
-        _lastDocument = null;
         _hasMore = true;
       }
     });
 
     try {
-      Query query = FirebaseFirestore.instance
-          .collection('broadcasts')
-          .doc(clientID)
-          .collection('data')
-          .doc(widget.broadcastId)
-          .collection('messages')
-          .orderBy('createdAt', descending: true);
+      final dio = NetworkUtilities.getDioClient();
+      final response = await dio.get(
+        ApiEndpoints.getBroadcastDetails,
+        queryParameters: {'broadcastId': widget.broadcastId},
+      );
 
-      // Apply Filters
-      if (_selectedStatus != 'All') {
-        query = query.where('status', isEqualTo: _selectedStatus);
-      }
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final List<dynamic> rawMessages = response.data['messages'] ?? [];
 
-      // Note: Firestore doesn't support native partial string search efficiently without external service.
-      // We will filter client-side if needed, but for pagination + search it's tricky.
-      // For now, if searching, we might resort to reading more or just exact match if we had an indexed field.
-      // Or we can just filter the fetched results if the dataset is small, but if it's large...
-      // The user asked for "search bar".
-      // Assuming naive client side filtering on the current batch or fetched logic?
-      // Firestore `orderBy` + `startAfter` relies on cursor.
-      // If we implement search, standard Firestore practice is either exact match or "startsWith" (using >= and <=).
-      // Given "Number", let's try strict startAt based search if strictly needed,
-      // or simple client side filter on loaded data if dataset is small.
-      // However, usually we can't do "contains" in Firestore.
-      // Let's rely on standard pagination and maybe filter locally or warn.
-      // Actually, if search text is present, we might need to query by `mobileNo`.
-      // The snippet showed `mobileNo` in `payload`. Querying nested fields is possible: `payload.mobileNo`.
+        List<Map<String, dynamic>> parsedList = [];
+        for (var msg in rawMessages) {
+          if (msg is Map<String, dynamic>) {
+            final payload = msg['payload'] is Map ? msg['payload'] : {};
+            final number =
+                payload['mobileNo'] ?? msg['mobileNo'] ?? msg['number'] ?? '';
+            final status = (msg['status'] ?? 'pending').toString();
+            final statusLower = status.toLowerCase();
 
-      if (_searchController.text.isNotEmpty) {
-        // Providing simple exact match or startsWith logic if possible.
-        // Because we are paginating, client side filtering only filters "what we loaded", which is bad UX.
-        // Ideally we query `where('payload.mobileNo', isEqualTo: ...)`
-        // But user might type partial.
-        // query = query.where('payload.mobileNo', isGreaterThanOrEqualTo: _searchController.text)
-        //            .where('payload.mobileNo', isLessThan: _searchController.text + 'z');
-        // But we can't mix inequality on mobileNo with orderBy('createdAt').
-        // So we would need to orderBy('payload.mobileNo').
-        // I'll stick to 'status' filter + pagination for now, and client-side filter for search
-        // OR switch ordering if search is active.
-        // Let's implement client-side filter on the *fetched* list for now,
-        // or properly, reset list and fetch with `orderBy('payload.mobileNo')`.
-        // Let's try the latter for better UX if search is active.
-
-        // For simplicity in this step, I will just proceed with main pagination
-        // and if search is active, I'll allow searching on the currently loaded data
-        // OR standard logic.
-      }
-
-      if (_lastDocument != null && !reset) {
-        query = query.startAfterDocument(_lastDocument!);
-      }
-
-      query = query.limit(10);
-
-      final snapshot = await query.get();
-
-      if (snapshot.docs.length < 10) {
-        _hasMore = false;
-      } else {
-        _hasMore = true;
-      }
-
-      if (snapshot.docs.isNotEmpty) {
-        _lastDocument = snapshot.docs.last;
-      }
-
-      final newMessages = snapshot.docs.map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
-
-        // Extract fields
-        String number = '';
-        if (data.containsKey('mobileNo')) {
-          number = data['mobileNo'];
-        } else if (data['payload'] != null && data['payload'] is Map) {
-          number = data['payload']['mobileNo'] ?? '';
-        }
-
-        // Date
-        dynamic targetDate = data['createdAt'];
-        final statusLower = (data['status'] ?? '').toString().toLowerCase();
-
-        if (statusLower == 'sent' && data['sentAt'] != null) {
-          targetDate = data['sentAt'];
-        } else if (statusLower == 'delivered' && data['deliveredAt'] != null) {
-          targetDate = data['deliveredAt'];
-        } else if (statusLower == 'read' && data['readAt'] != null) {
-          targetDate = data['readAt'];
-        }
-
-        String dateStr = '';
-        if (targetDate != null) {
-          // Determine if it's string or Timestamp
-          if (targetDate is Timestamp) {
-            dateStr = DateFormat(
-              'MMM d, y HH:mm',
-            ).format((targetDate).toDate());
-          } else {
-            // Try parse string
-            try {
-              dateStr = DateFormat(
-                'MMM d, y HH:mm',
-              ).format(DateTime.parse(targetDate.toString()));
-            } catch (e) {
-              dateStr = targetDate.toString();
+            dynamic targetDate =
+                msg['createdAt'] ?? msg['created_at'] ?? msg['sent_at'];
+            if (statusLower == 'sent' && msg['sent_at'] != null) {
+              targetDate = msg['sent_at'];
+            } else if (statusLower == 'delivered' &&
+                msg['delivered_at'] != null) {
+              targetDate = msg['delivered_at'];
+            } else if (statusLower == 'read' && msg['read_at'] != null) {
+              targetDate = msg['read_at'];
+            } else if (statusLower == 'failed' && msg['failed_at'] != null) {
+              targetDate = msg['failed_at'];
             }
+
+            String dateStr = '';
+            if (targetDate != null) {
+              try {
+                final parsedDate = DateTime.parse(
+                  targetDate.toString(),
+                ).toLocal();
+                dateStr = DateFormat('MMM d, y HH:mm').format(parsedDate);
+              } catch (_) {
+                dateStr = targetDate.toString();
+              }
+            }
+
+            if (_selectedStatus != 'All' &&
+                statusLower != _selectedStatus.toLowerCase()) {
+              continue;
+            }
+
+            parsedList.add({
+              'id': msg['id'] ?? '',
+              'number': number,
+              'status': status,
+              'date': dateStr,
+              'raw': msg,
+            });
           }
         }
 
-        return {
-          'id': doc.id,
-          'number': number,
-          'status': data['status'] ?? 'Unknown',
-          'date': dateStr,
-          'raw': data, // Keep raw for filtered view if needed
-        };
-      }).toList();
-
-      setState(() {
-        _messages.addAll(newMessages);
-      });
+        setState(() {
+          _messages.clear();
+          _messages.addAll(parsedList);
+          _hasMore = false;
+        });
+      }
     } catch (e) {
-      // debugPrint("Error fetching messages: $e");
+      debugPrint("Error fetching messages: $e");
     } finally {
       setState(() {
         _isLoading = false;
@@ -212,22 +156,22 @@ class _MessageDetailsDialogState extends State<MessageDetailsDialog> {
     );
 
     try {
-      // Fetch all without limit
-      Query query = FirebaseFirestore.instance
-          .collection('broadcasts')
-          .doc(clientID)
-          .collection('data')
-          .doc(widget.broadcastId)
-          .collection('messages')
-          .orderBy('createdAt', descending: true);
+      final dio = NetworkUtilities.getDioClient();
+      final response = await dio.get(
+        ApiEndpoints.getBroadcastDetails,
+        queryParameters: {'broadcastId': widget.broadcastId},
+      );
 
-      if (_selectedStatus != 'All') {
-        query = query.where('status', isEqualTo: _selectedStatus);
+      if (response.statusCode != 200 || response.data['success'] != true) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to load messages for export.')),
+        );
+        return;
       }
 
-      final snapshot = await query.get();
-
-      if (snapshot.docs.isEmpty) {
+      final List<dynamic> rawMessages = response.data['messages'] ?? [];
+      if (rawMessages.isEmpty) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(
           context,
@@ -235,89 +179,78 @@ class _MessageDetailsDialogState extends State<MessageDetailsDialog> {
         return;
       }
 
-      // Create Excel
       var excel = Excel.createExcel();
       Sheet sheetObject = excel['Sheet1'];
 
-      // Add Headers
       List<String> headers = ['Number', 'Status', 'Date', 'Message ID'];
       sheetObject.appendRow(headers.map((e) => TextCellValue(e)).toList());
 
-      // Add Data
-      for (var doc in snapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>;
+      int count = 0;
+      for (var msg in rawMessages) {
+        if (msg is Map<String, dynamic>) {
+          final payload = msg['payload'] is Map ? msg['payload'] : {};
+          final number =
+              payload['mobileNo'] ?? msg['mobileNo'] ?? msg['number'] ?? '';
+          final status = (msg['status'] ?? 'pending').toString();
+          final statusLower = status.toLowerCase();
 
-        // Extract Number
-        String number = '';
-        if (data.containsKey('mobileNo')) {
-          number = data['mobileNo']?.toString() ?? '';
-        } else if (data['payload'] != null && data['payload'] is Map) {
-          number = data['payload']['mobileNo']?.toString() ?? '';
-        }
+          if (_selectedStatus != 'All' &&
+              statusLower != _selectedStatus.toLowerCase()) {
+            continue;
+          }
 
-        // Extract Status
-        String status = data['status']?.toString() ?? 'Unknown';
+          dynamic targetDate =
+              msg['createdAt'] ?? msg['created_at'] ?? msg['sent_at'];
+          if (statusLower == 'sent' && msg['sent_at'] != null) {
+            targetDate = msg['sent_at'];
+          } else if (statusLower == 'delivered' &&
+              msg['delivered_at'] != null) {
+            targetDate = msg['delivered_at'];
+          } else if (statusLower == 'read' && msg['read_at'] != null) {
+            targetDate = msg['read_at'];
+          } else if (statusLower == 'failed' && msg['failed_at'] != null) {
+            targetDate = msg['failed_at'];
+          }
 
-        // Extract Date
-        dynamic targetDate = data['createdAt'];
-        final statusLower = status.toLowerCase();
-
-        if (statusLower == 'sent' && data['sentAt'] != null) {
-          targetDate = data['sentAt'];
-        } else if (statusLower == 'delivered' && data['deliveredAt'] != null) {
-          targetDate = data['deliveredAt'];
-        } else if (statusLower == 'read' && data['readAt'] != null) {
-          targetDate = data['readAt'];
-        }
-
-        String dateStr = '';
-        if (targetDate != null) {
-          if (targetDate is Timestamp) {
-            dateStr = DateFormat(
-              'yyyy-MM-dd HH:mm:ss',
-            ).format((targetDate).toDate());
-          } else {
+          String dateStr = '';
+          if (targetDate != null) {
             try {
-              dateStr = DateFormat(
-                'yyyy-MM-dd HH:mm:ss',
-              ).format(DateTime.parse(targetDate.toString()));
-            } catch (e) {
+              final parsedDate = DateTime.parse(
+                targetDate.toString(),
+              ).toLocal();
+              dateStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(parsedDate);
+            } catch (_) {
               dateStr = targetDate.toString();
             }
           }
-        }
 
-        sheetObject.appendRow([
-          TextCellValue(number),
-          TextCellValue(status),
-          TextCellValue(dateStr),
-          TextCellValue(doc.id),
-        ]);
+          sheetObject.appendRow([
+            TextCellValue(number.toString()),
+            TextCellValue(status),
+            TextCellValue(dateStr),
+            TextCellValue(msg['id']?.toString() ?? ''),
+          ]);
+          count++;
+        }
       }
 
-      // Save File
       var fileBytes = excel.save();
-
       if (fileBytes != null) {
         await FileSaver.instance.saveFile(
           name: 'broadcast_messages_${widget.broadcastId}',
           bytes: Uint8List.fromList(fileBytes),
-          // ext: 'xlsx', // 'ext' not supported in this version
           mimeType: MimeType.microsoftExcel,
         );
 
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Exported ${snapshot.docs.length} records to Excel successfully!',
-            ),
+            content: Text('Exported $count records to Excel successfully!'),
             backgroundColor: AppColors.success,
           ),
         );
       }
     } catch (e) {
-      // debugPrint('Export Error: $e');
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
