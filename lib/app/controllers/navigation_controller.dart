@@ -157,37 +157,37 @@ class NavigationController extends GetxController {
 
     switch (index) {
       case 0:
-        Get.toNamed(Routes.DASHBOARD);
+        Get.offNamed(Routes.DASHBOARD);
         break;
       case 1:
-        Get.toNamed(Routes.ADMINS);
+        Get.offNamed(Routes.ADMINS);
         break;
       case 2:
-        Get.toNamed(Routes.ROLES);
+        Get.offNamed(Routes.ROLES);
         break;
       case 3:
-        Get.toNamed(Routes.CONTACTS);
+        Get.offNamed(Routes.CONTACTS);
         break;
       case 4:
-        Get.toNamed(Routes.TEMPLATES);
+        Get.offNamed(Routes.TEMPLATES);
         break;
       case 5:
-        Get.toNamed(Routes.BROADCASTS);
+        Get.offNamed(Routes.BROADCASTS);
         break;
       case 6:
-        Get.toNamed(Routes.CHATS);
+        Get.offNamed(Routes.CHATS);
         break;
       case 7:
-        Get.toNamed(Routes.SETTINGS);
+        Get.offNamed(Routes.SETTINGS);
         break;
       case 8:
-        Get.toNamed(Routes.MILESTONE_SCHEDULARS);
+        Get.offNamed(Routes.MILESTONE_SCHEDULARS);
         break;
       case 9:
-        Get.toNamed(Routes.CLIENTS);
+        Get.offNamed(Routes.CLIENTS);
         break;
       case 12:
-        Get.toNamed(Routes.AUTOMATION);
+        Get.offNamed(Routes.AUTOMATION);
         break;
     }
 

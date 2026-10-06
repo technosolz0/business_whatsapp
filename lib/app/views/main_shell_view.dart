@@ -24,6 +24,8 @@ import '../modules/custom_notifications/views/custom_notifications_view.dart';
 import '../modules/custom_notifications/views/create_custom_notification_view.dart';
 import '../modules/charges/views/charges_view.dart';
 import '../modules/automation/views/automation_view.dart';
+import '../modules/automation/views/create_automation_view.dart';
+import '../modules/automation/controllers/automation_controller.dart';
 import '../modules/zoho_crm/views/zoho_crm_view.dart';
 import '../modules/chat_bot/views/activate_bot_view.dart';
 import '../modules/chat_bot/views/bot_question.dart';
@@ -129,6 +131,14 @@ class _MainShellViewState extends State<MainShellView> {
       Get.put<ChargesController>(ChargesController());
     }
 
+    // Automation Controller
+    if (!Get.isRegistered<AutomationController>()) {
+      Get.lazyPut<AutomationController>(
+        () => AutomationController(),
+        fenix: true,
+      );
+    }
+
     // Let Add controllers be created on demand to avoid conflicts
   }
 
@@ -190,10 +200,10 @@ class _MainShellViewState extends State<MainShellView> {
   }
 
   Widget _getPageFromRoute(String currentRoute) {
-    // Use Get.currentRoute directly for more reliable route detection
-    final actualRoute = Get.currentRoute
-        .split('?')
-        .first; // Remove query params
+    // Prefer currentRoute from NavController if available, otherwise Get.currentRoute
+    final targetRoute =
+        currentRoute.isNotEmpty ? currentRoute : Get.currentRoute;
+    final actualRoute = targetRoute.split('?').first; // Remove query params
 
     switch (actualRoute) {
       case Routes.DASHBOARD:
@@ -275,6 +285,8 @@ class _MainShellViewState extends State<MainShellView> {
         return ChargesView(key: ValueKey(Routes.CHARGES));
       case Routes.AUTOMATION:
         return AutomationView(key: ValueKey(Routes.AUTOMATION));
+      case Routes.CREATE_AUTOMATION:
+        return CreateAutomationView(key: ValueKey(Routes.CREATE_AUTOMATION));
       case Routes.ZOHO_CRM:
         return ZohoCrmView(key: ValueKey(Routes.ZOHO_CRM));
       case Routes.ACTIVATE_BOT:

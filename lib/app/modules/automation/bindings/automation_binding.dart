@@ -4,6 +4,9 @@ import '../controllers/automation_controller.dart';
 class AutomationBinding extends Bindings {
   @override
   void dependencies() {
-    Get.lazyPut<AutomationController>(() => AutomationController());
+    Get.lazyPut<AutomationController>(
+      () => AutomationController(),
+      fenix: true,
+    );
   }
 }

@@ -111,6 +111,13 @@ class _SidebarWidgetState extends State<SidebarWidget> {
         'index': 7,
         'route': '/settings',
       },
+      {
+        'type': 'item',
+        'icon': Icons.bolt,
+        'label': 'Automation',
+        'index': 12,
+        'route': '/automation',
+      },
     ]);
 
     if (isSuperUserValue) {
@@ -134,13 +141,6 @@ class _SidebarWidgetState extends State<SidebarWidget> {
         'label': 'Charges',
         'index': 11,
         'route': '/charges',
-      });
-      menuItems.add({
-        'type': 'item',
-        'icon': Icons.bolt,
-        'label': 'Automation',
-        'index': 12,
-        'route': '/automation',
       });
     }
 
@@ -346,9 +346,15 @@ class _SidebarWidgetState extends State<SidebarWidget> {
                                     onTap: () async {
                                       // Close drawer first
                                       widget.onItemTap?.call();
-                                      navController.currentRoute.value =
-                                          child['route'];
-                                      await Get.toNamed(child['route']);
+                                      final route = child['route'] as String;
+                                      if (navController.currentRoute.value ==
+                                              route ||
+                                          Get.currentRoute.split('?').first ==
+                                              route) {
+                                        return;
+                                      }
+                                      navController.currentRoute.value = route;
+                                      await Get.offNamed(route);
                                     },
                                     isSubItem: true,
                                   ),
@@ -366,8 +372,13 @@ class _SidebarWidgetState extends State<SidebarWidget> {
                             onTap: () async {
                               // Close drawer first
                               widget.onItemTap?.call();
-                              navController.currentRoute.value = item['route'];
-                              await Get.toNamed(item['route']);
+                              final route = item['route'] as String;
+                              if (navController.currentRoute.value == route ||
+                                  Get.currentRoute.split('?').first == route) {
+                                return;
+                              }
+                              navController.currentRoute.value = route;
+                              await Get.offNamed(route);
                             },
                             showUnreadCount: item['showUnreadCount'] ?? false,
                           );

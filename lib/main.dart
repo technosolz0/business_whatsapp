@@ -42,6 +42,7 @@ RxBool isUploadQuestionsEnabled = false.obs;
 RxBool isBroadcastSchedual = false.obs;
 RxBool isBroadcastRetryEnabled = false.obs;
 RxBool isCarouselTemplateEnabled = false.obs;
+RxInt automationQuota = 50.obs;
 
 void main() async {
   // Ensure Flutter binding is initialized

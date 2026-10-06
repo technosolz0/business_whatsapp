@@ -196,6 +196,12 @@ class AppPages {
       middlewares: [AuthenticatedRoutes()],
     ),
     GetPage(
+      name: _Paths.CREATE_AUTOMATION,
+      page: () => MainShellView(),
+      binding: AutomationBinding(),
+      middlewares: [AuthenticatedRoutes()],
+    ),
+    GetPage(
       name: _Paths.ZOHO_CRM,
       page: () => MainShellView(),
       binding: ZohoCrmBinding(),
