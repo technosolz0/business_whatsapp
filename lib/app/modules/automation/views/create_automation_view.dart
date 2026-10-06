@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:business_whatsapp/app/routes/app_pages.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart' hide Node;
 import 'package:mobx/mobx.dart' as mobx;
@@ -30,7 +31,13 @@ class CreateAutomationView extends GetView<AutomationController> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           tooltip: 'Back to automations',
-          onPressed: () => Get.back(),
+          onPressed: () {
+            if (Get.key.currentState?.canPop() == true) {
+              Get.back();
+            } else {
+              Get.offNamed(Routes.AUTOMATION);
+            }
+          },
         ),
         actions: [
           IconButton(
@@ -104,11 +111,7 @@ class CreateAutomationView extends GetView<AutomationController> {
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: Obx(() {
-                    // flowKey changes force recreate when resetting or loading graph
-                    final _ = controller.flowKey.value;
-
                     return NodeFlowEditor<AutomationNodeData, void>(
-                      key: ValueKey('canvas_${controller.flowKey.value}'),
                       controller: controller.nodeFlowController,
                       theme: controller.currentTheme.value,
                       nodeBuilder: (context, node) =>

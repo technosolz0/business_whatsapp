@@ -84,6 +84,7 @@ class NavigationController extends GetxController {
           selectedIndex.value = 8;
           break;
         case Routes.AUTOMATION:
+        case Routes.CREATE_AUTOMATION:
           selectedIndex.value = 12;
           break;
         default:

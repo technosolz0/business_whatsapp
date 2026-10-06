@@ -7,6 +7,7 @@ import 'package:vyuh_node_flow/vyuh_node_flow.dart';
 import '../../../../main.dart';
 import '../../../Utilities/utilities.dart';
 import '../../../common widgets/common_snackbar.dart';
+import '../../../routes/app_pages.dart';
 import '../models/automation_model.dart';
 
 class AutomationController extends GetxController {
@@ -17,7 +18,8 @@ class AutomationController extends GetxController {
   final RxString searchQuery = ''.obs;
   final TextEditingController searchController = TextEditingController();
   final RxList<AutomationFlowModel> automations = <AutomationFlowModel>[].obs;
-  final RxList<AutomationFlowModel> _allAutomations = <AutomationFlowModel>[].obs;
+  final RxList<AutomationFlowModel> _allAutomations =
+      <AutomationFlowModel>[].obs;
 
   // Pagination state
   final RxInt currentPage = 1.obs;
@@ -55,11 +57,14 @@ class AutomationController extends GetxController {
   void onInit() {
     super.onInit();
     nodeFlowController = NodeFlowController<AutomationNodeData, void>();
-    currentTheme.value =
-        Get.isDarkMode ? NodeFlowTheme.dark : NodeFlowTheme.light;
+    try {
+      nodeFlowController.autoPan?.disable();
+    } catch (_) {}
+    currentTheme.value = Get.isDarkMode
+        ? NodeFlowTheme.dark
+        : NodeFlowTheme.light;
 
     setupInitialNodes();
-    startStatusTimer();
     updateFlowStatus();
     loadAutomationsFromFirebase();
   }
@@ -67,6 +72,8 @@ class AutomationController extends GetxController {
   @override
   void onClose() {
     stopStatusTimer();
+    searchController.dispose();
+    flowNameController.dispose();
     try {
       nodeFlowController.dispose();
     } catch (_) {}
@@ -74,10 +81,12 @@ class AutomationController extends GetxController {
   }
 
   void updateFlowStatus() {
-    hasTriggerNode.value =
-        nodeFlowController.nodes.values.any((n) => n.type == 'trigger');
-    hasStopNode.value =
-        nodeFlowController.nodes.values.any((n) => n.type == 'stop');
+    hasTriggerNode.value = nodeFlowController.nodes.values.any(
+      (n) => n.type == 'trigger',
+    );
+    hasStopNode.value = nodeFlowController.nodes.values.any(
+      (n) => n.type == 'stop',
+    );
   }
 
   void startStatusTimer() {
@@ -129,8 +138,8 @@ class AutomationController extends GetxController {
     final filtered = query.isEmpty
         ? _allAutomations.toList()
         : _allAutomations
-            .where((a) => a.name.toLowerCase().contains(query.toLowerCase()))
-            .toList();
+              .where((a) => a.name.toLowerCase().contains(query.toLowerCase()))
+              .toList();
 
     total.value = _allAutomations.length;
     totalRecords.value = filtered.length;
@@ -182,7 +191,10 @@ class AutomationController extends GetxController {
       );
     } catch (e) {
       debugPrint('Error deleting automation: $e');
-      Utilities.showSnackbar(SnackType.ERROR, 'Failed to delete automation: $e');
+      Utilities.showSnackbar(
+        SnackType.ERROR,
+        'Failed to delete automation: $e',
+      );
     }
   }
 
@@ -224,15 +236,9 @@ class AutomationController extends GetxController {
       currentPage.value = 1;
     }
 
-    try {
-      nodeFlowController.dispose();
-    } catch (_) {}
-
-    nodeFlowController = NodeFlowController<AutomationNodeData, void>();
+    nodeFlowController.clearGraph();
     setupInitialNodes();
-    startStatusTimer();
     updateFlowStatus();
-    flowKey.value++;
   }
 
   Future<void> loadAutomationForEdit(AutomationFlowModel flow) async {
@@ -252,12 +258,6 @@ class AutomationController extends GetxController {
       flowNameController.text = flow.name;
       flowNameError.value = '';
 
-      try {
-        nodeFlowController.dispose();
-      } catch (_) {}
-
-      nodeFlowController = NodeFlowController<AutomationNodeData, void>();
-
       if (uiFlowRaw != null) {
         final Map<String, dynamic> uiFlow = uiFlowRaw is String
             ? jsonDecode(uiFlowRaw)
@@ -272,12 +272,11 @@ class AutomationController extends GetxController {
 
         nodeFlowController.loadGraph(graph);
       } else {
+        nodeFlowController.clearGraph();
         setupInitialNodes();
       }
 
-      startStatusTimer();
       updateFlowStatus();
-      flowKey.value++;
     } catch (e) {
       debugPrint('Error loading automation for edit: $e');
       Utilities.showSnackbar(SnackType.ERROR, 'Failed to load automation: $e');
@@ -287,6 +286,10 @@ class AutomationController extends GetxController {
   }
 
   void setupInitialNodes() {
+    try {
+      nodeFlowController.autoPan?.disable();
+    } catch (_) {}
+
     // 1. Trigger Node
     nodeFlowController.addNode(
       Node<AutomationNodeData>(
@@ -433,10 +436,11 @@ class AutomationController extends GetxController {
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Get.closeAllSnackbars();
-        if (Get.isOverlaysOpen) {
+        if (Get.key.currentState?.canPop() == true) {
           Get.back();
+        } else {
+          Get.offNamed(Routes.AUTOMATION);
         }
-        Get.back();
 
         Future.delayed(const Duration(milliseconds: 250), () {
           Utilities.showSnackbar(
