@@ -1,6 +1,7 @@
 import 'package:business_whatsapp/app/Utilities/api_endpoints.dart';
 import 'package:business_whatsapp/app/Utilities/network_utilities.dart';
 import 'package:business_whatsapp/app/data/models/interactive_model.dart';
+import 'package:business_whatsapp/app/data/models/template_model.dart';
 import 'package:business_whatsapp/app/data/models/template_params.dart';
 import 'package:business_whatsapp/main.dart';
 import 'package:dio/dio.dart';
@@ -12,9 +13,42 @@ class TemplateFirestoreService {
   final Dio _dio = NetworkUtilities.getDioClient();
 
   /// -------------------------------------------------------------
+  /// SAVE TEMPLATE TO BACKEND DATABASE
+  /// -------------------------------------------------------------
+  Future<void> saveTemplate(TemplateModels template) async {
+    try {
+      final payload = {
+        ...template.toJson(),
+        'clientId': clientID,
+      };
+      await _dio.post(
+        '${ApiEndpoints.serverUrl}/saveTemplate',
+        data: payload,
+      );
+    } catch (e) {
+      print("❌ Error saving template to backend: $e");
+    }
+  }
+
+  /// -------------------------------------------------------------
   /// GET TEMPLATE BY ID (FULL TEMPLATE DETAILS)
   /// -------------------------------------------------------------
   Future<TemplateParamModel?> getTemplateById(String templateId) async {
+    try {
+      final response = await _dio.get(
+        '${ApiEndpoints.serverUrl}/getTemplateDetails',
+        queryParameters: {'clientId': clientID, 'templateId': templateId},
+      );
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final data = response.data['data'];
+        if (data != null) {
+          return parseTemplate(Map<String, dynamic>.from(data));
+        }
+      }
+    } catch (e) {
+      print("❌ Error fetching template by ID from getTemplateDetails: $e");
+    }
+
     try {
       final templates = await getAllTemplatesForBroadcast();
       for (final t in templates) {
@@ -23,7 +57,28 @@ class TemplateFirestoreService {
         }
       }
     } catch (e) {
-      print("❌ Error fetching template by ID: $e");
+      print("❌ Error fetching template by ID fallback: $e");
+    }
+    return null;
+  }
+
+  /// -------------------------------------------------------------
+  /// GET RAW TEMPLATE MODEL FOR VIEW / COPY
+  /// -------------------------------------------------------------
+  Future<TemplateModels?> getTemplateModelById(String templateId) async {
+    try {
+      final response = await _dio.get(
+        '${ApiEndpoints.serverUrl}/getTemplateDetails',
+        queryParameters: {'clientId': clientID, 'templateId': templateId},
+      );
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final data = response.data['data'];
+        if (data != null) {
+          return TemplateModels.fromJson(Map<String, dynamic>.from(data));
+        }
+      }
+    } catch (e) {
+      print("❌ Error fetching template model for view/copy: $e");
     }
     return null;
   }
@@ -45,7 +100,7 @@ class TemplateFirestoreService {
   }
 
   /// -------------------------------------------------------------
-  /// PARSE TEMPLATE → Extract only simple fields required by UI
+  /// PARSE TEMPLATE → Extract simple and carousel fields required by UI
   /// -------------------------------------------------------------
   TemplateParamModel parseTemplate(Map<String, dynamic> json) {
     int headerVars = 0;
@@ -60,6 +115,7 @@ class TemplateFirestoreService {
     List<String> bodyExamples = [];
 
     List<InteractiveButton> buttons = [];
+    List<Map<String, dynamic>>? cards;
 
     final components = json["components"] ?? [];
     final regex = RegExp(r'\{\{[0-9]+\}\}');
@@ -85,7 +141,7 @@ class TemplateFirestoreService {
               );
             }
           } else {
-            headerVars = 1;
+            headerVars = 0;
 
             var rawEx = comp["example"]?["header_handle"];
             if (rawEx is List && rawEx.isNotEmpty && rawEx.first is List) {
@@ -120,14 +176,31 @@ class TemplateFirestoreService {
             buttonsVar = TemplateParamModel.countButtonVars(buttons);
           }
           break;
+
+        case "CAROUSEL":
+        case "CARDS":
+        case "Cards":
+          if (comp["cards"] is List) {
+            cards = List<Map<String, dynamic>>.from(comp["cards"]);
+          }
+          break;
+        default:
+          if (comp["cards"] is List) {
+            cards = List<Map<String, dynamic>>.from(comp["cards"]);
+          }
+          break;
       }
     }
 
+    if (cards == null && json["cards"] is List) {
+      cards = List<Map<String, dynamic>>.from(json["cards"]);
+    }
+
     return TemplateParamModel(
-      id: json["id"] ?? "",
+      id: json["id"]?.toString() ?? "",
       language: language,
       name: json["name"] ?? "",
-      templateType: json["type"] ?? "",
+      templateType: (json["type"] ?? "").toString().toUpperCase(),
       category: json["category"] ?? "UTILITY",
       headerVars: headerVars,
       bodyVars: bodyVars,
@@ -138,6 +211,9 @@ class TemplateFirestoreService {
       bodyExamples: bodyExamples,
       buttons: buttons,
       buttonVars: buttonsVar,
+      cards: cards,
+      version: json["version"] ?? "v1",
+      ctaUrlLinkTrackingOptedOut: json["cta_url_link_tracking_opted_out"] ?? false,
     );
   }
 

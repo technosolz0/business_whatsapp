@@ -32,6 +32,7 @@ class BroadcastModel {
 
   /// Admin who created the broadcast
   final String? adminName;
+  final String? adminId;
 
   /// Total cost of the broadcast
   final double? totalCost;
@@ -65,6 +66,7 @@ class BroadcastModel {
     this.deliveryType,
     this.deliveryTimestamp,
     this.adminName,
+    this.adminId,
     this.totalCost,
     this.clicks,
     this.replied,
@@ -114,6 +116,7 @@ class BroadcastModel {
       deliveryTimestamp: (deliveryData?['timestamp'] as Timestamp?)?.toDate(),
       completedAt: (data['completedAt'] as Timestamp?)?.toDate(),
       adminName: data['adminName'],
+      adminId: data['adminId'],
       totalCost: (data['totalCost'] as num?)?.toDouble(),
 
       clicks: data['clicks'],
@@ -172,7 +175,8 @@ class BroadcastModel {
       deliveryTimestamp: parseDateTime(deliveryData is Map ? deliveryData['timestamp'] : (json['delivery_timestamp'] ?? json['delivery_time'])),
       completedAt: parseDateTime(json['completedAt'] ?? json['completed_at']),
       adminName: json['adminName'] ?? json['admin_name'],
-      totalCost: (json['totalCost'] ?? json['total_cost'] ?? json['totalCost'] ?? 0.0) as double?,
+      adminId: json['adminId'] ?? json['admin_id'],
+      totalCost: (json['totalCost'] ?? json['total_cost'] ?? 0.0) as double?,
 
       clicks: json['clicks'],
       replied: json['replied'],
@@ -201,6 +205,7 @@ class BroadcastModel {
       'sent': sent,
       'read': read,
       'adminName': adminName,
+      'adminId': adminId,
       'templateId': templateId,
       'templateName': templateName,
       'language': language,
@@ -239,6 +244,7 @@ class BroadcastModel {
       'sent': sent,
       'read': read,
       'adminName': adminName,
+      'adminId': adminId,
       'templateId': templateId,
       'templateName': templateName,
       'language': language,
@@ -280,6 +286,7 @@ class BroadcastModel {
       "status": status, // "draft"
       "contactIds": contactIds, // List<String>
       'adminName': adminName,
+      'adminId': adminId,
       // Timestamps
       "createdAt": DateTime.now().toUtc().toIso8601String(),
       "updatedAt": DateTime.now().toUtc().toIso8601String(),
@@ -305,6 +312,7 @@ class BroadcastModel {
     int? deliveryType,
     DateTime? deliveryTimestamp,
     String? adminName,
+    String? adminId,
     double? totalCost,
     int? clicks,
     int? replied,
@@ -338,6 +346,7 @@ class BroadcastModel {
       deliveryTimestamp: deliveryTimestamp ?? this.deliveryTimestamp,
       completedAt: null,
       adminName: adminName ?? this.adminName,
+      adminId: adminId ?? this.adminId,
       totalCost: totalCost ?? this.totalCost,
 
       clicks: clicks ?? this.clicks,

@@ -49,11 +49,21 @@ class BroadcastService {
 
       final data = response.data;
 
-      if (response.statusCode == 200 && data["success"] == true) {
+      if (response.statusCode == 200 && data is Map && data["success"] == true) {
         return {"success": true, "media_id": data["media_id"]};
       }
 
-      return {"success": false, "message": data};
+      final errorMsg = data is Map
+          ? (data["message"] ?? data["detail"] ?? data.toString())
+          : data?.toString();
+      return {"success": false, "message": errorMsg};
+    } on DioException catch (e) {
+      final errorMsg = e.response?.data is Map
+          ? (e.response?.data["message"] ??
+              e.response?.data["detail"] ??
+              e.message)
+          : (e.response?.data?.toString() ?? e.message ?? e.toString());
+      return {"success": false, "message": errorMsg};
     } catch (e) {
       return {"success": false, "message": e.toString()};
     }

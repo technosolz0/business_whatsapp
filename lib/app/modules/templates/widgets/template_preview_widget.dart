@@ -1,5 +1,4 @@
 import 'dart:ui';
-import 'package:business_whatsapp/app/data/models/interactive_model.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../controllers/theme_controller.dart';
@@ -42,103 +41,98 @@ class TemplatePreviewWidget extends StatelessWidget {
       final isDark = theme.isDarkMode.value;
       final type = c.templateType.value;
 
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Title
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Template Preview',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'This is how your message will appear to your customers.',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isDark ? Colors.white54 : Colors.black54,
-                ),
-              ),
-            ],
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF2F3F6),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+            width: 1,
           ),
-          const SizedBox(height: 24),
-
-          // PHONE MOCKUP
-          Center(
-            child: Container(
-              width: 340, // Realistic phone width
-              height: 680, // Realistic phone height
-              decoration: BoxDecoration(
-                color: isDark
-                    ? const Color(0xff0b141a)
-                    : const Color(0xffe5ddd5),
-                borderRadius: BorderRadius.circular(40),
-                border: Border.all(
-                  color: isDark
-                      ? const Color(0xff2a2a2a)
-                      : const Color(0xff1a1a1a),
-                  width: 8,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.2),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
+        ),
+        child: Column(
+          children: [
+            // Title
+            Text(
+              'Live Phone Preview',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(32),
-                child: Column(
-                  children: [
-                    _buildStatusBar(isDark),
-                    _buildWhatsappHeader(isDark),
-                    Expanded(
-                      child: Stack(
-                        children: [
-                          // Chat Background Pattern (Subtle)
-                          Positioned.fill(
-                            child: Opacity(
-                              opacity: isDark ? 0.05 : 0.08,
-                              child: Image.network(
-                                'https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png',
-                                fit: BoxFit.cover,
-                                errorBuilder: (c, e, s) => Container(),
+            ),
+            const SizedBox(height: 24),
+
+            // PHONE MOCKUP
+            Center(
+              child: Container(
+                width: 330,
+                height: 670,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0B1C30),
+                  borderRadius: BorderRadius.circular(42),
+                  border: Border.all(color: const Color(0xFF0B1C30), width: 5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.22),
+                      blurRadius: 24,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(32),
+                  child: Column(
+                    children: [
+                      _buildStatusBar(isDark),
+                      _buildWhatsappHeader(isDark),
+                      Expanded(
+                        child: Stack(
+                          children: [
+                            // Chat Background Pattern
+                            Positioned.fill(
+                              child: Container(color: const Color(0xFFE5DDD5)),
+                            ),
+                            Positioned.fill(
+                              child: Opacity(
+                                opacity: 0.06,
+                                child: Image.network(
+                                  'https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png',
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (c, e, s) => Container(),
+                                ),
                               ),
                             ),
-                          ),
 
-                          // Chat Content
-                          ListView(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 16,
+                            // Chat Content
+                            ListView(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 14,
+                              ),
+                              children: [
+                                _buildDateHeader(isDark),
+                                const SizedBox(height: 14),
+                                if (type != "Carousel")
+                                  _buildMessageBubble(isDark, c)
+                                else
+                                  _buildCarouselMessage(isDark, c),
+                              ],
                             ),
-                            children: [
-                              _buildDateHeader(isDark),
-                              const SizedBox(height: 16),
-                              if (type != "Carousel")
-                                _buildMessageBubble(isDark, c)
-                              else
-                                _buildCarouselMessage(isDark, c),
-                            ],
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                    _buildChatInputBar(isDark),
-                  ],
+                      _buildChatInputBar(isDark),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       );
     });
   }
@@ -178,45 +172,62 @@ class TemplatePreviewWidget extends StatelessWidget {
 
   Widget _buildWhatsappHeader(bool isDark) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(8, 4, 12, 12),
+      padding: const EdgeInsets.fromLTRB(10, 8, 12, 10),
       color: isDark ? const Color(0xff1f2c34) : const Color(0xff075e54),
       child: Row(
         children: [
-          const Icon(Icons.arrow_back, color: Colors.white, size: 20),
-          const SizedBox(width: 4),
-          CircleAvatar(
-            radius: 18,
-            backgroundColor: Colors.white.withValues(alpha: 0.2),
-            child: const Icon(Icons.business, color: Colors.white, size: 20),
+          const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: Colors.white,
+            size: 15,
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 4),
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: const Color(0xFF115E59),
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(0xFF0D9488), width: 1),
+            ),
+            child: const Center(
+              child: Icon(
+                Icons.storefront_rounded,
+                color: Colors.white,
+                size: 16,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 const Text(
                   "Your Business",
                   style: TextStyle(
                     color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
                   ),
                 ),
                 Text(
                   "online",
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.8),
-                    fontSize: 11,
+                    color: const Color(0xFF99F6E4),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
               ],
             ),
           ),
-          const Icon(Icons.videocam, color: Colors.white, size: 22),
-          const SizedBox(width: 16),
-          const Icon(Icons.call, color: Colors.white, size: 20),
+          const Icon(Icons.videocam_rounded, color: Colors.white, size: 20),
+          const SizedBox(width: 14),
+          const Icon(Icons.call_rounded, color: Colors.white, size: 17),
           const SizedBox(width: 12),
-          const Icon(Icons.more_vert, color: Colors.white, size: 20),
+          const Icon(Icons.more_vert_rounded, color: Colors.white, size: 18),
         ],
       ),
     );
@@ -225,19 +236,25 @@ class TemplatePreviewWidget extends StatelessWidget {
   Widget _buildDateHeader(bool isDark) {
     return Center(
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
         decoration: BoxDecoration(
-          color: isDark
-              ? const Color(0xff182229)
-              : const Color(0xffd1d7db).withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(8),
+          color: isDark ? const Color(0xff182229) : const Color(0xFFE1F3FB),
+          borderRadius: BorderRadius.circular(4),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 2,
+              offset: const Offset(0, 1),
+            ),
+          ],
         ),
         child: Text(
           "TODAY",
           style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-            color: isDark ? Colors.white54 : Colors.black54,
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: isDark ? Colors.white70 : const Color(0xFF54656F),
+            letterSpacing: 0.5,
           ),
         ),
       ),
@@ -420,7 +437,6 @@ class TemplatePreviewWidget extends StatelessWidget {
   }
 
   Widget _buildCarouselMessage(bool isDark, CreateTemplateController c) {
-    final type = c.templateType.value;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -504,7 +520,7 @@ class TemplatePreviewWidget extends StatelessWidget {
                 ],
               ),
             ),
-            const Spacer(),
+            // const Spacer(),
             // Card Buttons
             if (card.buttons.isNotEmpty) ...[
               const Divider(height: 1, thickness: 0.5),
@@ -583,52 +599,65 @@ class TemplatePreviewWidget extends StatelessWidget {
   Widget _buildChatInputBar(bool isDark) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      color: Colors.transparent,
+      color: isDark ? const Color(0xff182229) : const Color(0xfff0f2f5),
       child: Row(
         children: [
           Expanded(
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xff2a3942) : Colors.white,
                 borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 2,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
               ),
               child: Row(
                 children: [
                   Icon(
-                    Icons.emoji_emotions_outlined,
-                    color: isDark ? Colors.white38 : Colors.grey,
-                    size: 24,
+                    Icons.sentiment_satisfied_alt_outlined,
+                    color: isDark ? Colors.white54 : const Color(0xFF8696A0),
+                    size: 20,
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   Text(
                     "Message",
                     style: TextStyle(
-                      color: isDark ? Colors.white38 : Colors.grey,
-                      fontSize: 16,
+                      color: isDark ? Colors.white38 : const Color(0xFF8696A0),
+                      fontSize: 13,
                     ),
                   ),
                   const Spacer(),
                   Icon(
-                    Icons.attach_file,
-                    color: isDark ? Colors.white38 : Colors.grey,
-                    size: 24,
+                    Icons.attach_file_rounded,
+                    color: isDark ? Colors.white54 : const Color(0xFF8696A0),
+                    size: 18,
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 10),
                   Icon(
-                    Icons.camera_alt,
-                    color: isDark ? Colors.white38 : Colors.grey,
-                    size: 24,
+                    Icons.camera_alt_outlined,
+                    color: isDark ? Colors.white54 : const Color(0xFF8696A0),
+                    size: 18,
                   ),
                 ],
               ),
             ),
           ),
-          const SizedBox(width: 8),
-          CircleAvatar(
-            backgroundColor: const Color(0xff00a884),
-            radius: 22,
-            child: const Icon(Icons.mic, color: Colors.white),
+          const SizedBox(width: 6),
+          Container(
+            width: 36,
+            height: 36,
+            decoration: const BoxDecoration(
+              color: Color(0xff00a884),
+              shape: BoxShape.circle,
+            ),
+            child: const Center(
+              child: Icon(Icons.mic, color: Colors.white, size: 18),
+            ),
           ),
         ],
       ),

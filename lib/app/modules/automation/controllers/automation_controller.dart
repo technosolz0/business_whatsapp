@@ -1,10 +1,11 @@
 import 'dart:convert';
 import 'dart:async';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart' hide Node;
 import 'package:vyuh_node_flow/vyuh_node_flow.dart';
 import '../../../../main.dart';
+import '../../../Utilities/api_endpoints.dart';
+import '../../../Utilities/network_utilities.dart';
 import '../../../Utilities/utilities.dart';
 import '../../../common widgets/common_snackbar.dart';
 import '../../../routes/app_pages.dart';
@@ -113,21 +114,26 @@ class AutomationController extends GetxController {
 
     try {
       isLoading.value = true;
-      final snapshot = await FirebaseFirestore.instance
-          .collection('automations')
-          .doc(clientID)
-          .collection('data')
-          .orderBy('createdAt', descending: true)
-          .get();
+      final dio = NetworkUtilities.getDioClient();
+      final response = await dio.get(
+        '${ApiEndpoints.serverUrl}/api/automations',
+        queryParameters: {'client_id': clientID},
+      );
 
-      final all = snapshot.docs
-          .map((doc) => AutomationFlowModel.fromFirestore(doc))
-          .toList();
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final List<dynamic> list = response.data['data'] ?? [];
+        final all = list
+            .map(
+              (item) =>
+                  AutomationFlowModel.fromJson(Map<String, dynamic>.from(item)),
+            )
+            .toList();
 
-      _allAutomations.assignAll(all);
-      _applyFilter(searchQuery.value);
+        _allAutomations.assignAll(all);
+        _applyFilter(searchQuery.value);
+      }
     } catch (e) {
-      debugPrint('Error loading automations from Firestore: $e');
+      debugPrint('Error loading automations from backend: $e');
       Utilities.showSnackbar(SnackType.ERROR, 'Failed to load automations: $e');
     } finally {
       isLoading.value = false;
@@ -176,19 +182,20 @@ class AutomationController extends GetxController {
 
   Future<void> deleteAutomation(AutomationFlowModel flow) async {
     try {
-      await FirebaseFirestore.instance
-          .collection('automations')
-          .doc(clientID)
-          .collection('data')
-          .doc(flow.id)
-          .delete();
-
-      _allAutomations.removeWhere((a) => a.id == flow.id);
-      _applyFilter(searchQuery.value);
-      Utilities.showSnackbar(
-        SnackType.SUCCESS,
-        'Automation "${flow.name}" deleted successfully.',
+      final dio = NetworkUtilities.getDioClient();
+      final response = await dio.delete(
+        '${ApiEndpoints.serverUrl}/api/automations/${flow.id}',
+        queryParameters: {'client_id': clientID},
       );
+
+      if (response.statusCode == 200) {
+        _allAutomations.removeWhere((a) => a.id == flow.id);
+        _applyFilter(searchQuery.value);
+        Utilities.showSnackbar(
+          SnackType.SUCCESS,
+          'Automation "${flow.name}" deleted successfully.',
+        );
+      }
     } catch (e) {
       debugPrint('Error deleting automation: $e');
       Utilities.showSnackbar(
@@ -201,17 +208,20 @@ class AutomationController extends GetxController {
   Future<void> toggleAutomationStatus(AutomationFlowModel flow) async {
     final newStatus = !flow.isActive.value;
     try {
-      await FirebaseFirestore.instance
-          .collection('automations')
-          .doc(clientID)
-          .collection('data')
-          .doc(flow.id)
-          .update({'status': newStatus ? 'Active' : 'Inactive'});
-      flow.isActive.value = newStatus;
-      Utilities.showSnackbar(
-        SnackType.SUCCESS,
-        'Automation is now ${newStatus ? 'Active' : 'Inactive'}.',
+      final dio = NetworkUtilities.getDioClient();
+      final response = await dio.post(
+        '${ApiEndpoints.serverUrl}/api/automations/${flow.id}/toggle',
+        queryParameters: {'client_id': clientID},
+        data: {'status': newStatus ? 'Active' : 'Inactive'},
       );
+
+      if (response.statusCode == 200) {
+        flow.isActive.value = newStatus;
+        Utilities.showSnackbar(
+          SnackType.SUCCESS,
+          'Automation is now ${newStatus ? 'Active' : 'Inactive'}.',
+        );
+      }
     } catch (e) {
       debugPrint('Error toggling automation status: $e');
       Utilities.showSnackbar(SnackType.ERROR, 'Failed to update status: $e');
@@ -244,42 +254,44 @@ class AutomationController extends GetxController {
   Future<void> loadAutomationForEdit(AutomationFlowModel flow) async {
     try {
       isLoading.value = true;
-      final doc = await FirebaseFirestore.instance
-          .collection('automations')
-          .doc(clientID)
-          .collection('data')
-          .doc(flow.id)
-          .get();
+      final dio = NetworkUtilities.getDioClient();
+      final response = await dio.get(
+        '${ApiEndpoints.serverUrl}/api/automations/${flow.id}',
+        queryParameters: {'client_id': clientID},
+      );
 
-      final data = doc.data();
-      final uiFlowRaw = data?['ui_flow'];
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final data = response.data['data'];
+        final uiFlowRaw = data?['ui_flow'];
 
-      editingFlowId.value = flow.id;
-      flowNameController.text = flow.name;
-      flowNameError.value = '';
+        editingFlowId.value = flow.id;
+        flowNameController.text = flow.name;
+        flowNameError.value = '';
 
-      if (uiFlowRaw != null) {
-        final Map<String, dynamic> uiFlow = uiFlowRaw is String
-            ? jsonDecode(uiFlowRaw)
-            : uiFlowRaw as Map<String, dynamic>;
-
-        final graph = NodeGraph<AutomationNodeData, void>.fromJson(
-          uiFlow,
-          (nodeDataJson) =>
-              AutomationNodeData.fromJson(nodeDataJson as Map<String, dynamic>),
-          (_) {},
-        );
-
-        nodeFlowController.loadGraph(graph);
-      } else {
         nodeFlowController.clearGraph();
-        setupInitialNodes();
-      }
+        if (uiFlowRaw != null && uiFlowRaw.toString().isNotEmpty) {
+          final Map<String, dynamic> jsonMap = uiFlowRaw is Map
+              ? Map<String, dynamic>.from(uiFlowRaw)
+              : jsonDecode(uiFlowRaw.toString());
 
-      updateFlowStatus();
+          final graph = NodeGraph<AutomationNodeData, void>.fromJson(
+            jsonMap,
+            (n) => AutomationNodeData.fromJson(
+              Map<String, dynamic>.from(n as Map),
+            ),
+            (_) {},
+          );
+          nodeFlowController.loadGraph(graph);
+        } else {
+          setupInitialNodes();
+        }
+        updateFlowStatus();
+
+        Get.toNamed(Routes.CREATE_AUTOMATION);
+      }
     } catch (e) {
       debugPrint('Error loading automation for edit: $e');
-      Utilities.showSnackbar(SnackType.ERROR, 'Failed to load automation: $e');
+      Utilities.showSnackbar(SnackType.ERROR, 'Failed to load flow: $e');
     } finally {
       isLoading.value = false;
     }
@@ -409,50 +421,49 @@ class AutomationController extends GetxController {
 
       final Map<String, dynamic> automationData = {
         'id': docId,
+        'clientId': clientID,
         'flowName': name,
         'status': 'Active',
         'ui_flow': jsonEncode(result),
         'trigger_keywords': logicalData['trigger_keywords'],
         'start_node': logicalData['start_node'],
         'nodes': logicalData['nodes'],
-        if (!isEditing) 'createdAt': FieldValue.serverTimestamp(),
-        if (isEditing) 'updatedAt': FieldValue.serverTimestamp(),
       };
 
-      final ref = FirebaseFirestore.instance
-          .collection('automations')
-          .doc(clientID)
-          .collection('data')
-          .doc(docId);
+      final dio = NetworkUtilities.getDioClient();
+      final response = await dio.post(
+        '${ApiEndpoints.serverUrl}/api/automations',
+        data: automationData,
+      );
 
-      if (isEditing) {
-        await ref.update(automationData);
-      } else {
-        await ref.set(automationData);
-      }
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        resetFlow();
+        await loadAutomationsFromFirebase();
 
-      resetFlow();
-      await loadAutomationsFromFirebase();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Get.closeAllSnackbars();
+          if (Get.key.currentState?.canPop() == true) {
+            Get.back();
+          } else {
+            Get.offNamed(Routes.AUTOMATION);
+          }
 
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Get.closeAllSnackbars();
-        if (Get.key.currentState?.canPop() == true) {
-          Get.back();
-        } else {
-          Get.offNamed(Routes.AUTOMATION);
-        }
-
-        Future.delayed(const Duration(milliseconds: 250), () {
-          Utilities.showSnackbar(
-            SnackType.SUCCESS,
-            isEditing
-                ? 'Automation updated successfully!'
-                : 'Automation deployed successfully!',
-          );
+          Future.delayed(const Duration(milliseconds: 250), () {
+            Utilities.showSnackbar(
+              SnackType.SUCCESS,
+              isEditing
+                  ? 'Automation updated successfully!'
+                  : 'Automation deployed successfully!',
+            );
+          });
         });
-      });
+      } else {
+        throw Exception(
+          response.data?['detail'] ?? 'Failed to save automation',
+        );
+      }
     } catch (e) {
-      debugPrint('Error saving automation to Firestore: $e');
+      debugPrint('Error saving automation: $e');
       Utilities.showSnackbar(SnackType.ERROR, 'Failed to save automation: $e');
     } finally {
       isLoading.value = false;

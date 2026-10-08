@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'dart:async';
-import 'dart:html' as html;
+import 'package:web/web.dart' as web;
+import 'dart:js_interop';
 
 import 'package:business_whatsapp/app/Utilities/media_utils.dart';
 import 'package:business_whatsapp/app/Utilities/utilities.dart';
@@ -8,33 +9,33 @@ import 'package:business_whatsapp/app/controllers/navigation_controller.dart';
 import 'package:business_whatsapp/app/data/models/interactive_model.dart';
 // import 'package:business_whatsapp/app/core/utils/utilities.dart';
 import 'package:business_whatsapp/app/data/models/template_model.dart';
+import 'package:business_whatsapp/app/data/services/template_firebase_service.dart';
 import 'package:business_whatsapp/app/data/services/template_service.dart';
 import 'package:business_whatsapp/app/modules/templates/controllers/templates_controller.dart';
 import 'package:business_whatsapp/app/routes/app_pages.dart';
 import 'package:business_whatsapp/app/Utilities/whatsapp_text_controller.dart';
-import 'package:business_whatsapp/main.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../data/models/carousel_card_model.dart';
 import '../../../common widgets/common_snackbar.dart';
+import '../utils/demo_template_assets.dart';
 
 class CreateTemplateController extends GetxController {
   // MARK: - Properties
-  StreamSubscription? _beforeUnloadSubscription;
+  web.EventListener? _beforeUnloadListener;
   // ===========================================================================
   // FORM CONTROLLERS
   // ===========================================================================
-  final TextEditingController nameCtrl = TextEditingController();
-  final WhatsAppTextEditingController formatCtrl =
-      WhatsAppTextEditingController();
-  final TextEditingController headerCtrl = TextEditingController();
-  final TextEditingController footerCtrl = TextEditingController();
-  final TextEditingController searchCtrl = TextEditingController();
+  TextEditingController nameCtrl = TextEditingController();
+  WhatsAppTextEditingController formatCtrl = WhatsAppTextEditingController();
+  TextEditingController headerCtrl = TextEditingController();
+  TextEditingController footerCtrl = TextEditingController();
+  TextEditingController searchCtrl = TextEditingController();
 
-  final FocusNode nameFocus = FocusNode();
-  final FocusNode formatFocus = FocusNode();
-  final FocusNode headerFocus = FocusNode();
-  final FocusNode footerFocus = FocusNode();
+  FocusNode nameFocus = FocusNode();
+  FocusNode formatFocus = FocusNode();
+  FocusNode headerFocus = FocusNode();
+  FocusNode footerFocus = FocusNode();
 
   // ===========================================================================
   // RX FORM VALUES
@@ -50,6 +51,8 @@ class CreateTemplateController extends GetxController {
 
   final RxString templateVersion = 'v2'.obs;
   final RxInt previewRefresh = 0.obs;
+  final RxInt q1Selection = (-1).obs;
+  final RxInt q2Selection = (-1).obs;
 
   // ===========================================================================
   // MEDIA (Upload, Validation)
@@ -99,7 +102,7 @@ class CreateTemplateController extends GetxController {
   // ===========================================================================
   final RxList<CarouselCard> carouselCards = <CarouselCard>[].obs;
   final RxInt selectedCardIndex = 0.obs;
-  final WhatsAppTextEditingController cardFormatCtrl =
+  WhatsAppTextEditingController cardFormatCtrl =
       WhatsAppTextEditingController();
   ScrollController carouselScrollCtrl = ScrollController();
 
@@ -165,13 +168,72 @@ class CreateTemplateController extends GetxController {
   void onInit() {
     super.onInit();
 
-    // Sync text -> Rx
+    _attachListeners();
+
+    // Initially start with everything unselected and empty
+
+    // Handle browser refresh/close
+    if (GetPlatform.isWeb) {
+      _beforeUnloadListener = ((web.Event event) {
+        if (!isFormBlank) {
+          (event as web.BeforeUnloadEvent).returnValue =
+              'You have unsaved changes.';
+        }
+      }).toJS;
+      web.window.addEventListener('beforeunload', _beforeUnloadListener);
+    }
+  }
+
+  void ensureControllersActive() {
+    bool anyDisposed = false;
+    try {
+      void noop() {}
+      nameCtrl.addListener(noop);
+      nameCtrl.removeListener(noop);
+      formatCtrl.addListener(noop);
+      formatCtrl.removeListener(noop);
+      headerCtrl.addListener(noop);
+      headerCtrl.removeListener(noop);
+      footerCtrl.addListener(noop);
+      footerCtrl.removeListener(noop);
+      searchCtrl.addListener(noop);
+      searchCtrl.removeListener(noop);
+      cardFormatCtrl.addListener(noop);
+      cardFormatCtrl.removeListener(noop);
+      nameFocus.addListener(noop);
+      nameFocus.removeListener(noop);
+      formatFocus.addListener(noop);
+      formatFocus.removeListener(noop);
+      headerFocus.addListener(noop);
+      headerFocus.removeListener(noop);
+      footerFocus.addListener(noop);
+      footerFocus.removeListener(noop);
+    } catch (_) {
+      anyDisposed = true;
+    }
+
+    if (anyDisposed) {
+      nameCtrl = TextEditingController();
+      formatCtrl = WhatsAppTextEditingController();
+      headerCtrl = TextEditingController();
+      footerCtrl = TextEditingController();
+      searchCtrl = TextEditingController();
+      nameFocus = FocusNode();
+      formatFocus = FocusNode();
+      headerFocus = FocusNode();
+      footerFocus = FocusNode();
+      cardFormatCtrl = WhatsAppTextEditingController();
+      carouselScrollCtrl = ScrollController();
+      _attachListeners();
+    }
+  }
+
+  void _attachListeners() {
     nameCtrl.addListener(() => templateName.value = nameCtrl.text);
     formatCtrl.addListener(() => updateTemplateFormat(formatCtrl.text));
     headerCtrl.addListener(() => templateHeader.value = headerCtrl.text);
     footerCtrl.addListener(() => templateFooter.value = footerCtrl.text);
 
-    // Focus lost validations
     nameFocus.addListener(() {
       if (!nameFocus.hasFocus) validateTemplateName();
     });
@@ -183,16 +245,6 @@ class CreateTemplateController extends GetxController {
     footerFocus.addListener(() {
       if (!footerFocus.hasFocus) validateFooter();
     });
-
-    // Handle browser refresh/close
-    if (GetPlatform.isWeb) {
-      _beforeUnloadSubscription = html.window.onBeforeUnload.listen((event) {
-        if (!isFormBlank) {
-          (event as html.BeforeUnloadEvent).returnValue =
-              'You have unsaved changes.';
-        }
-      });
-    }
   }
 
   // ===========================================================================
@@ -448,6 +500,7 @@ class CreateTemplateController extends GetxController {
 
   // MARK: - Copy & View Modes
   Future<void> loadTemplateForCopy(TemplateModels template) async {
+    ensureControllersActive();
     isEditMode.value = false;
     isCopyMode.value = true;
     isViewMode.value = false;
@@ -460,9 +513,8 @@ class CreateTemplateController extends GetxController {
     templateCategory.value = normalizeCategory(template.category!);
     templateLanguage.value = template.language;
     templateType.value = normalizeType(template.type);
-    templateVersion.value = template.version ?? "v2";
-    ctaUrlLinkTrackingOptedOut.value =
-        template.ctaUrlLinkTrackingOptedOut ?? true;
+    templateVersion.value = template.version!;
+    ctaUrlLinkTrackingOptedOut.value = template.ctaUrlLinkTrackingOptedOut!;
 
     // BODY
     formatCtrl.text = template.body;
@@ -825,7 +877,7 @@ class CreateTemplateController extends GetxController {
     }
 
     while (variableControllers.length > needed) {
-      variableControllers.removeLast().dispose();
+      variableControllers.removeLast();
     }
 
     previewRefresh.value++;
@@ -838,9 +890,17 @@ class CreateTemplateController extends GetxController {
     if (v != null) {
       templateCategory.value = v;
       // If category is not Marketing, Carousel is not allowed
-      if ((v != 'Marketing' || !isCarouselTemplateEnabled.value) &&
-          templateType.value == 'Carousel') {
+      if (v != 'Marketing' && templateType.value == 'Carousel') {
         updateTemplateType('Text');
+      }
+      if (q1Selection.value != -1) {
+        if (v == 'Marketing') {
+          q1Selection.value = 1;
+        } else if (v == 'Utility') {
+          if (q1Selection.value == 1) {
+            q1Selection.value = 0;
+          }
+        }
       }
     }
   }
@@ -850,42 +910,71 @@ class CreateTemplateController extends GetxController {
   }
 
   void updateTemplateType(String? v) {
-    if (v != null) templateType.value = v;
-    headerCtrl.clear();
-    templateHeader.value = '';
-    selectedFileBytes.value = null;
-    selectedFileName.value = "";
-    mediaHandleId.value = "";
-    buttons.value = [];
-    quickRepliesCount.value = 10;
-    urlCount.value = 2;
-    phoneNumberCount.value = 1;
-    copyCodeCount.value = 1;
-    buttons.clear();
-    btnTextCtrls.clear();
-    btnValueCtrls.clear();
-    btnTextErrors.clear();
-    btnValueErrors.clear();
-    urlType.clear();
-    dynamicValueCtrl.clear();
+    if (v == null) return;
+    templateType.value = v;
 
     if (v == 'Carousel') {
-      // Reset selectedCardIndex BEFORE adding cards to avoid stale index
       selectedCardIndex.value = 0;
-      if (carouselCards.isEmpty) {
-        addCarouselCard();
+      if (carouselCards.length < 2 ||
+          carouselCards.any((c) => c.fileBytes.value == null)) {
+        fillDemoCarouselCards();
+      }
+      if (q2Selection.value != -1) {
+        q2Selection.value = 3;
       }
     } else {
-      // Clear cards FIRST, then reset index — prevents Obx from reading
-      // stale index on a list that is already shrinking.
       carouselCards.clear();
       selectedCardIndex.value = 0;
-      // Recreate scroll controller to avoid "attached to more than one position"
       if (carouselScrollCtrl.hasClients) {
         carouselScrollCtrl.dispose();
         carouselScrollCtrl = ScrollController();
       }
+
+      if (v == 'Interactive') {
+        selectedMediaType.value = '';
+        selectedFileBytes.value = null;
+        selectedFileName.value = "";
+        mediaHandleId.value = "";
+        if (q2Selection.value != -1) {
+          q2Selection.value = 2;
+        }
+      } else if (v == 'Text & Media') {
+        buttons.clear();
+        btnTextCtrls.clear();
+        btnValueCtrls.clear();
+        btnTextErrors.clear();
+        btnValueErrors.clear();
+        urlType.clear();
+        dynamicValueCtrl.clear();
+        quickRepliesCount.value = 10;
+        urlCount.value = 2;
+        phoneNumberCount.value = 1;
+        copyCodeCount.value = 1;
+        if (q2Selection.value != -1) {
+          q2Selection.value = 1;
+        }
+      } else if (v == 'Text') {
+        selectedMediaType.value = '';
+        selectedFileBytes.value = null;
+        selectedFileName.value = "";
+        mediaHandleId.value = "";
+        buttons.clear();
+        btnTextCtrls.clear();
+        btnValueCtrls.clear();
+        btnTextErrors.clear();
+        btnValueErrors.clear();
+        urlType.clear();
+        dynamicValueCtrl.clear();
+        quickRepliesCount.value = 10;
+        urlCount.value = 2;
+        phoneNumberCount.value = 1;
+        copyCodeCount.value = 1;
+        if (q2Selection.value != -1) {
+          q2Selection.value = 0;
+        }
+      }
     }
+    previewRefresh.value++;
   }
 
   // ===========================================================================
@@ -894,7 +983,9 @@ class CreateTemplateController extends GetxController {
   // MARK: - Carousel Support
   void addCarouselCard() {
     if (carouselCards.length >= 10) return;
-    carouselCards.add(CarouselCard());
+    final card = CarouselCard();
+    card.mediaType.value = 'Image';
+    carouselCards.add(card);
     selectedCardIndex.value = carouselCards.length - 1;
     _syncCardToControllers();
 
@@ -967,7 +1058,7 @@ class CreateTemplateController extends GetxController {
     }
 
     while (card.variableControllers.length > needed) {
-      card.variableControllers.removeLast().dispose();
+      card.variableControllers.removeLast();
     }
 
     while (card.sampleValueErrors.length < needed) {
@@ -1555,6 +1646,64 @@ class CreateTemplateController extends GetxController {
       } else {
         Utilities.showSnackbar(SnackType.INFO, "Template Submitted for Review");
       }
+      final cardsJson = templateType.value == "Carousel"
+          ? carouselCards
+                .map(
+                  (card) => {
+                    "components": [
+                      {
+                        "type": "HEADER",
+                        "format": card.mediaType.value.toUpperCase(),
+                        "example": {
+                          "header_handle": [card.mediaHandleId.value],
+                        },
+                      },
+                      {
+                        "type": "BODY",
+                        "text": card.body.value,
+                        "example": {
+                          "body_text": card.variableControllers
+                              .map((c) => c.text.trim())
+                              .toList(),
+                        },
+                      },
+                      {
+                        "type": "BUTTONS",
+                        "buttons": card.buttons.map((b) => b.toJson()).toList(),
+                      },
+                    ],
+                  },
+                )
+                .toList()
+          : null;
+
+      final template = TemplateModels(
+        id: data["id"].toString(),
+        name: nameCtrl.text.trim(),
+        category: data["category"] ?? "",
+        language: templateLanguage.value,
+        type: templateType.value,
+        userCategory: templateCategory.value,
+        status: data["status"] ?? "",
+        headerText:
+            (selectedMediaType.value.isNotEmpty && headerCtrl.text.isEmpty)
+            ? null
+            : headerCtrl.text.trim(),
+        body: formatCtrl.text.trim(),
+        footer: footerCtrl.text.isEmpty ? null : footerCtrl.text.trim(),
+        variables: sampleVals,
+        createdAt: DateTime.now(),
+        // headerImage: '',
+        headerFormat: selectedMediaType.value,
+        headerVariables: [],
+        buttons: buttons,
+        cards: cardsJson,
+        version: templateVersion.value,
+        ctaUrlLinkTrackingOptedOut: ctaUrlLinkTrackingOptedOut.value,
+      );
+
+      await TemplateFirestoreService.instance.saveTemplate(template);
+
       resetForm();
       Utilities.hideCustomLoader(Get.context!);
 
@@ -1612,31 +1761,26 @@ class CreateTemplateController extends GetxController {
   // Future<void> _updateTemplate() async { ... }
 
   // ===========================================================================
-  // RESET FORM
+  // RESET FORM & DEMO PREFILL
   // ===========================================================================
-  void resetForm() {
+  void resetForm({bool fillDemo = false}) {
+    ensureControllersActive();
+
     templateCategory.value = "";
     templateLanguage.value = "en";
     templateType.value = "";
+    q1Selection.value = -1;
+    q2Selection.value = -1;
     nameCtrl.clear();
     headerCtrl.clear();
     footerCtrl.clear();
     formatCtrl.clear();
     buttons.clear();
-    for (var c in btnTextCtrls) {
-      c.dispose();
-    }
     btnTextCtrls.clear();
-    for (var c in btnValueCtrls) {
-      c.dispose();
-    }
     btnValueCtrls.clear();
     btnTextErrors.clear();
     btnValueErrors.clear();
     urlType.clear();
-    for (var c in dynamicValueCtrl) {
-      c.dispose();
-    }
     dynamicValueCtrl.clear();
     quickRepliesCount.value = 10;
     urlCount.value = 2;
@@ -1653,12 +1797,8 @@ class CreateTemplateController extends GetxController {
     headerError.value = '';
     footerError.value = '';
 
-    for (var c in variableControllers) {
-      c.dispose();
-    }
     variableControllers.clear();
     sampleValueErrors.clear();
-    previewRefresh.value++;
 
     selectedMediaType.value = "";
     selectedFileName.value = "";
@@ -1670,13 +1810,380 @@ class CreateTemplateController extends GetxController {
 
     // Carousel Reset
     selectedCardIndex.value = 0;
-    for (var card in carouselCards) {
-      card.dispose();
-    }
     carouselCards.clear();
     cardFormatCtrl.clear();
 
+    if (fillDemo) {
+      fillDemoData();
+    }
+
     previewRefresh.value++;
+  }
+
+  void fillDemoButtons() {
+    buttons.clear();
+    btnTextCtrls.clear();
+    btnValueCtrls.clear();
+    btnTextErrors.clear();
+    btnValueErrors.clear();
+    urlType.clear();
+    dynamicValueCtrl.clear();
+    quickRepliesCount.value = 10;
+    urlCount.value = 2;
+    phoneNumberCount.value = 1;
+    copyCodeCount.value = 1;
+
+    // 1. Quick Reply
+    buttons.add(InteractiveButton(type: "QUICK_REPLY", text: "Interested"));
+    btnTextCtrls.add(TextEditingController(text: "Interested"));
+    btnValueCtrls.add(TextEditingController());
+    urlType.add("");
+    dynamicValueCtrl.add(TextEditingController());
+    btnTextErrors.add("");
+    btnValueErrors.add("");
+    quickRepliesCount.value--;
+
+    // 2. URL (Link)
+    buttons.add(
+      InteractiveButton(
+        type: "URL",
+        text: "Visit Website",
+        url: "https://example.com/shop",
+        example: [],
+      ),
+    );
+    btnTextCtrls.add(TextEditingController(text: "Visit Website"));
+    btnValueCtrls.add(TextEditingController(text: "https://example.com/shop"));
+    urlType.add("Static");
+    dynamicValueCtrl.add(TextEditingController());
+    btnTextErrors.add("");
+    btnValueErrors.add("");
+    urlCount.value--;
+
+    // 3. Phone Number
+    phoneCountryCode.value = "+91";
+    buttons.add(
+      InteractiveButton(
+        type: "PHONE_NUMBER",
+        text: "Call Support",
+        phoneNumber: "+919876543210",
+      ),
+    );
+    btnTextCtrls.add(TextEditingController(text: "Call Support"));
+    btnValueCtrls.add(TextEditingController(text: "9876543210"));
+    urlType.add("");
+    dynamicValueCtrl.add(TextEditingController());
+    btnTextErrors.add("");
+    btnValueErrors.add("");
+    phoneNumberCount.value--;
+
+    // 4. Copy Code
+    buttons.add(
+      InteractiveButton(
+        type: "COPY_CODE",
+        text: "Copy Coupon",
+        example: ["SALE30"],
+      ),
+    );
+    btnTextCtrls.add(TextEditingController(text: "Copy Coupon"));
+    btnValueCtrls.add(TextEditingController(text: "SALE30"));
+    urlType.add("");
+    dynamicValueCtrl.add(TextEditingController());
+    btnTextErrors.add("");
+    btnValueErrors.add("");
+    copyCodeCount.value--;
+
+    previewRefresh.value++;
+  }
+
+  void fillDemoCarouselCards() {
+    carouselCards.clear();
+
+    // Card 1
+    final card1 = CarouselCard();
+    card1.mediaType.value = 'Image';
+    card1.fileBytes.value = DemoTemplateAssets.shoesImage;
+    card1.fileName.value = 'shoes.png';
+    card1.body.value =
+        'Explore our Special Offers, Premium sneakers for everyday style. Enjoy exclusive 40% discounts for a limited time!';
+    card1.buttons.add(
+      InteractiveButton(type: 'QUICK_REPLY', text: 'View Details'),
+    );
+    card1.countryCodes.add('+91');
+    card1.buttonTextErrors.add('');
+    card1.buttonValueErrors.add('');
+
+    card1.buttons.add(
+      InteractiveButton(
+        type: 'URL',
+        text: 'Shop Now',
+        url: 'https://example.com/mens',
+      ),
+    );
+    card1.countryCodes.add('+91');
+    card1.buttonTextErrors.add('');
+    card1.buttonValueErrors.add('');
+    carouselCards.add(card1);
+
+    // Card 2
+    final card2 = CarouselCard();
+    card2.mediaType.value = 'Image';
+    card2.fileBytes.value = DemoTemplateAssets.bagsImage;
+    card2.fileName.value = 'bags.png';
+    card2.body.value =
+        'Explore our Special Offers, Stylish and durable for work & travel.. Enjoy exclusive 40% discounts for a limited time!';
+    card2.buttons.add(
+      InteractiveButton(type: 'QUICK_REPLY', text: 'More Info'),
+    );
+    card2.countryCodes.add('+91');
+    card2.buttonTextErrors.add('');
+    card2.buttonValueErrors.add('');
+
+    card2.buttons.add(
+      InteractiveButton(
+        type: 'URL',
+        text: 'Order Now',
+        url: 'https://example.com/womens',
+      ),
+    );
+    card2.countryCodes.add('+91');
+    card2.buttonTextErrors.add('');
+    card2.buttonValueErrors.add('');
+    carouselCards.add(card2);
+
+    selectedCardIndex.value = 0;
+    _syncCardToControllers();
+    previewRefresh.value++;
+  }
+
+  void fillDemoMedia() {
+    selectedMediaType.value = 'Image';
+    selectedFileName.value = 'img_sale.png';
+    selectedFileBytes.value = DemoTemplateAssets.saleImage;
+    selectedFileError.value = '';
+    previewRefresh.value++;
+
+    DemoTemplateAssets.loadAssetBytes(DemoTemplateAssets.saleImagePath)
+        .then((bytes) {
+          selectedFileBytes.value = bytes;
+          previewRefresh.value++;
+        })
+        .catchError((_) {});
+  }
+
+  void fillDemoData({String? forcedType}) {
+    ensureControllersActive();
+
+    templateCategory.value = 'Marketing';
+    templateLanguage.value = 'en';
+
+    templateName.value = 'demo_special_offer';
+    nameCtrl.text = 'demo_special_offer';
+
+    templateHeader.value = '';
+    headerCtrl.clear();
+
+    templateFooter.value = '';
+    footerCtrl.clear();
+
+    final demoBody =
+        'Hello {{1}}, we are excited to share our exclusive {{2}} discount on all new arrivals! Grab your favorites before stock runs out.';
+    formatCtrl.text = demoBody;
+    updateTemplateFormat(demoBody);
+
+    if (variableControllers.isNotEmpty) {
+      variableControllers[0].text = 'John Doe';
+    }
+    if (variableControllers.length >= 2) {
+      variableControllers[1].text = '70% OFF';
+    }
+
+    final targetType =
+        forcedType ??
+        (templateType.value.isNotEmpty ? templateType.value : 'Interactive');
+    templateType.value = targetType;
+
+    if (targetType == 'Carousel') {
+      fillDemoCarouselCards();
+      q2Selection.value = 3;
+    } else if (targetType == 'Text & Media') {
+      fillDemoMedia();
+      buttons.clear();
+      q2Selection.value = 1;
+    } else if (targetType == 'Text') {
+      selectedMediaType.value = '';
+      selectedFileBytes.value = null;
+      selectedFileName.value = '';
+      buttons.clear();
+      q2Selection.value = 0;
+    } else {
+      // Interactive
+      fillDemoButtons();
+      q2Selection.value = 2;
+    }
+
+    q1Selection.value = 1;
+    nameError.value = '';
+    languageError.value = '';
+    formatError.value = '';
+    headerError.value = '';
+    footerError.value = '';
+    previewRefresh.value++;
+  }
+
+  void fillNoOfferButtons() {
+    buttons.clear();
+    btnTextCtrls.clear();
+    btnValueCtrls.clear();
+    btnTextErrors.clear();
+    btnValueErrors.clear();
+    urlType.clear();
+    dynamicValueCtrl.clear();
+    quickRepliesCount.value = 10;
+    urlCount.value = 2;
+    phoneNumberCount.value = 1;
+    copyCodeCount.value = 1;
+
+    // 1. Quick Reply (Informational)
+    buttons.add(InteractiveButton(type: "QUICK_REPLY", text: "Acknowledge"));
+    btnTextCtrls.add(TextEditingController(text: "Acknowledge"));
+    btnValueCtrls.add(TextEditingController());
+    urlType.add("");
+    dynamicValueCtrl.add(TextEditingController());
+    btnTextErrors.add("");
+    btnValueErrors.add("");
+    quickRepliesCount.value--;
+
+    // 2. URL (Support / Status Link)
+    buttons.add(
+      InteractiveButton(
+        type: "URL",
+        text: "View Status",
+        url: "https://example.com/status",
+        example: [],
+      ),
+    );
+    btnTextCtrls.add(TextEditingController(text: "View Status"));
+    btnValueCtrls.add(
+      TextEditingController(text: "https://example.com/status"),
+    );
+    urlType.add("Static");
+    dynamicValueCtrl.add(TextEditingController());
+    btnTextErrors.add("");
+    btnValueErrors.add("");
+    urlCount.value--;
+
+    // 3. Phone Number (Helpdesk)
+    phoneCountryCode.value = "+91";
+    buttons.add(
+      InteractiveButton(
+        type: "PHONE_NUMBER",
+        text: "Call Support",
+        phoneNumber: "+919876543210",
+      ),
+    );
+    btnTextCtrls.add(TextEditingController(text: "Call Support"));
+    btnValueCtrls.add(TextEditingController(text: "9876543210"));
+    urlType.add("");
+    dynamicValueCtrl.add(TextEditingController());
+    btnTextErrors.add("");
+    btnValueErrors.add("");
+    phoneNumberCount.value--;
+
+    previewRefresh.value++;
+  }
+
+  void fillNoOfferDemoData({String? forcedType}) {
+    ensureControllersActive();
+
+    templateCategory.value = 'Utility';
+    templateLanguage.value = 'en';
+
+    templateName.value = 'service_update_notice';
+    nameCtrl.text = 'service_update_notice';
+
+    templateHeader.value = 'Important Account Update';
+    headerCtrl.text = 'Important Account Update';
+
+    templateFooter.value = 'For assistance, reply HELP';
+    footerCtrl.text = 'For assistance, reply HELP';
+
+    final demoBody =
+        "Hi {{1}}, there is an update regarding your service request {{2}}.\nStatus: {{3}}\nWe will notify you when there is another update.";
+    formatCtrl.text = demoBody;
+    updateTemplateFormat(demoBody);
+
+    if (variableControllers.isNotEmpty) {
+      variableControllers[0].text = 'Rahul';
+    }
+    if (variableControllers.length >= 2) {
+      variableControllers[1].text = 'SR123456';
+    }
+
+    if (variableControllers.length >= 3) {
+      variableControllers[2].text = 'In Progress';
+    }
+
+    // Carousel is not allowed for Utility category
+    carouselCards.clear();
+
+    final targetType =
+        forcedType ??
+        (templateType.value.isNotEmpty && templateType.value != 'Carousel'
+            ? templateType.value
+            : 'Interactive');
+    templateType.value = targetType;
+
+    if (targetType == 'Text & Media') {
+      fillDemoMedia();
+      buttons.clear();
+      q2Selection.value = 1;
+    } else if (targetType == 'Text') {
+      selectedMediaType.value = '';
+      selectedFileBytes.value = null;
+      selectedFileName.value = '';
+      buttons.clear();
+      q2Selection.value = 0;
+    } else {
+      fillNoOfferButtons();
+      q2Selection.value = 2;
+    }
+
+    q1Selection.value = 2;
+    nameError.value = '';
+    languageError.value = '';
+    formatError.value = '';
+    headerError.value = '';
+    footerError.value = '';
+    previewRefresh.value++;
+  }
+
+  void autoFillFromQuestions() {
+    if (q1Selection.value == -1 || q2Selection.value == -1) return;
+
+    final q1 = q1Selection.value;
+    final q2 = q2Selection.value;
+
+    String targetType = 'Text';
+    if (q2 == 0) {
+      targetType = 'Text';
+    } else if (q2 == 1) {
+      targetType = 'Text & Media';
+    } else if (q2 == 2) {
+      targetType = 'Interactive';
+    } else if (q2 == 3) {
+      targetType = 'Carousel';
+    }
+
+    if (q1 == 1 || targetType == 'Carousel') {
+      fillDemoData(forcedType: targetType);
+      q1Selection.value = 1;
+      q2Selection.value = q2;
+    } else {
+      fillNoOfferDemoData(forcedType: targetType);
+      q1Selection.value = q1;
+      q2Selection.value = q2;
+    }
   }
 
   // ===========================================================================
@@ -1783,6 +2290,14 @@ class CreateTemplateController extends GetxController {
     }
 
     if (isViewMode.value) return true;
+
+    // If it's prefilled with default demo data, allow leaving without confirmation dialog
+    if ((nameCtrl.text.trim() == 'demo_special_offer' &&
+            templateName.value == 'demo_special_offer') ||
+        (nameCtrl.text.trim() == 'service_update_notice' &&
+            templateName.value == 'service_update_notice')) {
+      return true;
+    }
 
     // Check if basic fields are empty
     bool isBasicBlank =
@@ -1943,35 +2458,12 @@ class CreateTemplateController extends GetxController {
 
   @override
   void onClose() {
-    nameCtrl.dispose();
-    formatCtrl.dispose();
-    headerCtrl.dispose();
-    footerCtrl.dispose();
-    searchCtrl.dispose();
-    nameFocus.dispose();
-    formatFocus.dispose();
-    headerFocus.dispose();
-    footerFocus.dispose();
-    cardFormatCtrl.dispose();
-    carouselScrollCtrl.dispose();
-
-    for (var controller in btnTextCtrls) {
-      controller.dispose();
+    // Note: Do not manually dispose TextEditingControllers and FocusNodes here.
+    // In MainShellView, controllers persist across route switches or can be reused.
+    // Explicit disposal causes "used after disposed" assertion errors when navigating back.
+    if (_beforeUnloadListener != null) {
+      web.window.removeEventListener('beforeunload', _beforeUnloadListener);
     }
-    for (var controller in btnValueCtrls) {
-      controller.dispose();
-    }
-    for (var controller in dynamicValueCtrl) {
-      controller.dispose();
-    }
-    for (var controller in variableControllers) {
-      controller.dispose();
-    }
-    for (var card in carouselCards) {
-      card.dispose();
-    }
-
-    _beforeUnloadSubscription?.cancel();
 
     super.onClose();
   }

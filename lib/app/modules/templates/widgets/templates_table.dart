@@ -58,125 +58,146 @@ class TemplatesTable extends StatelessWidget {
       );
     }
 
-    final bool useScrollableLayout = Responsive.isMobile(context) || MediaQuery.of(context).size.height < 700;
+    final bool useScrollableLayout =
+        Responsive.isMobile(context) ||
+        MediaQuery.of(context).size.height < 700;
 
-    return LayoutBuilder(builder: (context, constraints) {
-      final double tableWidth = Responsive.isMobile(context)
-          ? 1000
-          : (constraints.maxWidth > 900 ? constraints.maxWidth : 900);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double tableWidth = Responsive.isMobile(context)
+            ? 1000
+            : (constraints.maxWidth > 900 ? constraints.maxWidth : 900);
 
-      return Container(
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.cardDark : Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isDark ? AppColors.borderDark : Colors.grey[200]!,
+        return Container(
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.cardDark : Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isDark ? AppColors.borderDark : Colors.grey[200]!,
+            ),
+            boxShadow: isDark
+                ? []
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 10,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
           ),
-          boxShadow: isDark
-              ? []
-              : [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-        ),
-        child: Column(
-          children: [
-            // Scrollable Table Content (Fixed Header, Scrollable Rows)
-            if (useScrollableLayout)
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: SizedBox(
-                  width: tableWidth,
-                  child: Column(
-                    children: [
-                      // Table Header (Fixed at top of vertical scroll)
-                      _buildHeader(isDark),
+          child: Column(
+            children: [
+              // Scrollable Table Content (Fixed Header, Scrollable Rows)
+              if (useScrollableLayout)
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: SizedBox(
+                    width: tableWidth,
+                    child: Column(
+                      children: [
+                        // Table Header (Fixed at top of vertical scroll)
+                        _buildHeader(isDark),
 
-                      if (isLoading)
-                        LinearProgressIndicator(
-                          minHeight: 2,
-                          backgroundColor: Colors.transparent,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            isDark ? AppColors.primaryDark : AppColors.primary,
+                        if (isLoading)
+                          LinearProgressIndicator(
+                            minHeight: 2,
+                            backgroundColor: Colors.transparent,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              isDark
+                                  ? AppColors.primaryDark
+                                  : AppColors.primary,
+                            ),
+                          ),
+
+                        // Scrollable Rows
+                        ListView.separated(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: templates.length,
+                          separatorBuilder: (context, index) => Divider(
+                            height: 1,
+                            color: isDark
+                                ? AppColors.borderDark
+                                : Colors.grey[200],
+                          ),
+                          itemBuilder: (context, index) {
+                            final template = templates[index];
+                            return _buildRow(template, isDark);
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, tableConstraints) {
+                      return SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: Responsive.isMobile(context)
+                            ? const BouncingScrollPhysics()
+                            : const AlwaysScrollableScrollPhysics(),
+                        child: SizedBox(
+                          width: tableWidth,
+                          height: tableConstraints.maxHeight,
+                          child: Column(
+                            children: [
+                              // Table Header (Fixed at top of vertical scroll)
+                              _buildHeader(isDark),
+
+                              if (isLoading)
+                                LinearProgressIndicator(
+                                  minHeight: 2,
+                                  backgroundColor: Colors.transparent,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    isDark
+                                        ? AppColors.primaryDark
+                                        : AppColors.primary,
+                                  ),
+                                ),
+
+                              // Scrollable Rows
+                              Expanded(
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.vertical,
+                                  physics:
+                                      const AlwaysScrollableScrollPhysics(),
+                                  child: ListView.separated(
+                                    shrinkWrap: true,
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
+                                    itemCount: templates.length,
+                                    separatorBuilder: (context, index) =>
+                                        Divider(
+                                          height: 1,
+                                          color: isDark
+                                              ? AppColors.borderDark
+                                              : Colors.grey[200],
+                                        ),
+                                    itemBuilder: (context, index) {
+                                      final template = templates[index];
+                                      return _buildRow(template, isDark);
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-
-                      // Scrollable Rows
-                      ListView.separated(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: templates.length,
-                        separatorBuilder: (context, index) =>
-                            Divider(height: 1, color: isDark ? AppColors.borderDark : Colors.grey[200]),
-                        itemBuilder: (context, index) {
-                          final template = templates[index];
-                          return _buildRow(template, isDark);
-                        },
-                      ),
-                    ],
+                      );
+                    },
                   ),
                 ),
-              )
-            else
-              Expanded(
-                child: LayoutBuilder(builder: (context, tableConstraints) {
-                  return SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    physics: Responsive.isMobile(context)
-                        ? const BouncingScrollPhysics()
-                        : const AlwaysScrollableScrollPhysics(),
-                    child: SizedBox(
-                      width: tableWidth,
-                      height: tableConstraints.maxHeight,
-                      child: Column(
-                        children: [
-                          // Table Header (Fixed at top of vertical scroll)
-                          _buildHeader(isDark),
 
-                          if (isLoading)
-                            LinearProgressIndicator(
-                              minHeight: 2,
-                              backgroundColor: Colors.transparent,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                isDark ? AppColors.primaryDark : AppColors.primary,
-                              ),
-                            ),
-
-                          // Scrollable Rows
-                          Expanded(
-                            child: SingleChildScrollView(
-                              scrollDirection: Axis.vertical,
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              child: ListView.separated(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                itemCount: templates.length,
-                                separatorBuilder: (context, index) =>
-                                    Divider(height: 1, color: isDark ? AppColors.borderDark : Colors.grey[200]),
-                                itemBuilder: (context, index) {
-                                  final template = templates[index];
-                                  return _buildRow(template, isDark);
-                                },
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }),
-              ),
-
-            // Pagination (Fixed at bottom)
-            _buildPaginationControls(context, isDark),
-          ],
-        ),
-      );
-    });
+              // Pagination (Fixed at bottom)
+              _buildPaginationControls(context, isDark),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   // ------------------- HEADER -------------------

@@ -754,10 +754,12 @@ class _TemplateCardWidgetState extends State<TemplateCardWidget> {
                             "Media uploaded successfully!",
                           );
                         } else {
-                          card.uploadError.value = "Upload failed.";
+                          final msg = uploadResult["message"]?.toString() ??
+                              "Upload failed.";
+                          card.uploadError.value = msg;
                           Utilities.showSnackbar(
                             SnackType.ERROR,
-                            "Could not upload media. Please try again.",
+                            "Could not upload media: $msg",
                           );
                         }
                       } catch (e) {

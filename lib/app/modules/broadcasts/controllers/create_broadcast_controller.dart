@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:math' as math;
 import 'package:business_whatsapp/app/Utilities/api_endpoints.dart';
+import 'package:business_whatsapp/app/data/services/clients_service.dart';
 import 'package:csv/csv.dart';
 import 'package:file_saver/file_saver.dart';
 
@@ -27,9 +29,7 @@ import 'package:business_whatsapp/app/data/services/upload_file_firebase.dart';
 import 'package:business_whatsapp/app/modules/broadcasts/views/widgets/segment_filter_popup.dart';
 import 'package:business_whatsapp/app/modules/contacts/services/import_service.dart';
 import 'package:business_whatsapp/app/routes/app_pages.dart';
-import 'package:business_whatsapp/app/utilities/constants/app_constants.dart';
 import 'package:chips_input_autocomplete/chips_input_autocomplete.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'broadcasts_controller.dart';
@@ -46,6 +46,8 @@ class CreateBroadcastController extends GetxController {
   final nameController = TextEditingController().obs;
   final descriptionController = TextEditingController().obs;
   final RxString editingBroadcastId = ''.obs;
+  final RxString draftAdminId = ''.obs;
+  final RxString draftAdminName = ''.obs;
   final deliveryOption = 0.obs;
   final RxString selectedFileName = ''.obs;
   final RxString selectedFileError = ''.obs;
@@ -894,9 +896,12 @@ class CreateBroadcastController extends GetxController {
 
     isUploadingMedia.value = false;
     if (result["success"] == true) {
-      mediaHandleId.value = result["media_id"];
+      mediaHandleId.value = result["media_id"] ?? "";
+      selectedFileError.value = "";
     } else {
-      selectedFileError.value = "Failed to upload media.";
+      final err = result["message"]?.toString() ?? "Failed to upload media.";
+      selectedFileError.value = err;
+      Utilities.showSnackbar(SnackType.ERROR, "Upload error: $err");
     }
   }
 
@@ -1478,7 +1483,9 @@ class CreateBroadcastController extends GetxController {
     nameController.value.text = draft.broadcastName;
     descriptionController.value.text = draft.description;
     editingBroadcastId.value = draft.id!;
-    enableRetry.value = draft.enableRetry ?? false;
+    enableRetry.value = draft.enableRetry ?? true;
+    draftAdminId.value = draft.adminId ?? '';
+    draftAdminName.value = draft.adminName ?? '';
 
     //  Load template
     selectedTemplate.value = draft.templateId ?? "";
@@ -1587,7 +1594,7 @@ class CreateBroadcastController extends GetxController {
 
       // print("🔄 VIEWING BROADCAST: ${broadcast.broadcastName}");
       completedAt.value = broadcast.completedAt;
-      enableRetry.value = broadcast.enableRetry ?? false;
+      enableRetry.value = broadcast.enableRetry ?? true;
 
       // ----------------------------------------------------
       // 2️⃣ LOAD TEMPLATE FROM TEMPLATE ID
@@ -1824,6 +1831,12 @@ class CreateBroadcastController extends GetxController {
       status: "draft",
       contactIds: contactIdsList,
       completedAt: null,
+      adminName: adminName.value.isNotEmpty
+          ? adminName.value
+          : (draftAdminName.value.isNotEmpty ? draftAdminName.value : 'Admin'),
+      adminId: adminID.isNotEmpty
+          ? adminID
+          : (draftAdminId.value.isNotEmpty ? draftAdminId.value : null),
       enableRetry: enableRetry.value,
     );
 
@@ -1875,29 +1888,16 @@ class CreateBroadcastController extends GetxController {
     return true;
   }
 
-  /// Load wallet balance from Firebase
-  void loadWalletBalance() {
-    FirebaseFirestore.instance
-        .collection('profile')
-        .doc(clientID)
-        .collection('data')
-        .doc('wallet')
-        .snapshots()
-        .listen(
-          (snapshot) {
-            if (snapshot.exists) {
-              final data = snapshot.data()!;
-              final balance = (data['balance'] as num?)?.toDouble() ?? 0.0;
-              walletBalance.value = balance;
-            } else {
-              walletBalance.value = 0.0;
-            }
-          },
-          onError: (error) {
-            print('Error loading wallet balance: $error');
-            walletBalance.value = 0.0;
-          },
-        );
+  /// Load wallet balance from Backend Client Details
+  Future<void> loadWalletBalance() async {
+    try {
+      final client = await ClientsService().getClientById(clientID);
+      if (client != null) {
+        walletBalance.value = client.walletBalance;
+      }
+    } catch (e) {
+      print('Error loading wallet balance: $e');
+    }
   }
 
   /// Map to store charges data loaded from local storage
@@ -2200,12 +2200,7 @@ class CreateBroadcastController extends GetxController {
         // ----------------------------
         final String broadcastId = editingBroadcastId.value.isNotEmpty
             ? editingBroadcastId.value
-            : FirebaseFirestore.instance
-                  .collection("broadcasts")
-                  .doc(clientID)
-                  .collection("data")
-                  .doc()
-                  .id;
+            : "bc_${DateTime.now().millisecondsSinceEpoch}_${math.Random().nextInt(99999)}";
 
         // ----------------------------
         //  STEP 4: CAPTURE/BUILD BROADCAST MODEL
@@ -2271,7 +2266,14 @@ class CreateBroadcastController extends GetxController {
               ? selectedScheduleTime.value
               : DateTime.now(),
           completedAt: null,
-          adminName: adminName.value.isNotEmpty ? adminName.value : 'Admin',
+          adminName: adminName.value.isNotEmpty
+              ? adminName.value
+              : (draftAdminName.value.isNotEmpty
+                    ? draftAdminName.value
+                    : 'Admin'),
+          adminId: adminID.isNotEmpty
+              ? adminID
+              : (draftAdminId.value.isNotEmpty ? draftAdminId.value : null),
           totalCost: totalCost,
           enableRetry: enableRetry.value,
         );
@@ -2284,18 +2286,12 @@ class CreateBroadcastController extends GetxController {
             ? 'MEDIA'
             : templateType.value.toUpperCase();
 
-        final messagesRef = FirebaseFirestore.instance
-            .collection("broadcasts")
-            .doc(clientID)
-            .collection("data")
-            .doc(broadcastId)
-            .collection("messages");
-
         final List<String> messageIds = [];
         final List<Map<String, dynamic>> payloadJsons = [];
+        int msgSeq = 0;
 
         for (final contact in finalRecipients) {
-          final messageId = messagesRef.doc().id;
+          final messageId = "msg_${DateTime.now().microsecondsSinceEpoch}_${msgSeq++}";
 
           // Build dynamic variables for THIS contact
           final bodyVars = buildBodyVarsForContact(contact);
@@ -2781,6 +2777,11 @@ class CreateBroadcastController extends GetxController {
         deliveryTimestamp: broadcast.deliveryTimestamp,
         completedAt: broadcast.completedAt,
         adminName: broadcast.adminName,
+        adminId:
+            broadcast.adminId ??
+            (adminID.isNotEmpty
+                ? adminID
+                : (draftAdminId.value.isNotEmpty ? draftAdminId.value : null)),
         totalCost: broadcast.totalCost,
         enableRetry: broadcast.enableRetry,
       );

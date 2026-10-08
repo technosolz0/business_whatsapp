@@ -1,4 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get/get.dart';
 
 class AutomationNodeData {
@@ -83,12 +82,16 @@ class AutomationFlowModel {
     this.updatedAt,
   }) : isActive = isActive.obs;
 
-  factory AutomationFlowModel.fromFirestore(DocumentSnapshot doc) {
+  factory AutomationFlowModel.fromFirestore(dynamic doc) {
     final data = (doc.data() as Map<String, dynamic>?) ?? {};
     DateTime? parseDate(dynamic val) {
-      if (val is Timestamp) return val.toDate();
       if (val is String) return DateTime.tryParse(val);
-      return null;
+      if (val is int) return DateTime.fromMillisecondsSinceEpoch(val);
+      try {
+        return (val as dynamic)?.toDate();
+      } catch (_) {
+        return null;
+      }
     }
 
     return AutomationFlowModel(
@@ -107,4 +110,32 @@ class AutomationFlowModel {
       updatedAt: parseDate(data['updatedAt']),
     );
   }
+
+  factory AutomationFlowModel.fromJson(Map<String, dynamic> data, {String? id}) {
+    DateTime? parseDate(dynamic val) {
+      if (val is String) return DateTime.tryParse(val);
+      if (val is int) return DateTime.fromMillisecondsSinceEpoch(val);
+      return null;
+    }
+
+    return AutomationFlowModel(
+      id: id ?? data['id']?.toString() ?? '',
+      name: data['flowName']?.toString() ?? data['name']?.toString() ?? 'Untitled Flow',
+      createdBy: data['createdBy']?.toString() ?? '',
+      isActive: (data['status']?.toString() ?? '').toLowerCase() == 'active',
+      uiFlowJson: data['ui_flow']?.toString(),
+      triggerKeywords: (data['trigger_keywords'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          (data['triggerKeywords'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
+      startNode: data['start_node']?.toString() ?? data['startNode']?.toString(),
+      nodes: data['nodes'] as Map<String, dynamic>?,
+      createdAt: parseDate(data['createdAt']),
+      updatedAt: parseDate(data['updatedAt']),
+    );
+  }
 }
+

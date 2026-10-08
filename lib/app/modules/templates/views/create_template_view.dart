@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-
 import 'package:get/get.dart';
-import 'package:business_whatsapp/main.dart';
 import 'package:business_whatsapp/app/common%20widgets/shimmer_widgets.dart';
 import 'package:dropdown_button2/dropdown_button2.dart';
 import '../../../Utilities/responsive.dart';
@@ -19,16 +17,20 @@ import '../widgets/interactive_actions_widget.dart';
 import 'package:country_code_picker/country_code_picker.dart';
 import 'package:flutter/services.dart';
 import '../widgets/upload_media_widget.dart';
-import '../../../utilities/constants/app_constants.dart';
+import '../../../Utilities/constants/app_constants.dart';
 
 class CreateTemplateView extends GetView<CreateTemplateController> {
   final FocusNode _cardFormatFocusNode = FocusNode();
   final ValueNotifier<bool> _isCardFormatFocused = ValueNotifier<bool>(false);
+  final RxBool isRecommendationExpanded = true.obs;
+  RxInt get q1Selection => controller.q1Selection;
+  RxInt get q2Selection => controller.q2Selection;
 
   CreateTemplateView({super.key});
 
   @override
   Widget build(BuildContext context) {
+    controller.ensureControllersActive();
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
@@ -163,87 +165,82 @@ class CreateTemplateView extends GetView<CreateTemplateController> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(flex: 2, child: _buildFormSection(context, isDark)),
+        Expanded(flex: 3, child: _buildFormSection(context, isDark)),
         const SizedBox(width: 32),
-        const Expanded(flex: 1, child: TemplatePreviewWidget()),
+        const Expanded(flex: 2, child: TemplatePreviewWidget()),
       ],
     );
   }
 
   Widget _buildFormSection(BuildContext context, bool isDark) {
     final isMobile = Responsive.isMobile(context);
+    final fieldSpacing = isMobile
+        ? AppConstants.formSpacingMobile
+        : AppConstants.formSpacing;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Category and Language in row
-        LayoutBuilder(
-          builder: (context, constraints) {
-            if (constraints.maxWidth > 600) {
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: _buildCategoryField(isDark)),
-                  const SizedBox(width: 24),
-                  Expanded(child: _buildLanguageField(isDark)),
-                ],
-              );
-            } else {
-              return Column(
-                children: [
-                  _buildCategoryField(isDark),
-                  const SizedBox(height: AppConstants.formSpacingMobile),
-                  _buildLanguageField(isDark),
-                ],
-              );
-            }
-          },
-        ),
-        SizedBox(
-          height: isMobile
-              ? AppConstants.formSpacingMobile
-              : AppConstants.formSpacing,
-        ),
+        // Recommendation Banner
+        _buildRecommendationBanner(isDark),
+        SizedBox(height: fieldSpacing),
+
+        // Category Selection
+        _buildCategorySelection(context, isDark),
+        SizedBox(height: fieldSpacing),
+
+        // Type Selection
+        _buildTypeSelection(context, isDark),
+        SizedBox(height: fieldSpacing),
+
+        // Media Sample selector & upload box (if Text & Media or Interactive)
+        Obx(() {
+          final isMedia =
+              controller.templateType.value == 'Text & Media' ||
+              controller.templateType.value == 'Interactive';
+
+          if (!isMedia) return const SizedBox.shrink();
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TemplateFormFieldLabel(
+                label: 'Media Sample',
+                helpText: 'Choose the media format for the header.',
+                isRequired: controller.templateType.value == 'Text & Media',
+              ),
+              CommonDropdownTextfield<String>(
+                enabled: !controller.isViewMode.value,
+                items: controller.mediaOptions
+                    .map((m) => DropdownMenuItem(value: m, child: Text(m)))
+                    .toList(),
+                initialValue: controller.selectedMediaType.value.isEmpty
+                    ? null
+                    : controller.selectedMediaType.value,
+                onChanged: (v) {
+                  controller.updateMediaType(v);
+                  controller.selectedMediaType.value = v ?? "";
+                },
+                hintText: 'Select media type',
+              ),
+              if (controller.selectedMediaType.value.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                DragDropUploadBox(),
+              ],
+              SizedBox(height: fieldSpacing),
+            ],
+          );
+        }),
 
         // Template Name
         _buildNameField(isDark),
-        SizedBox(
-          height: isMobile
-              ? AppConstants.formSpacingMobile
-              : AppConstants.formSpacing,
-        ),
+        SizedBox(height: fieldSpacing),
 
-        // Template Type
-        _buildTypeField(context, isDark),
-        SizedBox(
-          height: isMobile
-              ? AppConstants.formSpacingMobile
-              : AppConstants.formSpacing,
-        ),
-        Visibility(
-          visible:
-              ((controller.templateType.value == 'Text & Media' ||
-                  controller.templateType.value == 'Interactive') &&
-              controller.selectedMediaType.value != ''),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              DragDropUploadBox(),
-              SizedBox(
-                height: isMobile
-                    ? AppConstants.formSpacingMobile
-                    : AppConstants.formSpacing,
-              ),
-            ],
-          ),
-        ),
-        // Template Format
-        _buildFormatField(isDark),
-        SizedBox(
-          height: isMobile
-              ? AppConstants.formSpacingMobile
-              : AppConstants.formSpacing,
-        ),
+        // Template Language
+        _buildLanguageField(isDark),
+        SizedBox(height: fieldSpacing),
 
+        // Header (Optional)
         if (controller.templateType.value != "Carousel") ...[
           Obx(() {
             final isMediaHeader =
@@ -255,24 +252,20 @@ class CreateTemplateView extends GetView<CreateTemplateController> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildHeaderField(isDark),
-                SizedBox(
-                  height: isMobile
-                      ? AppConstants.formSpacingMobile
-                      : AppConstants.formSpacing,
-                ),
+                SizedBox(height: fieldSpacing),
               ],
             );
           }),
         ],
 
-        // Template Footer
+        // Message * (Template Format + Sample Values)
+        _buildFormatField(isDark),
+        SizedBox(height: fieldSpacing),
+
+        // Footer (Optional)
         if (controller.templateType.value != "Carousel") ...[
           _buildFooterField(isDark),
-          SizedBox(
-            height: isMobile
-                ? AppConstants.formSpacingMobile
-                : AppConstants.formSpacing,
-          ),
+          SizedBox(height: fieldSpacing),
         ],
 
         // Interactive Actions
@@ -298,6 +291,8 @@ class CreateTemplateView extends GetView<CreateTemplateController> {
               ),
             ),
           ),
+
+        // Meta info notice
         Obx(() {
           final isMarketing = controller.templateCategory.value == "Marketing";
           final isInteractive = controller.templateType.value == "Interactive";
@@ -305,54 +300,50 @@ class CreateTemplateView extends GetView<CreateTemplateController> {
           final hasUrlButton = controller.buttons.any((b) => b.type == "URL");
 
           if (isMarketing && isInteractive && isImage && hasUrlButton) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  margin: const EdgeInsets.only(top: 16),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
+            return Container(
+              margin: const EdgeInsets.only(top: 16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? const Color(0xFF1E293B)
+                    : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isDark
+                      ? const Color(0xFF475569)
+                      : const Color(0xFFCBD5E1),
+                ),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.info_outline,
                     color: isDark
-                        ? const Color(0xFF1E293B)
-                        : const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: isDark
-                          ? const Color(0xFF475569)
-                          : const Color(0xFFCBD5E1),
+                        ? const Color(0xFF38BDF8)
+                        : const Color(0xFF0284C7),
+                    size: 20,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'As per change to the Meta guidelines: The image used will be linked to the attached URL.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF475569),
+                        height: 1.4,
+                      ),
                     ),
                   ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        Icons.info_outline,
-                        color: isDark
-                            ? const Color(0xFF38BDF8)
-                            : const Color(0xFF0284C7),
-                        size: 20,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'As per change to the Meta guidelines: The image used will be linked to the attached URL.',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: isDark
-                                ? const Color(0xFF94A3B8)
-                                : const Color(0xFF475569),
-                            height: 1.4,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                ],
+              ),
             );
           }
           return const SizedBox.shrink();
         }),
+
         const SizedBox(height: 32),
 
         // Submit Button
@@ -363,7 +354,7 @@ class CreateTemplateView extends GetView<CreateTemplateController> {
               onPressed: controller.cancelCreation,
               icon: Icons.arrow_back,
             ),
-            SizedBox(width: 20),
+            const SizedBox(width: 20),
             Obx(
               () => controller.isViewMode.value
                   ? const SizedBox.shrink()
@@ -375,32 +366,898 @@ class CreateTemplateView extends GetView<CreateTemplateController> {
     );
   }
 
-  Widget _buildCategoryField(bool isDark) {
+  // ===========================================================================
+  // RECOMMENDATION BANNER
+  // ===========================================================================
+  Widget _buildRecommendationBanner(bool isDark) {
+    return Obx(() {
+      final expanded = isRecommendationExpanded.value;
+
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F3F6),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header Row (Click to toggle expansion)
+            InkWell(
+              onTap: () => isRecommendationExpanded.toggle(),
+              borderRadius: BorderRadius.circular(8),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.auto_awesome,
+                      size: 18,
+                      color: Color(0xFF2563EB),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Choose the right template in seconds',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: isDark
+                                ? Colors.white
+                                : const Color(0xFF0F172A),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          "Answer 2 quick questions and we'll recommend the right category and type.",
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    expanded
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B),
+                    size: 24,
+                  ),
+                ],
+              ),
+            ),
+
+            if (expanded) ...[
+              const SizedBox(height: 18),
+
+              // Question 1: What's this message about?
+              Text(
+                "What's this message about?",
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 10),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final isNarrow = constraints.maxWidth < 650;
+                  final card1 = _buildQuestionOptionCard(
+                    title: 'An order, booking, or account update',
+                    isSelected: q1Selection.value == 0,
+                    isDark: isDark,
+                    onTap: () => _onQ1OptionSelected(0),
+                  );
+                  final card2 = _buildQuestionOptionCard(
+                    title: 'A special offer, promotion, or announcement',
+                    isSelected: q1Selection.value == 1,
+                    isDark: isDark,
+                    onTap: () => _onQ1OptionSelected(1),
+                  );
+                  final card3 = _buildQuestionOptionCard(
+                    title: 'Just informing people, no offer',
+                    isSelected: q1Selection.value == 2,
+                    isDark: isDark,
+                    onTap: () => _onQ1OptionSelected(2),
+                  );
+
+                  if (isNarrow) {
+                    return Column(
+                      children: [
+                        card1,
+                        const SizedBox(height: 10),
+                        card2,
+                        const SizedBox(height: 10),
+                        card3,
+                      ],
+                    );
+                  }
+
+                  return IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(child: card1),
+                        const SizedBox(width: 12),
+                        Expanded(child: card2),
+                        const SizedBox(width: 12),
+                        Expanded(child: card3),
+                      ],
+                    ),
+                  );
+                },
+              ),
+
+              const SizedBox(height: 18),
+
+              // Question 2: Do you want people to do something when they get it?
+              Text(
+                'Do you want people to do something when they get it?',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 10),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final isNarrow = constraints.maxWidth < 750;
+                  final card1 = _buildQuestionOptionCard(
+                    title: "No, it's just a message",
+                    isSelected: q2Selection.value == 0,
+                    isDark: isDark,
+                    onTap: () => _onQ2OptionSelected(0),
+                  );
+                  final card2 = _buildQuestionOptionCard(
+                    title: 'Text with image or video and any other files',
+                    isSelected: q2Selection.value == 1,
+                    isDark: isDark,
+                    onTap: () => _onQ2OptionSelected(1),
+                  );
+                  final card3 = _buildQuestionOptionCard(
+                    title: 'Yes — reply, call, or visit a link',
+                    isSelected: q2Selection.value == 2,
+                    isDark: isDark,
+                    onTap: () => _onQ2OptionSelected(2),
+                  );
+                  final card4 = _buildQuestionOptionCard(
+                    title: "I'm showing more than one product or option",
+                    isSelected: q2Selection.value == 3,
+                    isDark: isDark,
+                    onTap: () => _onQ2OptionSelected(3),
+                  );
+
+                  if (isNarrow) {
+                    return Column(
+                      children: [
+                        card1,
+                        const SizedBox(height: 10),
+                        card2,
+                        const SizedBox(height: 10),
+                        card3,
+                        const SizedBox(height: 10),
+                        card4,
+                      ],
+                    );
+                  }
+
+                  return IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(child: card1),
+                        const SizedBox(width: 12),
+                        Expanded(child: card2),
+                        const SizedBox(width: 12),
+                        Expanded(child: card3),
+                        const SizedBox(width: 12),
+                        Expanded(child: card4),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ],
+          ],
+        ),
+      );
+    });
+  }
+
+  void _onQ1OptionSelected(int index) {
+    if (controller.isViewMode.value) return;
+    q1Selection.value = index;
+    if (index == 1) {
+      controller.updateTemplateCategory('Marketing');
+    } else if (index == 2) {
+      if (controller.templateType.value == 'Carousel') {
+        controller.updateTemplateType('Text');
+        if (q2Selection.value == 3) {
+          q2Selection.value = 0;
+        }
+      }
+      controller.updateTemplateCategory('Utility');
+    } else {
+      if (controller.templateType.value == 'Carousel') {
+        controller.updateTemplateType('Text');
+        if (q2Selection.value == 3) {
+          q2Selection.value = 0;
+        }
+      }
+      controller.updateTemplateCategory('Utility');
+    }
+
+    if (q1Selection.value != -1 && q2Selection.value != -1) {
+      controller.autoFillFromQuestions();
+    }
+  }
+
+  void _onQ2OptionSelected(int index) {
+    if (controller.isViewMode.value) return;
+    q2Selection.value = index;
+    if (index == 0) {
+      controller.updateTemplateType('Text');
+      controller.selectedMediaType.value = '';
+    } else if (index == 1) {
+      controller.updateTemplateType('Text & Media');
+    } else if (index == 2) {
+      controller.updateTemplateType('Interactive');
+    } else if (index == 3) {
+      controller.updateTemplateCategory('Marketing');
+      q1Selection.value = 1;
+      controller.updateTemplateType('Carousel');
+    }
+
+    if (q1Selection.value != -1 && q2Selection.value != -1) {
+      controller.autoFillFromQuestions();
+    }
+  }
+
+  Widget _buildQuestionOptionCard({
+    required String title,
+    required bool isSelected,
+    required bool isDark,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF0F172A) : Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFF2563EB)
+                : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+            width: isSelected ? 1.5 : 1.0,
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  height: 1.35,
+                  color: isDark ? Colors.white : const Color(0xFF1E293B),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            _buildCustomRadio(isSelected, isDark),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ===========================================================================
+  // CATEGORY SELECTION
+  // ===========================================================================
+  Widget _buildCategorySelection(BuildContext context, bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const TemplateFormFieldLabel(
-          label: 'Template Category',
-          helpText: 'Your template should fall under one of these categories.',
-          isRequired: true,
+        Text(
+          'Category Selection',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: isDark ? Colors.white : const Color(0xFF0F172A),
+          ),
         ),
-        Obx(() {
-          return CommonDropdownTextfield<String>(
-            enabled: !controller.isViewMode.value,
-            items: controller.categoryOptions
-                .skip(1)
-                .map(
-                  (value) => DropdownMenuItem(value: value, child: Text(value)),
-                )
-                .toList(),
-            initialValue: controller.templateCategory.value.isEmpty
-                ? null
-                : controller.templateCategory.value,
-            onChanged: controller.updateTemplateCategory,
-            hintText: 'Select message categories',
-          );
-        }),
+        const SizedBox(height: 14),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final isNarrow = constraints.maxWidth < 650;
+            if (isNarrow) {
+              return Column(
+                children: [
+                  _buildMarketingCard(context, isDark),
+                  const SizedBox(height: 12),
+                  _buildUtilityCard(context, isDark),
+                ],
+              );
+            }
+            return IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(child: _buildMarketingCard(context, isDark)),
+                  const SizedBox(width: 16),
+                  Expanded(child: _buildUtilityCard(context, isDark)),
+                ],
+              ),
+            );
+          },
+        ),
       ],
+    );
+  }
+
+  Widget _buildMarketingCard(BuildContext context, bool isDark) {
+    return Obx(() {
+      final isSelected = controller.templateCategory.value == 'Marketing';
+      return InkWell(
+        onTap: controller.isViewMode.value
+            ? null
+            : () {
+                controller.updateTemplateCategory('Marketing');
+                if (q1Selection.value != -1) {
+                  q1Selection.value = 1;
+                }
+              },
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isSelected
+                  ? const Color(0xFF2563EB)
+                  : (isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0)),
+              width: isSelected ? 1.5 : 1.0,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'Marketing',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: isSelected
+                              ? const Color(0xFF2563EB)
+                              : (isDark
+                                    ? Colors.white
+                                    : const Color(0xFF0F172A)),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2563EB).withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.campaign_outlined,
+                          size: 14,
+                          color: Color(0xFF2563EB),
+                        ),
+                      ),
+                      if (isSelected) ...[
+                        const SizedBox(width: 8),
+                        _buildRecommendedTag(isDark),
+                      ],
+                    ],
+                  ),
+                  _buildCustomRadio(isSelected, isDark),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Promotions, offers, announcements, and re-engagement messages',
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.35,
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF334155),
+                ),
+              ),
+              const Spacer(),
+              const SizedBox(height: 12),
+              const Text(
+                'Best for : Discounts, launches, event invites',
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1.3,
+                  color: Color(0xFF64748B),
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+
+  Widget _buildUtilityCard(BuildContext context, bool isDark) {
+    return Obx(() {
+      final isSelected = controller.templateCategory.value == 'Utility';
+      return InkWell(
+        onTap: controller.isViewMode.value
+            ? null
+            : () {
+                controller.updateTemplateCategory('Utility');
+                if (q1Selection.value == 1) {
+                  q1Selection.value = 0;
+                }
+              },
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isSelected
+                  ? const Color(0xFF2563EB)
+                  : (isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0)),
+              width: isSelected ? 1.5 : 1.0,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'Utility',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: isSelected
+                              ? const Color(0xFF2563EB)
+                              : (isDark
+                                    ? Colors.white
+                                    : const Color(0xFF0F172A)),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2563EB).withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.receipt_long_outlined,
+                          size: 14,
+                          color: Color(0xFF2563EB),
+                        ),
+                      ),
+
+                      if (isSelected) ...[
+                        const SizedBox(width: 8),
+                        _buildRecommendedTag(isDark),
+                      ],
+                    ],
+                  ),
+                  _buildCustomRadio(isSelected, isDark),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Updates tied to something the customer already has going - an order, booking, or account',
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.35,
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF334155),
+                ),
+              ),
+              const Spacer(),
+              const SizedBox(height: 12),
+              const Text(
+                'Best for : Order confirmations, shipping updates, appointment reminders, payment receipts',
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1.3,
+                  color: Color(0xFF64748B),
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+
+  // ===========================================================================
+  // TYPE SELECTION
+  // ===========================================================================
+  Widget _buildTypeSelection(BuildContext context, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Type Selection',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+            color: isDark ? Colors.white : const Color(0xFF0F172A),
+          ),
+        ),
+        const SizedBox(height: 14),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final w = constraints.maxWidth;
+            if (w > 850) {
+              return IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(child: _buildTextTypeCard(context, isDark)),
+                    const SizedBox(width: 14),
+                    Expanded(child: _buildTextMediaTypeCard(context, isDark)),
+                    const SizedBox(width: 14),
+                    Expanded(child: _buildInteractiveTypeCard(context, isDark)),
+                    const SizedBox(width: 14),
+                    Expanded(child: _buildCarouselTypeCard(context, isDark)),
+                  ],
+                ),
+              );
+            } else if (w > 550) {
+              return Column(
+                children: [
+                  IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(child: _buildTextTypeCard(context, isDark)),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: _buildTextMediaTypeCard(context, isDark),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: _buildInteractiveTypeCard(context, isDark),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: _buildCarouselTypeCard(context, isDark),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            } else {
+              return Column(
+                children: [
+                  _buildTextTypeCard(context, isDark),
+                  const SizedBox(height: 12),
+                  _buildTextMediaTypeCard(context, isDark),
+                  const SizedBox(height: 12),
+                  _buildInteractiveTypeCard(context, isDark),
+                  const SizedBox(height: 12),
+                  _buildCarouselTypeCard(context, isDark),
+                ],
+              );
+            }
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTextTypeCard(BuildContext context, bool isDark) {
+    return Obx(() {
+      final isSelected = controller.templateType.value == 'Text';
+      return _buildTypeCardContainer(
+        title: 'Text',
+        icon: Icons.chat_bubble_outline_rounded,
+        description: 'A simple text message, no image or buttons',
+        subtext: 'Quick confirmations reminders, simple announcements',
+        isSelected: isSelected,
+        isDark: isDark,
+        onTap: () {
+          controller.updateTemplateType('Text');
+          controller.selectedMediaType.value = '';
+          if (q2Selection.value != -1) {
+            q2Selection.value = 0;
+          }
+        },
+      );
+    });
+  }
+
+  Widget _buildTextMediaTypeCard(BuildContext context, bool isDark) {
+    return Obx(() {
+      final isSelected = controller.templateType.value == 'Text & Media';
+      return _buildTypeCardContainer(
+        title: 'Text / Media',
+        icon: Icons.image_outlined,
+        description: 'Adds an image, video, or PDF above your message.',
+        subtext: 'Product photos, invoices, event posters, promotional banners',
+        isSelected: isSelected,
+        isDark: isDark,
+        onTap: () {
+          controller.updateTemplateType('Text & Media');
+          if (q2Selection.value != -1) {
+            q2Selection.value = 1;
+          }
+        },
+      );
+    });
+  }
+
+  Widget _buildInteractiveTypeCard(BuildContext context, bool isDark) {
+    return Obx(() {
+      final isSelected = controller.templateType.value == 'Interactive';
+      return _buildTypeCardContainer(
+        title: 'Interactive',
+        icon: Icons.touch_app_outlined,
+        description:
+            'Adds up to 4 tappable buttons below your message - quick replies, a website link, a phone call,or a copy code.',
+        subtext:
+            'Driving one specific action: confirm, call, visit, copy a code',
+        isSelected: isSelected,
+        isDark: isDark,
+        onTap: () {
+          controller.updateTemplateType('Interactive');
+          if (q2Selection.value != -1) {
+            q2Selection.value = 2;
+          }
+        },
+      );
+    });
+  }
+
+  Widget _buildCarouselTypeCard(BuildContext context, bool isDark) {
+    return Obx(() {
+      final isSelected = controller.templateType.value == 'Carousel';
+      final isMarketing = controller.templateCategory.value == 'Marketing';
+      final isEnabled = isMarketing;
+
+      return _buildTypeCardContainer(
+        title: 'Carousel',
+        icon: Icons.view_carousel_outlined,
+        description:
+            'A swipe able set of cards, each with its own image and text.',
+        subtext: 'Showing multiple products or options in one message',
+        isSelected: isSelected,
+        isEnabled: isEnabled,
+        isDark: isDark,
+        onTap: () {
+          if (!isMarketing) {
+            Get.snackbar(
+              'Carousel Template',
+              'Carousel templates are only available for Marketing category',
+              snackPosition: SnackPosition.BOTTOM,
+              backgroundColor: const Color(0xFFE87D03),
+              colorText: Colors.white,
+              margin: const EdgeInsets.all(16),
+              duration: const Duration(seconds: 3),
+            );
+            return;
+          }
+          controller.updateTemplateType('Carousel');
+          if (q2Selection.value != -1) {
+            q2Selection.value = 3;
+            q1Selection.value = 1;
+          }
+        },
+      );
+    });
+  }
+
+  Widget _buildTypeCardContainer({
+    required String title,
+    required IconData icon,
+    required String description,
+    required String subtext,
+    required bool isSelected,
+    required bool isDark,
+    required VoidCallback onTap,
+    bool isEnabled = true,
+  }) {
+    return Opacity(
+      opacity: isEnabled ? 1.0 : 0.45,
+      child: InkWell(
+        onTap: (!isEnabled || controller.isViewMode.value) ? null : onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isSelected
+                  ? const Color(0xFF2563EB)
+                  : (isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0)),
+              width: isSelected ? 1.5 : 1.0,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: const Color(
+                              0xFF2563EB,
+                            ).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Icon(
+                            icon,
+                            size: 16,
+                            color: const Color(0xFF2563EB),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            title,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: isSelected
+                                  ? const Color(0xFF2563EB)
+                                  : (isDark
+                                        ? Colors.white
+                                        : const Color(0xFF0F172A)),
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  _buildCustomRadio(isSelected, isDark),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                description,
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.35,
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF334155),
+                ),
+              ),
+              const Spacer(),
+              const SizedBox(height: 12),
+              Text(
+                subtext,
+                style: const TextStyle(
+                  fontSize: 12,
+                  height: 1.3,
+                  color: Color(0xFF64748B),
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+
+              if (isSelected) ...[
+                const SizedBox(height: 8),
+                _buildRecommendedTag(isDark),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCustomRadio(bool isSelected, bool isDark) {
+    return Container(
+      width: 20,
+      height: 20,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: isSelected
+              ? const Color(0xFF2563EB)
+              : (isDark ? const Color(0xFF64748B) : const Color(0xFFCBD5E1)),
+          width: 2,
+        ),
+      ),
+      child: isSelected
+          ? Center(
+              child: Container(
+                width: 10,
+                height: 10,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Color(0xFF2563EB),
+                ),
+              ),
+            )
+          : null,
+    );
+  }
+
+  Widget _buildRecommendedTag(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF334155) : const Color(0xFFF2F3F6),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        'Recommended',
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: isDark ? const Color(0xFF93C5FD) : const Color(0xFF033A6F),
+        ),
+      ),
     );
   }
 
@@ -648,111 +1505,6 @@ class CreateTemplateView extends GetView<CreateTemplateController> {
     });
   }
 
-  Widget _buildTypeField(BuildContext context, bool isDark) {
-    final isMobile = Responsive.isMobile(context);
-    return Obx(() {
-      final isCategorySelected =
-          controller.templateCategory.value.isNotEmpty &&
-          controller.templateCategory.value != 'Select message categories';
-
-      final isMedia =
-          controller.templateType.value == 'Text & Media' ||
-          controller.templateType.value == 'Interactive';
-
-      final typeField = Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const TemplateFormFieldLabel(
-            label: 'Template Type',
-            helpText:
-                'Your template type should fall under one of these categories.',
-            isRequired: true,
-          ),
-          CommonDropdownTextfield<String>(
-            enabled: isCategorySelected && !controller.isViewMode.value,
-            items: [
-              const DropdownMenuItem(value: 'Text', child: Text('Text')),
-              const DropdownMenuItem(
-                value: 'Text & Media',
-                child: Text('Text & Media'),
-              ),
-              const DropdownMenuItem(
-                value: 'Interactive',
-                child: Text('Interactive'),
-              ),
-              if (controller.templateCategory.value == 'Marketing' &&
-                  isCarouselTemplateEnabled.value == true)
-                const DropdownMenuItem(
-                  value: 'Carousel',
-                  child: Text('Carousel'),
-                ),
-            ],
-            initialValue:
-                controller.templateType.value.isEmpty || !isCategorySelected
-                ? null
-                : controller.templateType.value,
-            onChanged: (v) {
-              controller.updateTemplateType(v);
-              if (v == 'Text') {
-                controller.selectedMediaType.value = '';
-              }
-            },
-            hintText: isCategorySelected
-                ? 'Select message type'
-                : 'Select category first',
-          ),
-        ],
-      );
-
-      final mediaField = Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const TemplateFormFieldLabel(
-            label: 'Media Sample',
-            helpText: 'Choose the media format for the header.',
-          ),
-          CommonDropdownTextfield<String>(
-            enabled: !controller.isViewMode.value,
-            items: controller.mediaOptions
-                .map((m) => DropdownMenuItem(value: m, child: Text(m)))
-                .toList(),
-            initialValue: controller.selectedMediaType.value.isEmpty
-                ? null
-                : controller.selectedMediaType.value,
-            onChanged: (v) {
-              controller.updateMediaType(v);
-              controller.selectedMediaType.value = v ?? "";
-            },
-            hintText: 'Select media type',
-          ),
-        ],
-      );
-
-      if (isMobile) {
-        return Column(
-          children: [
-            typeField,
-            if (isMedia) ...[
-              const SizedBox(height: AppConstants.formSpacingMobile),
-              mediaField,
-            ],
-          ],
-        );
-      }
-
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(flex: isMedia ? 1 : 2, child: typeField),
-          if (isMedia) ...[
-            const SizedBox(width: 24),
-            Expanded(flex: 1, child: mediaField),
-          ],
-        ],
-      );
-    });
-  }
-
   Widget _buildFormatField(bool isDark) {
     return Obx(() {
       return Column(
@@ -963,7 +1715,7 @@ class CreateTemplateView extends GetView<CreateTemplateController> {
   Widget _buildSubmitButton(bool isDark, bool isEdit) {
     return Obx(
       () => CustomButton(
-        label: isEdit ? 'Update' : 'Submit',
+        label: isEdit ? 'Update Template' : 'Submit for Review',
         onPressed: controller.submitTemplate,
         type: ButtonType.primary,
         isLoading: controller.isSubmitting.value,

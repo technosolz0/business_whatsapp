@@ -39,5 +39,7 @@ class BroadcastTableModel {
     required this.enableRetry,
     required this.retryCampaignStatus,
     this.totalCost,
+    String? adminName,
+    String? adminId,
   });
 }

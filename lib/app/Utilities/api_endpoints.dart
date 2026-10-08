@@ -54,7 +54,7 @@ class ApiEndpoints {
   // Broadcast & Media Endpoints
   static const String uploadMediaToInterakt =
       "$serverUrl/uploadMediaToInterakt";
-  static const String uploadBroadcastMedia = "$serverUrl/uploadMedia";
+  static const String uploadBroadcastMedia = "$serverUrl/uploadBroadcastMedia";
   static const String sendTemplateMessage = "$serverUrl/sendTemplateMessage";
   static const String queueBroadcast = "$serverUrl/queueBroadcast";
   static const String patchBroadcast = "$serverUrl/patchBroadcast";
@@ -92,8 +92,10 @@ class ApiEndpoints {
   static const String updateChatbotDoc = "$serverUrl/chatbot/update";
   static const String deleteChatbotDoc = "$serverUrl/chatbot/delete";
   static const String listChatbotDocs = "$serverUrl/chatbot/list";
-  static const String updateChatbotQuestion = "$serverUrl/chatbot/questions/update";
-  static const String deleteChatbotQuestion = "$serverUrl/chatbot/questions/delete";
+  static const String updateChatbotQuestion =
+      "$serverUrl/chatbot/questions/update";
+  static const String deleteChatbotQuestion =
+      "$serverUrl/chatbot/questions/delete";
 
   // Other
   static const String getPhoneNumber = '$serverUrl/getPhoneNumber';

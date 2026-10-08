@@ -8,7 +8,6 @@ import 'package:business_whatsapp/app/routes/app_pages.dart';
 import 'package:business_whatsapp/main.dart';
 import 'package:business_whatsapp/app/Utilities/api_endpoints.dart';
 import 'package:business_whatsapp/app/Utilities/network_utilities.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -281,6 +280,8 @@ class BroadcastsController extends GetxController {
       enableRetry: model.enableRetry ?? false,
       retryCampaignStatus: model.retryCampaignStatus ?? '',
       totalCost: model.totalCost,
+      adminName: model.adminName,
+      adminId: model.adminId,
     );
   }
 
@@ -290,10 +291,7 @@ class BroadcastsController extends GetxController {
       final dio = NetworkUtilities.getDioClient();
       final response = await dio.get(
         ApiEndpoints.getBroadcastChargeableAmount,
-        queryParameters: {
-          'broadcastId': broadcastId,
-          'clientId': clientID,
-        },
+        queryParameters: {'broadcastId': broadcastId, 'clientId': clientID},
       );
       if (response.statusCode == 200 && response.data['success'] == true) {
         final val = response.data['chargeable_amount'];

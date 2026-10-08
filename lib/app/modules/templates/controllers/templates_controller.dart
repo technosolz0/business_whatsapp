@@ -3,6 +3,7 @@ import 'package:business_whatsapp/app/controllers/navigation_controller.dart';
 import 'package:business_whatsapp/app/core/constants/language_codes.dart';
 // import 'package:business_whatsapp/app/core/utils/utilities.dart';
 import 'package:business_whatsapp/app/data/models/template_model.dart';
+import 'package:business_whatsapp/app/data/services/template_firebase_service.dart';
 import 'package:business_whatsapp/app/modules/templates/controllers/create_template_controller.dart';
 import 'package:business_whatsapp/app/routes/app_pages.dart';
 import 'package:flutter/material.dart';
@@ -11,9 +12,7 @@ import 'package:get/get.dart';
 import '../../../Utilities/utilities.dart' show Utilities;
 import '../../../data/services/template_service.dart';
 import '../../../common widgets/common_alert_dialog_delete.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:business_whatsapp/main.dart';
-
 
 class TemplatesController extends GetxController {
   final RxBool isCreatingTemplate = false.obs;
@@ -111,7 +110,10 @@ class TemplatesController extends GetxController {
           .cast<TemplateModels>();
 
       if (parsed.isEmpty && (after != null || before != null)) {
-        Utilities.showSnackbar(SnackType.INFO, "No more templates found on this page.");
+        Utilities.showSnackbar(
+          SnackType.INFO,
+          "No more templates found on this page.",
+        );
         // Don't update templates or cursors so the user stays on the current valid page
         return;
       }
@@ -208,21 +210,12 @@ class TemplatesController extends GetxController {
     try {
       Utilities.showOverlayLoadingDialog();
 
-      final doc = await FirebaseFirestore.instance
-          .collection('templates')
-          .doc(clientID)
-          .collection('data')
-          .doc(template.id.toString())
-          .get();
+      TemplateModels? fullTemplate = await TemplateFirestoreService.instance
+          .getTemplateModelById(template.id.toString());
 
       Utilities.hideCustomLoader(Get.context!);
 
-      if (!doc.exists) {
-        Utilities.showSnackbar(SnackType.ERROR, "Template data not found in database.");
-        return;
-      }
-
-      final fullTemplate = TemplateModels.fromFirestore(doc.data()!);
+      fullTemplate ??= template;
 
       final c = Get.find<CreateTemplateController>();
       c.loadTemplateForView(fullTemplate);
@@ -235,7 +228,10 @@ class TemplatesController extends GetxController {
       navController.routeTrigger.value++;
     } catch (e) {
       Utilities.hideCustomLoader(Get.context!);
-      Utilities.showSnackbar(SnackType.ERROR, "Failed to load template data: $e");
+      Utilities.showSnackbar(
+        SnackType.ERROR,
+        "Failed to load template data: $e",
+      );
     }
   }
 
@@ -243,21 +239,12 @@ class TemplatesController extends GetxController {
     try {
       Utilities.showOverlayLoadingDialog();
 
-      final doc = await FirebaseFirestore.instance
-          .collection('templates')
-          .doc(clientID)
-          .collection('data')
-          .doc(template.id.toString())
-          .get();
+      TemplateModels? fullTemplate = await TemplateFirestoreService.instance
+          .getTemplateModelById(template.id.toString());
 
       Utilities.hideCustomLoader(Get.context!);
 
-      if (!doc.exists) {
-        Utilities.showSnackbar(SnackType.ERROR, "Template data not found in database.");
-        return;
-      }
-
-      final fullTemplate = TemplateModels.fromFirestore(doc.data()!);
+      fullTemplate ??= template;
 
       final c = Get.find<CreateTemplateController>();
       c.loadTemplateForCopy(fullTemplate);
@@ -270,7 +257,10 @@ class TemplatesController extends GetxController {
       navController.routeTrigger.value++;
     } catch (e) {
       Utilities.hideCustomLoader(Get.context!);
-      Utilities.showSnackbar(SnackType.ERROR, "Failed to load template data: $e");
+      Utilities.showSnackbar(
+        SnackType.ERROR,
+        "Failed to load template data: $e",
+      );
     }
   }
 
