@@ -166,7 +166,6 @@ class TemplateService {
       final response = await _dio.post(
         uploadMediaUrl,
         data: formData,
-        options: Options(contentType: "multipart/form-data"),
       );
 
       return response.data;

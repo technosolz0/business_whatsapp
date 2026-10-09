@@ -41,15 +41,14 @@ class BroadcastService {
       final response = await _dio.post(
         cloudFunctionUrl,
         data: formData,
-        options: Options(
-          contentType: "multipart/form-data",
-          headers: {"Accept": "application/json"},
-        ),
+        options: Options(headers: {"Accept": "application/json"}),
       );
 
       final data = response.data;
 
-      if (response.statusCode == 200 && data is Map && data["success"] == true) {
+      if (response.statusCode == 200 &&
+          data is Map &&
+          data["success"] == true) {
         return {"success": true, "media_id": data["media_id"]};
       }
 
@@ -60,8 +59,8 @@ class BroadcastService {
     } on DioException catch (e) {
       final errorMsg = e.response?.data is Map
           ? (e.response?.data["message"] ??
-              e.response?.data["detail"] ??
-              e.message)
+                e.response?.data["detail"] ??
+                e.message)
           : (e.response?.data?.toString() ?? e.message ?? e.toString());
       return {"success": false, "message": errorMsg};
     } catch (e) {
