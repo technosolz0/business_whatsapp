@@ -26,7 +26,7 @@ Future<UploadResult> uploadFileToFirebase({
 
     return UploadResult(id: id, url: url, fileName: fileName);
   } catch (e) {
-    //print("UPLOAD ERROR: $e");
+    print("UPLOAD ERROR: $e");
     rethrow;
   }
 }

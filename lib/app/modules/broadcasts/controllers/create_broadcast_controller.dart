@@ -2189,10 +2189,9 @@ class CreateBroadcastController extends GetxController {
         }
 
         broadcastProgress.value = 0.0;
-        showDialog(
-          context: Get.overlayContext!,
+        Get.dialog(
+          BroadcastProgressDialog(progress: broadcastProgress),
           barrierDismissible: false,
-          builder: (_) => BroadcastProgressDialog(progress: broadcastProgress),
         );
 
         // ----------------------------
@@ -2291,7 +2290,8 @@ class CreateBroadcastController extends GetxController {
         int msgSeq = 0;
 
         for (final contact in finalRecipients) {
-          final messageId = "msg_${DateTime.now().microsecondsSinceEpoch}_${msgSeq++}";
+          final messageId =
+              "msg_${DateTime.now().microsecondsSinceEpoch}_${msgSeq++}";
 
           // Build dynamic variables for THIS contact
           final bodyVars = buildBodyVarsForContact(contact);
@@ -2433,6 +2433,10 @@ class CreateBroadcastController extends GetxController {
           carouselUploads: carouselUploads,
         );
 
+        // Allow UI to show 100% complete for a moment
+        await Future.delayed(const Duration(milliseconds: 500));
+        _closeBroadcastProgressDialog();
+
         // Show immediate user feedback
         if (isScheduled) {
           Utilities.showSnackbar(
@@ -2460,13 +2464,24 @@ class CreateBroadcastController extends GetxController {
         broadcastsController.closeCreateForm();
       }
     } catch (e) {
-      //print("Broadcast error: $e");
+      print("Broadcast error: $e");
+      _closeBroadcastProgressDialog();
+      Utilities.showSnackbar(SnackType.ERROR, "Failed to send broadcast: $e");
     } finally {
       isSending.value = false;
-      Utilities.hideCustomLoader(Get.context!);
+      _closeBroadcastProgressDialog();
       print(
         "sendBroadcast() total execution time: ${stopwatch.elapsedMilliseconds}ms",
       );
+    }
+  }
+
+  void _closeBroadcastProgressDialog() {
+    if (Get.isDialogOpen ?? false) {
+      Get.back();
+    } else if (Get.overlayContext != null &&
+        Navigator.of(Get.overlayContext!).canPop()) {
+      Navigator.of(Get.overlayContext!).pop();
     }
   }
 
@@ -2692,16 +2707,36 @@ class CreateBroadcastController extends GetxController {
       if (mainFileBytes != null && mainFileName.isNotEmpty) {
         mainUploadFuture =
             uploadFileToFirebase(
-              fileBytes: mainFileBytes,
-              fileName: mainFileName,
-              folder: 'broadcasts_media/$clientID',
-              mimeType: mainMimeType,
-            ).then((res) {
-              completedUploads++;
-              broadcastProgress.value =
-                  0.05 + 0.25 * (completedUploads / totalUploads);
-              return res;
-            });
+                  fileBytes: mainFileBytes,
+                  fileName: mainFileName,
+                  folder: 'broadcasts_media/$clientID',
+                  mimeType: mainMimeType,
+                )
+                .timeout(
+                  const Duration(seconds: 8),
+                  onTimeout: () {
+                    print(
+                      "Firebase Storage upload timed out; skipping storage backup",
+                    );
+                    return UploadResult(
+                      id: '',
+                      url: '',
+                      fileName: mainFileName,
+                    );
+                  },
+                )
+                .catchError((e) {
+                  print(
+                    "Firebase Storage upload error: $e; skipping storage backup",
+                  );
+                  return UploadResult(id: '', url: '', fileName: mainFileName);
+                })
+                .then((res) {
+                  completedUploads++;
+                  broadcastProgress.value =
+                      0.05 + 0.25 * (completedUploads / totalUploads);
+                  return res;
+                });
         uploadFutures.add(mainUploadFuture);
       }
 
@@ -2713,18 +2748,42 @@ class CreateBroadcastController extends GetxController {
               card.attachmentId.isEmpty) {
             final fut =
                 uploadFileToFirebase(
-                  fileBytes: card.fileBytes!,
-                  fileName: card.fileName,
-                  folder: 'broadcasts_media/$clientID',
-                  mimeType: card.mediaType.toUpperCase() == "IMAGE"
-                      ? "image/jpeg"
-                      : "video/mp4",
-                ).then((res) {
-                  completedUploads++;
-                  broadcastProgress.value =
-                      0.05 + 0.25 * (completedUploads / totalUploads);
-                  return res;
-                });
+                      fileBytes: card.fileBytes!,
+                      fileName: card.fileName,
+                      folder: 'broadcasts_media/$clientID',
+                      mimeType: card.mediaType.toUpperCase() == "IMAGE"
+                          ? "image/jpeg"
+                          : "video/mp4",
+                    )
+                    .timeout(
+                      const Duration(seconds: 8),
+                      onTimeout: () {
+                        print(
+                          "Carousel Firebase upload timed out; skipping storage backup",
+                        );
+                        return UploadResult(
+                          id: '',
+                          url: '',
+                          fileName: card.fileName,
+                        );
+                      },
+                    )
+                    .catchError((e) {
+                      print(
+                        "Carousel Firebase upload error: $e; skipping storage backup",
+                      );
+                      return UploadResult(
+                        id: '',
+                        url: '',
+                        fileName: card.fileName,
+                      );
+                    })
+                    .then((res) {
+                      completedUploads++;
+                      broadcastProgress.value =
+                          0.05 + 0.25 * (completedUploads / totalUploads);
+                      return res;
+                    });
             carouselUploadFutures.add(fut);
             uploadFutures.add(fut);
           }
@@ -2736,13 +2795,17 @@ class CreateBroadcastController extends GetxController {
 
         if (mainUploadFuture != null) {
           final mainUploadResult = await mainUploadFuture;
-          attachmentId = mainUploadResult?.id;
+          if (mainUploadResult != null && mainUploadResult.id.isNotEmpty) {
+            attachmentId = mainUploadResult.id;
+          }
         }
 
         for (int i = 0; i < carouselUploadFutures.length; i++) {
           final result = await carouselUploadFutures[i];
-          cardAttachmentIds.add(result.id);
-          carouselUploads[i].attachmentId = result.id;
+          if (result.id.isNotEmpty) {
+            cardAttachmentIds.add(result.id);
+            carouselUploads[i].attachmentId = result.id;
+          }
         }
       } else {
         broadcastProgress.value = 0.30;
@@ -2855,6 +2918,7 @@ class CreateBroadcastController extends GetxController {
       );
     } catch (e) {
       print("Error in background broadcast processing: $e");
+      rethrow;
     }
   }
 
