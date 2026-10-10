@@ -2164,6 +2164,15 @@ class CreateBroadcastController extends GetxController {
           SnackType.ERROR,
           'Please complete all steps before sending',
         );
+        isSending.value = false;
+        return;
+      }
+      if (attachmentType.value.isNotEmpty && mediaHandleId.value.isEmpty) {
+        Utilities.showSnackbar(
+          SnackType.ERROR,
+          'Please upload a ${attachmentType.value} header for this template before sending.',
+        );
+        isSending.value = false;
         return;
       }
       bool isValidDt = validateSchedule();
@@ -2300,14 +2309,25 @@ class CreateBroadcastController extends GetxController {
           Map<String, dynamic>? headerVars;
 
           final templateTypeUpper = templateType.value.toUpperCase();
+          final attType = attachmentType.value.trim();
 
-          if (templateTypeUpper == "TEXT") {
+          if (attType.toUpperCase() == "TEXT" || templateTypeUpper == "TEXT") {
             if (attachmentType.value.isNotEmpty) {
               headerVars = {"type": "TEXT", "text": attachmentType.value};
             }
           }
 
-          if (templateTypeUpper == "INTERACTIVE" ||
+          if (attType.isNotEmpty &&
+              attType.toUpperCase() != "TEXT" &&
+              mediaHandleId.value.isNotEmpty) {
+            headerVars = {
+              "type": attType.toUpperCase(),
+              "data": {
+                "mediaId": mediaHandleId.value,
+                "fileName": selectedFileName.value,
+              },
+            };
+          } else if (templateTypeUpper == "INTERACTIVE" ||
               templateTypeUpper == "TEXT & MEDIA") {
             headerVars = mediaHandleId.value.isEmpty
                 ? null
@@ -2890,6 +2910,8 @@ class CreateBroadcastController extends GetxController {
         contactsPayload.add({
           "mobileNo": payloadData["mobileNo"] ?? "",
           "bodyVariables": payloadData["bodyVariables"] ?? [],
+          if (payloadData["headerVariables"] != null)
+            "headerVariables": payloadData["headerVariables"],
         });
       }
 

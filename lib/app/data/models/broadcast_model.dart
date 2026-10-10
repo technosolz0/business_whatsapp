@@ -251,6 +251,11 @@ class BroadcastModel {
       'templateVariables': templateVariables,
       'mediaId': mediaId,
       'attachmentId': attachmentId,
+      if (mediaId != null && mediaId!.isNotEmpty)
+        'headerVariables': {
+          'type': 'image',
+          'data': {'mediaId': mediaId},
+        },
 
       'contactIds': contactIds,
 

@@ -17,14 +17,8 @@ class TemplateFirestoreService {
   /// -------------------------------------------------------------
   Future<void> saveTemplate(TemplateModels template) async {
     try {
-      final payload = {
-        ...template.toJson(),
-        'clientId': clientID,
-      };
-      await _dio.post(
-        '${ApiEndpoints.serverUrl}/saveTemplate',
-        data: payload,
-      );
+      final payload = {...template.toJson(), 'clientId': clientID};
+      await _dio.post('${ApiEndpoints.serverUrl}/saveTemplate', data: payload);
     } catch (e) {
       print("❌ Error saving template to backend: $e");
     }
@@ -196,11 +190,26 @@ class TemplateFirestoreService {
       cards = List<Map<String, dynamic>>.from(json["cards"]);
     }
 
+    String computedType = (json["type"] ?? "").toString().toUpperCase();
+    if (computedType.isEmpty) {
+      if (cards != null && cards.isNotEmpty) {
+        computedType = "CAROUSEL";
+      } else if (buttons.isNotEmpty) {
+        computedType = "INTERACTIVE";
+      } else if (headerFormat == "IMAGE" ||
+          headerFormat == "VIDEO" ||
+          headerFormat == "DOCUMENT") {
+        computedType = "TEXT & MEDIA";
+      } else {
+        computedType = "TEXT";
+      }
+    }
+
     return TemplateParamModel(
       id: json["id"]?.toString() ?? "",
       language: language,
       name: json["name"] ?? "",
-      templateType: (json["type"] ?? "").toString().toUpperCase(),
+      templateType: computedType,
       category: json["category"] ?? "UTILITY",
       headerVars: headerVars,
       bodyVars: bodyVars,
@@ -213,7 +222,8 @@ class TemplateFirestoreService {
       buttonVars: buttonsVar,
       cards: cards,
       version: json["version"] ?? "v1",
-      ctaUrlLinkTrackingOptedOut: json["cta_url_link_tracking_opted_out"] ?? false,
+      ctaUrlLinkTrackingOptedOut:
+          json["cta_url_link_tracking_opted_out"] ?? false,
     );
   }
 
