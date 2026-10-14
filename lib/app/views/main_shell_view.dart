@@ -133,10 +133,7 @@ class _MainShellViewState extends State<MainShellView> {
 
     // Automation Controller
     if (!Get.isRegistered<AutomationController>()) {
-      Get.lazyPut<AutomationController>(
-        () => AutomationController(),
-        fenix: true,
-      );
+      Get.put<AutomationController>(AutomationController(), permanent: true);
     }
 
     // Let Add controllers be created on demand to avoid conflicts
@@ -201,8 +198,9 @@ class _MainShellViewState extends State<MainShellView> {
 
   Widget _getPageFromRoute(String currentRoute) {
     // Prefer currentRoute from NavController if available, otherwise Get.currentRoute
-    final targetRoute =
-        currentRoute.isNotEmpty ? currentRoute : Get.currentRoute;
+    final targetRoute = currentRoute.isNotEmpty
+        ? currentRoute
+        : Get.currentRoute;
     final actualRoute = targetRoute.split('?').first; // Remove query params
 
     switch (actualRoute) {

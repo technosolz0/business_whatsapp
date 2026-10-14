@@ -1,12 +1,13 @@
+import '../../../../main.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../../main.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../common widgets/standard_page_layout.dart';
 import '../../../common widgets/custom_button.dart';
-import '../../../routes/app_pages.dart';
+import '../../../controllers/navigation_controller.dart';
 import '../controllers/automation_controller.dart';
 import '../widgets/automation_table.dart';
+import '../../../routes/app_pages.dart';
 
 class AutomationView extends GetView<AutomationController> {
   const AutomationView({super.key});
@@ -16,44 +17,30 @@ class AutomationView extends GetView<AutomationController> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return StandardPageLayout(
-      title: 'WhatsApp Automation',
-      subtitle:
-          'Create keyword triggers, decision trees, interactive menus, and auto-replies.',
+      title: 'Automation',
+      subtitle: 'Manage and create your WhatsApp automation flows.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 1. Quota & Stats Header
-          _buildStatsRow(isDark),
-          const SizedBox(height: 20),
-
-          // 2. Search Bar & Create Button
+          _buildQuotaCard(isDark),
+          const SizedBox(height: 24),
           Row(
             children: [
               Expanded(child: _buildSearchBar(isDark)),
               const SizedBox(width: 12),
-              IconButton(
-                icon: const Icon(Icons.refresh),
-                tooltip: 'Refresh list',
-                onPressed: () => controller.loadAutomationsFromFirebase(),
-              ),
-              const SizedBox(width: 8),
               Obx(() {
                 final isQuotaExceeded =
                     controller.total.value >= automationQuota.value;
 
                 return CustomButton(
                   label: 'Create Flow',
-                  icon: Icons.add,
-                  type: isQuotaExceeded
-                      ? ButtonType.secondary
-                      : ButtonType.primary,
                   onPressed: () {
                     if (isQuotaExceeded) {
                       Get.dialog(
                         AlertDialog(
-                          title: const Text('Quota Limit Reached'),
+                          title: const Text('Limit Reached'),
                           content: const Text(
-                            'You have reached your maximum allowed automation flows. Please contact support to increase your quota.',
+                            'Contact administrator to increase limit.',
                           ),
                           actions: [
                             TextButton(
@@ -65,142 +52,85 @@ class AutomationView extends GetView<AutomationController> {
                       );
                     } else {
                       controller.resetFlow(clearSearch: false);
-                      Get.toNamed(Routes.CREATE_AUTOMATION);
+                      if (Get.isRegistered<NavigationController>()) {
+                        final nav = Get.find<NavigationController>();
+                        nav.currentRoute.value = Routes.CREATE_AUTOMATION;
+                        nav.selectedIndex.value = 12;
+                        nav.routeTrigger.value++;
+                      }
                     }
                   },
+                  icon: Icons.add,
+                  type: isQuotaExceeded
+                      ? ButtonType.secondary
+                      : ButtonType.primary,
                 );
               }),
             ],
           ),
           const SizedBox(height: 16),
-
-          // 3. Automation Table
           Expanded(child: AutomationTable(controller: controller)),
         ],
       ),
     );
   }
 
-  Widget _buildStatsRow(bool isDark) {
-    return Row(
-      children: [
-        Expanded(
-          child: Obx(
-            () => _buildStatCard(
-              title: 'Active Flows',
-              value: controller.automations
-                  .where((a) => a.isActive.value)
-                  .length
-                  .toString(),
-              subtitle: 'Currently responding to users',
-              icon: Icons.bolt,
-              color: Colors.green,
-              isDark: isDark,
-            ),
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Obx(
-            () => _buildStatCard(
-              title: 'Total Flows',
-              value: controller.total.value.toString(),
-              subtitle: 'Configured workflows',
-              icon: Icons.account_tree_outlined,
-              color: AppColors.primary,
-              isDark: isDark,
-            ),
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Obx(
-            () => _buildStatCard(
-              title: 'Flow Quota',
-              value: '${controller.total.value} / ${automationQuota.value}',
-              subtitle: 'Available workflow slots',
-              icon: Icons.speed,
-              color: Colors.orange,
-              isDark: isDark,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatCard({
-    required String title,
-    required String value,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-    required bool isDark,
-  }) {
+  Widget _buildQuotaCard(bool isDark) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       decoration: BoxDecoration(
-        color: isDark ? AppColors.cardDark : Colors.white,
+        color: isDark ? AppColors.cardDark : AppColors.cardLight,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isDark ? AppColors.borderDark : AppColors.borderLight,
         ),
-        boxShadow: isDark
-            ? []
-            : [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
       ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: color, size: 24),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: isDark
-                        ? AppColors.textSecondaryDark
-                        : AppColors.textSecondaryLight,
-                  ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Total Quota',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: isDark
+                      ? AppColors.textSecondaryDark
+                      : AppColors.textSecondaryLight,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: isDark
-                        ? AppColors.textPrimaryDark
-                        : AppColors.textPrimaryLight,
+              ),
+              const SizedBox(height: 4),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Obx(
+                    () => Text(
+                      automationQuota.value.toString(),
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: isDark
+                            ? AppColors.textPrimaryDark
+                            : AppColors.textPrimaryLight,
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: isDark ? Colors.white38 : Colors.black38,
+                  const SizedBox(width: 8),
+                  Text(
+                    'Flows',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: isDark
+                          ? AppColors.textSecondaryDark
+                          : AppColors.textSecondaryLight,
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
+            ],
           ),
         ],
       ),
@@ -214,7 +144,7 @@ class AutomationView extends GetView<AutomationController> {
       onChanged: controller.updateSearchQuery,
       decoration: InputDecoration(
         counterText: '',
-        hintText: 'Search automations by name...',
+        hintText: 'Search by flow name...',
         hintStyle: TextStyle(
           color: isDark ? AppColors.gray500 : Colors.grey[400],
           fontSize: 14,
@@ -244,7 +174,7 @@ class AutomationView extends GetView<AutomationController> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: AppColors.primary, width: 1.5),
+          borderSide: BorderSide(color: AppColors.borderLight, width: 1.5),
         ),
       ),
     );

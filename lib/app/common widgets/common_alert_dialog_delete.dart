@@ -47,6 +47,7 @@ class CommonAlertDialogDelete extends StatelessWidget {
         OutlinedButton(
           onPressed: () => Get.back(),
           style: OutlinedButton.styleFrom(
+            enableFeedback: false,
             side: BorderSide(
               color: isDark ? AppColors.borderDark : Colors.grey[300]!,
               width: 1,
@@ -61,10 +62,11 @@ class CommonAlertDialogDelete extends StatelessWidget {
         ),
         TextButton(
           onPressed: () {
-            onConfirm();
             Get.back(); // Close dialog after confirm
+            Future.microtask(onConfirm);
           },
           style: TextButton.styleFrom(
+            enableFeedback: false,
             foregroundColor: AppColors.error,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           ),

@@ -8,6 +8,7 @@ import '../../../Utilities/api_endpoints.dart';
 import '../../../Utilities/network_utilities.dart';
 import '../../../Utilities/utilities.dart';
 import '../../../common widgets/common_snackbar.dart';
+import '../../../controllers/navigation_controller.dart';
 import '../../../routes/app_pages.dart';
 import '../models/automation_model.dart';
 
@@ -73,26 +74,27 @@ class AutomationController extends GetxController {
   @override
   void onClose() {
     stopStatusTimer();
-    searchController.dispose();
-    flowNameController.dispose();
-    try {
-      nodeFlowController.dispose();
-    } catch (_) {}
     super.onClose();
   }
 
   void updateFlowStatus() {
-    hasTriggerNode.value = nodeFlowController.nodes.values.any(
+    final hasTrigger = nodeFlowController.nodes.values.any(
       (n) => n.type == 'trigger',
     );
-    hasStopNode.value = nodeFlowController.nodes.values.any(
+    final hasStop = nodeFlowController.nodes.values.any(
       (n) => n.type == 'stop',
     );
+    if (hasTriggerNode.value != hasTrigger) {
+      hasTriggerNode.value = hasTrigger;
+    }
+    if (hasStopNode.value != hasStop) {
+      hasStopNode.value = hasStop;
+    }
   }
 
   void startStatusTimer() {
     _statusTimer?.cancel();
-    _statusTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+    _statusTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       updateFlowStatus();
     });
   }
@@ -246,14 +248,16 @@ class AutomationController extends GetxController {
       currentPage.value = 1;
     }
 
-    nodeFlowController.clearGraph();
+    nodeFlowController = NodeFlowController<AutomationNodeData, void>();
     setupInitialNodes();
+    startStatusTimer();
     updateFlowStatus();
+    flowKey.value++;
   }
 
   Future<void> loadAutomationForEdit(AutomationFlowModel flow) async {
     try {
-      isLoading.value = true;
+      Utilities.showOverlayLoadingDialog();
       final dio = NetworkUtilities.getDioClient();
       final response = await dio.get(
         '${ApiEndpoints.serverUrl}/api/automations/${flow.id}',
@@ -268,7 +272,7 @@ class AutomationController extends GetxController {
         flowNameController.text = flow.name;
         flowNameError.value = '';
 
-        nodeFlowController.clearGraph();
+        nodeFlowController = NodeFlowController<AutomationNodeData, void>();
         if (uiFlowRaw != null && uiFlowRaw.toString().isNotEmpty) {
           final Map<String, dynamic> jsonMap = uiFlowRaw is Map
               ? Map<String, dynamic>.from(uiFlowRaw)
@@ -285,15 +289,26 @@ class AutomationController extends GetxController {
         } else {
           setupInitialNodes();
         }
+        startStatusTimer();
         updateFlowStatus();
+        flowKey.value++;
 
-        Get.toNamed(Routes.CREATE_AUTOMATION);
+        Utilities.hideCustomLoader(Get.context!);
+
+        if (Get.isRegistered<NavigationController>()) {
+          final nav = Get.find<NavigationController>();
+          nav.currentRoute.value = Routes.CREATE_AUTOMATION;
+          nav.selectedIndex.value = 12;
+          nav.routeTrigger.value++;
+        }
+      } else {
+        Utilities.hideCustomLoader(Get.context!);
+        Utilities.showSnackbar(SnackType.ERROR, 'Failed to load flow data.');
       }
     } catch (e) {
+      Utilities.hideCustomLoader(Get.context!);
       debugPrint('Error loading automation for edit: $e');
       Utilities.showSnackbar(SnackType.ERROR, 'Failed to load flow: $e');
-    } finally {
-      isLoading.value = false;
     }
   }
 
@@ -307,8 +322,8 @@ class AutomationController extends GetxController {
       Node<AutomationNodeData>(
         id: 'trigger-1',
         type: 'trigger',
-        position: const Offset(80, 80),
-        size: const Size(270, 240),
+        position: const Offset(100, 100),
+        size: const Size(250, 220),
         data: AutomationNodeData(
           label: 'Incoming Message',
           hint: 'Triggers when a message is received',
@@ -317,10 +332,10 @@ class AutomationController extends GetxController {
         ports: [
           Port(
             id: 'out',
-            name: 'Trigger',
+            name: 'Success',
             type: PortType.output,
             position: PortPosition.right,
-            offset: const Offset(0, 120),
+            offset: const Offset(0, 110),
           ),
         ],
       ),
@@ -331,8 +346,8 @@ class AutomationController extends GetxController {
       Node<AutomationNodeData>(
         id: 'stop-1',
         type: 'stop',
-        position: const Offset(500, 80),
-        size: const Size(260, 130),
+        position: const Offset(450, 100),
+        size: const Size(250, 120),
         data: AutomationNodeData(
           label: 'Stop Flow',
           hint: 'Terminates the automation',
@@ -343,7 +358,7 @@ class AutomationController extends GetxController {
             name: 'End',
             type: PortType.input,
             position: PortPosition.left,
-            offset: const Offset(0, 65),
+            offset: const Offset(0, 60),
           ),
         ],
       ),
@@ -442,7 +457,12 @@ class AutomationController extends GetxController {
 
         WidgetsBinding.instance.addPostFrameCallback((_) {
           Get.closeAllSnackbars();
-          if (Get.key.currentState?.canPop() == true) {
+          if (Get.isRegistered<NavigationController>()) {
+            Get.find<NavigationController>().currentRoute.value =
+                Routes.AUTOMATION;
+          }
+          if (Get.key.currentState?.canPop() == true ||
+              (Get.context != null && Navigator.canPop(Get.context!))) {
             Get.back();
           } else {
             Get.offNamed(Routes.AUTOMATION);

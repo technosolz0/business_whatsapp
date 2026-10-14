@@ -1,10 +1,12 @@
 import 'dart:math' as math;
-import 'package:business_whatsapp/app/routes/app_pages.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart' hide Node;
 import 'package:mobx/mobx.dart' as mobx;
 import 'package:vyuh_node_flow/vyuh_node_flow.dart';
 import '../../../common widgets/custom_button.dart';
+import '../../../controllers/navigation_controller.dart';
+import '../../../routes/app_pages.dart';
 import '../controllers/automation_controller.dart';
 import '../models/automation_model.dart';
 
@@ -15,119 +17,237 @@ class CreateAutomationView extends GetView<AutomationController> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: Obx(() {
-          final isEditing = controller.editingFlowId.value != null;
-          return Text(
-            isEditing ? 'Edit Automation Flow' : 'Create Automation Flow',
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
-          );
-        }),
-        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-        foregroundColor: isDark ? Colors.white : Colors.black87,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          tooltip: 'Back to automations',
-          onPressed: () {
-            if (Get.key.currentState?.canPop() == true) {
-              Get.back();
-            } else {
-              Get.offNamed(Routes.AUTOMATION);
-            }
-          },
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (Get.isRegistered<NavigationController>()) {
+          final nav = Get.find<NavigationController>();
+          nav.currentRoute.value = Routes.AUTOMATION;
+          nav.selectedIndex.value = 12;
+          nav.routeTrigger.value++;
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          title: const Text('Automation Builder'),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back to automations',
+            enableFeedback: false,
+            onPressed: () {
+              if (Get.isRegistered<NavigationController>()) {
+                final nav = Get.find<NavigationController>();
+                nav.currentRoute.value = Routes.AUTOMATION;
+                nav.selectedIndex.value = 12;
+                nav.routeTrigger.value++;
+              }
+            },
+          ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              tooltip: 'Reset Flow',
+              onPressed: () {
+                controller.resetFlow();
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.light_mode),
+              tooltip: 'Light Theme',
+              onPressed: () => controller.setTheme(NodeFlowTheme.light),
+            ),
+            IconButton(
+              icon: const Icon(Icons.dark_mode),
+              tooltip: 'Dark Theme',
+              onPressed: () => controller.setTheme(NodeFlowTheme.dark),
+            ),
+            const SizedBox(width: 8),
+            Obx(() {
+              final isEditing = controller.editingFlowId.value != null;
+              final canDeploy = controller.canDeploy;
+
+              return Padding(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 6,
+                  horizontal: 16,
+                ),
+                child: CustomButton(
+                  onPressed: canDeploy
+                      ? () {
+                          controller.deployFlow();
+                        }
+                      : null,
+                  icon: isEditing ? Icons.save_outlined : Icons.cloud_upload,
+                  label: isEditing ? 'Update' : 'Deploy',
+                  type: isEditing ? ButtonType.success : ButtonType.primary,
+                  isLoading: controller.isLoading.value,
+                  isDisabled: !canDeploy,
+                ),
+              );
+            }),
+          ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Reset Flow',
-            onPressed: () => controller.resetFlow(),
+        body: Container(
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
           ),
-          IconButton(
-            icon: const Icon(Icons.light_mode),
-            tooltip: 'Light Theme',
-            onPressed: () => controller.setTheme(NodeFlowTheme.light),
-          ),
-          IconButton(
-            icon: const Icon(Icons.dark_mode),
-            tooltip: 'Dark Theme',
-            onPressed: () => controller.setTheme(NodeFlowTheme.dark),
-          ),
-          const SizedBox(width: 8),
-          Obx(() {
-            final isEditing = controller.editingFlowId.value != null;
-            final canDeploy = controller.canDeploy;
-
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-              child: CustomButton(
-                onPressed: canDeploy ? () => controller.deployFlow() : null,
-                icon: isEditing ? Icons.save_outlined : Icons.cloud_upload,
-                label: isEditing ? 'Update Flow' : 'Deploy Flow',
-                type: isEditing ? ButtonType.success : ButtonType.primary,
-                isLoading: controller.isLoading.value,
-                isDisabled: !canDeploy,
-              ),
-            );
-          }),
-        ],
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF0F172A) : Colors.grey[50],
-        ),
-        child: Column(
-          children: [
-            // 1. Flow Name & Validation Bar
-            _buildFlowNameHeader(isDark),
-
-            // 2. Toolbar for adding all node types
-            _buildToolbar(context, isDark),
-
-            // 3. Node Flow Canvas Editor
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
+          child: Column(
+            children: [
+              // Flow Name Input
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  border: Border(
+                    bottom: BorderSide(
                       color: isDark
                           ? Colors.white10
                           : Colors.black.withValues(alpha: 0.05),
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(
-                          alpha: isDark ? 0.3 : 0.05,
-                        ),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
                   ),
-                  clipBehavior: Clip.antiAlias,
-                  child: Obx(() {
-                    return NodeFlowEditor<AutomationNodeData, void>(
-                      controller: controller.nodeFlowController,
-                      theme: controller.currentTheme.value,
-                      nodeBuilder: (context, node) =>
-                          _buildCustomNode(node, isDark),
-                    );
-                  }),
+                ),
+                child: Row(
+                  children: [
+                    const Text(
+                      'Flow Name',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Obx(
+                        () => TextFormField(
+                          controller: controller.flowNameController,
+                          maxLength: 100,
+                          maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                          validator: (value) {
+                            if (value != null && value.length > 100) {
+                              return "Max 100 characters allowed";
+                            }
+                            return null;
+                          },
+                          style: TextStyle(
+                            color: isDark ? Colors.white : Colors.black87,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: 'Enter a name for this automation...',
+                            hintStyle: TextStyle(
+                              color: isDark ? Colors.white30 : Colors.black38,
+                            ),
+                            filled: true,
+                            fillColor: isDark
+                                ? const Color(0xFF0F172A)
+                                : Colors.grey[50],
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(
+                                color: isDark ? Colors.white10 : Colors.black12,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(
+                                color: isDark ? Colors.white10 : Colors.black12,
+                              ),
+                            ),
+                            errorText: controller.flowNameError.value.isNotEmpty
+                                ? controller.flowNameError.value
+                                : null,
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                          ),
+                          onChanged: (val) {
+                            if (controller.flowNameError.value.isNotEmpty) {
+                              controller.flowNameError.value = '';
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Text(
+                        '* Required',
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-          ],
+
+              // Toolbar for adding common nodes
+              _buildToolbar(context, isDark),
+
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isDark
+                            ? Colors.white10
+                            : Colors.black.withValues(alpha: 0.05),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(
+                            alpha: isDark ? 0.3 : 0.05,
+                          ),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Obx(
+                      () => RepaintBoundary(
+                        child: NodeFlowEditor<AutomationNodeData, void>(
+                          key: ValueKey(
+                            'automation_flow_${controller.flowKey.value}',
+                          ),
+                          controller: controller.nodeFlowController,
+                          theme: controller.currentTheme.value,
+                          nodeBuilder: (context, node) =>
+                              _buildCustomNode(node, isDark),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildFlowNameHeader(bool isDark) {
+  Widget _buildToolbar(BuildContext context, bool isDark) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       decoration: BoxDecoration(
@@ -142,155 +262,38 @@ class CreateAutomationView extends GetView<AutomationController> {
       ),
       child: Row(
         children: [
-          const Text(
-            'Flow Name:',
-            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Obx(
-              () => TextField(
-                controller: controller.flowNameController,
-                maxLength: 100,
-                style: TextStyle(
-                  color: isDark ? Colors.white : Colors.black87,
-                  fontSize: 14,
-                ),
-                decoration: InputDecoration(
-                  counterText: '',
-                  hintText:
-                      'e.g., Welcome Bot, Support Qualifier, Lead Router...',
-                  hintStyle: TextStyle(
-                    color: isDark ? Colors.white30 : Colors.black38,
-                  ),
-                  filled: true,
-                  fillColor: isDark
-                      ? const Color(0xFF0F172A)
-                      : Colors.grey[100],
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  isDense: true,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(
-                      color: controller.flowNameError.value.isNotEmpty
-                          ? Colors.red
-                          : (isDark ? Colors.white10 : Colors.black12),
-                    ),
-                  ),
-                  errorText: controller.flowNameError.value.isNotEmpty
-                      ? controller.flowNameError.value
-                      : null,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          // Deployment constraints indicator
           Obx(
-            () => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: controller.canDeploy
-                    ? Colors.green.withValues(alpha: 0.1)
-                    : Colors.amber.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(
-                  color: controller.canDeploy
-                      ? Colors.green.withValues(alpha: 0.3)
-                      : Colors.amber.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    controller.canDeploy
-                        ? Icons.check_circle_outline
-                        : Icons.info_outline,
-                    size: 14,
-                    color: controller.canDeploy ? Colors.green : Colors.amber,
+            () => controller.hasTriggerNode.value
+                ? const SizedBox.shrink()
+                : _ToolbarItem(
+                    icon: Icons.bolt,
+                    label: 'Trigger',
+                    color: Colors.amber,
+                    onPressed: () => _addNode('trigger'),
                   ),
-                  const SizedBox(width: 6),
-                  Text(
-                    controller.canDeploy
-                        ? 'Valid Flow'
-                        : 'Requires Trigger & Stop node',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: controller.canDeploy ? Colors.green : Colors.amber,
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildToolbar(BuildContext context, bool isDark) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E293B) : Colors.white,
-        border: Border(
-          bottom: BorderSide(
-            color: isDark
-                ? Colors.white10
-                : Colors.black.withValues(alpha: 0.05),
+          Obx(
+            () => controller.hasTriggerNode.value
+                ? const SizedBox.shrink()
+                : const SizedBox(width: 16),
           ),
-        ),
-      ),
-      child: Row(
-        children: [
-          _ToolbarItem(
-            icon: Icons.bolt,
-            label: 'Trigger',
-            color: Colors.amber,
-            onPressed: () => _addNode('trigger'),
-          ),
-          const SizedBox(width: 12),
-          _ToolbarItem(
-            icon: Icons.alt_route,
-            label: 'Condition',
-            color: Colors.purple,
-            onPressed: () => _addNode('condition'),
-          ),
-          const SizedBox(width: 12),
-          _ToolbarItem(
-            icon: Icons.play_arrow,
-            label: 'Action',
-            color: Colors.blue,
-            onPressed: () => _addNode('action'),
-          ),
-          const SizedBox(width: 12),
           _ToolbarItem(
             icon: Icons.text_fields,
             label: 'Message',
             color: Colors.teal,
             onPressed: () => _addNode('text_field'),
           ),
-          const SizedBox(width: 12),
-          _ToolbarItem(
-            icon: Icons.help_outline,
-            label: 'Question',
-            color: Colors.orange,
-            onPressed: () => _addNode('question'),
-          ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 16),
           _ToolbarItem(
             icon: Icons.stop_circle_outlined,
             label: 'Stop',
             color: Colors.red,
             onPressed: () => _addNode('stop'),
           ),
+          const SizedBox(width: 16),
           const Spacer(),
           Text(
-            'Tip: Connect ports to build decision paths',
+            'Tip: Drag from ports to connect nodes',
             style: TextStyle(
               fontSize: 12,
               color: isDark ? Colors.grey[500] : Colors.grey[600],
@@ -311,17 +314,16 @@ class CreateAutomationView extends GetView<AutomationController> {
         node = Node<AutomationNodeData>(
           id: id,
           type: type,
-          position: const Offset(60, 60),
-          size: const Size(270, 240),
+          position: const Offset(50, 50),
+          size: const Size(250, 240),
           data: AutomationNodeData(
-            label: 'Keyword Trigger',
-            hint: 'Fires when user sends matching keywords',
-            keywords: ['hello', 'hi'],
+            label: 'New Trigger',
+            hint: 'Configure how this flow starts',
           ),
           ports: [
             Port(
               id: 'out',
-              name: 'Trigger',
+              name: 'Success',
               type: PortType.output,
               position: PortPosition.right,
               offset: const Offset(0, 120),
@@ -329,18 +331,15 @@ class CreateAutomationView extends GetView<AutomationController> {
           ],
         );
         break;
-
       case 'condition':
         node = Node<AutomationNodeData>(
           id: id,
           type: type,
-          position: const Offset(60, 60),
-          size: const Size(280, 260),
+          position: const Offset(50, 50),
+          size: const Size(250, 200),
           data: AutomationNodeData(
-            label: 'Condition Check',
-            hint: 'Branches based on user response',
-            operator: 'contains',
-            conditionValue: 'support',
+            label: 'New Condition',
+            hint: 'Decision logic for the flow',
           ),
           ports: [
             Port(
@@ -348,67 +347,35 @@ class CreateAutomationView extends GetView<AutomationController> {
               name: 'Input',
               type: PortType.input,
               position: PortPosition.left,
-              offset: const Offset(0, 130),
+              offset: const Offset(0, 100),
             ),
             Port(
               id: 'true',
               name: 'True',
               type: PortType.output,
               position: PortPosition.right,
-              offset: const Offset(0, 60),
+              offset: const Offset(0, 40),
             ),
             Port(
               id: 'false',
               name: 'False',
               type: PortType.output,
               position: PortPosition.right,
-              offset: const Offset(0, 180),
+              offset: const Offset(0, 100),
             ),
           ],
         );
         break;
-
-      case 'action':
-        node = Node<AutomationNodeData>(
-          id: id,
-          type: type,
-          position: const Offset(60, 60),
-          size: const Size(270, 220),
-          data: AutomationNodeData(
-            label: 'Perform Action',
-            hint: 'Assign department or set contact tag',
-            actionType: 'assign_dept',
-            actionValue: 'Support',
-          ),
-          ports: [
-            Port(
-              id: 'in',
-              name: 'Exec',
-              type: PortType.input,
-              position: PortPosition.left,
-              offset: const Offset(0, 110),
-            ),
-            Port(
-              id: 'out',
-              name: 'Next',
-              type: PortType.output,
-              position: PortPosition.right,
-              offset: const Offset(0, 110),
-            ),
-          ],
-        );
-        break;
-
       case 'text_field':
         node = Node<AutomationNodeData>(
           id: id,
           type: type,
-          position: const Offset(60, 60),
-          size: const Size(270, 220),
+          position: const Offset(50, 50),
+          size: const Size(250, 220),
           data: AutomationNodeData(
-            label: 'Send Message',
-            hint: 'Auto-reply sent to contact',
-            content: 'Hello! Thank you for contacting us.',
+            label: 'Input Field',
+            hint: 'User editable content',
+            content: 'Thanks for reaching out!',
           ),
           ports: [
             Port(
@@ -428,18 +395,16 @@ class CreateAutomationView extends GetView<AutomationController> {
           ],
         );
         break;
-
       case 'question':
         node = Node<AutomationNodeData>(
           id: id,
           type: type,
-          position: const Offset(60, 60),
-          size: const Size(280, 250),
+          position: const Offset(50, 50),
+          size: const Size(250, 200),
           data: AutomationNodeData(
-            label: 'Question / Menu',
-            hint: 'Asks a question and waits for answer',
-            content: 'How can we help you today?\n1. Sales\n2. Support',
-            options: {'1': '', '2': ''},
+            label: 'New Question',
+            hint: 'Ask user for input',
+            content: 'Your question here...',
           ),
           ports: [
             Port(
@@ -447,28 +412,27 @@ class CreateAutomationView extends GetView<AutomationController> {
               name: 'In',
               type: PortType.input,
               position: PortPosition.left,
-              offset: const Offset(0, 120),
+              offset: const Offset(0, 100),
             ),
             Port(
               id: 'out',
-              name: 'Next',
+              name: 'Response',
               type: PortType.output,
               position: PortPosition.right,
-              offset: const Offset(0, 120),
+              offset: const Offset(0, 100),
             ),
           ],
         );
         break;
-
       case 'stop':
         node = Node<AutomationNodeData>(
           id: id,
           type: type,
-          position: const Offset(60, 60),
-          size: const Size(250, 130),
+          position: const Offset(50, 50),
+          size: const Size(250, 120),
           data: AutomationNodeData(
             label: 'Stop Flow',
-            hint: 'Terminates this automation session',
+            hint: 'Terminates the automation',
           ),
           ports: [
             Port(
@@ -476,14 +440,31 @@ class CreateAutomationView extends GetView<AutomationController> {
               name: 'End',
               type: PortType.input,
               position: PortPosition.left,
-              offset: const Offset(0, 65),
+              offset: const Offset(0, 60),
             ),
           ],
         );
         break;
-
       default:
-        return;
+        node = Node<AutomationNodeData>(
+          id: id,
+          type: type,
+          position: const Offset(50, 50),
+          size: const Size(250, 150),
+          data: AutomationNodeData(
+            label: 'New Action',
+            hint: 'Perform a task in this step',
+          ),
+          ports: [
+            Port(
+              id: 'in',
+              name: 'Exec',
+              type: PortType.input,
+              position: PortPosition.left,
+              offset: const Offset(0, 75),
+            ),
+          ],
+        );
     }
 
     controller.nodeFlowController.addNode(node);
@@ -501,11 +482,11 @@ class CreateAutomationView extends GetView<AutomationController> {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF334155) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.6), width: 2),
+        border: Border.all(color: color.withValues(alpha: 0.5), width: 2),
         boxShadow: [
           BoxShadow(
-            color: color.withValues(alpha: 0.12),
-            blurRadius: 10,
+            color: color.withValues(alpha: 0.1),
+            blurRadius: 8,
             offset: const Offset(0, 4),
           ),
         ],
@@ -514,11 +495,11 @@ class CreateAutomationView extends GetView<AutomationController> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 1. Header
+          // Header
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
+              color: color.withValues(alpha: 0.1),
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(10),
                 topRight: Radius.circular(10),
@@ -529,33 +510,40 @@ class CreateAutomationView extends GetView<AutomationController> {
                 Icon(icon, size: 16, color: color),
                 const SizedBox(width: 8),
                 Text(
-                  _getNodeTitle(node.type),
+                  node.type.toUpperCase().replaceAll('_', ' '),
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.bold,
                     color: color,
-                    letterSpacing: 1.1,
+                    letterSpacing: 1.2,
                   ),
                 ),
                 const Spacer(),
-                // Delete node button
                 if (node.type != 'trigger')
                   GestureDetector(
                     onTap: () {
                       controller.nodeFlowController.removeNode(node.id);
                       controller.updateFlowStatus();
                     },
-                    child: Icon(
-                      Icons.close,
-                      size: 14,
-                      color: color.withValues(alpha: 0.7),
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: Icon(
+                        Icons.close,
+                        size: 16,
+                        color: color.withValues(alpha: 0.7),
+                      ),
                     ),
+                  )
+                else
+                  Icon(
+                    Icons.more_horiz,
+                    size: 16,
+                    color: color.withValues(alpha: 0.5),
                   ),
               ],
             ),
           ),
-
-          // 2. Node Body
+          // Content
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(12),
@@ -565,26 +553,24 @@ class CreateAutomationView extends GetView<AutomationController> {
                   Text(
                     data.label,
                     style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
                       color: isDark ? Colors.white : Colors.black87,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Text(
                     data.hint,
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: 11,
                       color: isDark ? Colors.white54 : Colors.black45,
                       fontStyle: FontStyle.italic,
                     ),
                   ),
-
-                  // A. TRIGGER: Keywords chip list
                   if (node.type == 'trigger') ...[
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 12),
                     Text(
-                      'TRIGGER KEYWORDS',
+                      'KEYWORDS',
                       style: TextStyle(
                         fontSize: 9,
                         fontWeight: FontWeight.bold,
@@ -592,7 +578,7 @@ class CreateAutomationView extends GetView<AutomationController> {
                         letterSpacing: 1.0,
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     Obx(
                       () => Wrap(
                         spacing: 4,
@@ -600,14 +586,14 @@ class CreateAutomationView extends GetView<AutomationController> {
                         children: data.keywords.map((kw) {
                           return Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 3,
+                              horizontal: 8,
+                              vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: color.withValues(alpha: 0.15),
+                              color: color.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(6),
                               border: Border.all(
-                                color: color.withValues(alpha: 0.3),
+                                color: color.withValues(alpha: 0.2),
                               ),
                             ),
                             child: Row(
@@ -637,7 +623,7 @@ class CreateAutomationView extends GetView<AutomationController> {
                         }).toList(),
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 12),
                     _KeywordInput(
                       color: color,
                       isDark: isDark,
@@ -648,179 +634,26 @@ class CreateAutomationView extends GetView<AutomationController> {
                       },
                     ),
                   ],
-
-                  // B. CONDITION: Operator and Value
-                  if (node.type == 'condition') ...[
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Text(
-                          'If message ',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: isDark ? Colors.white70 : Colors.black87,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        DropdownButton<String>(
-                          value: data.operator,
-                          isDense: true,
-                          underline: const SizedBox.shrink(),
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: color,
-                          ),
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'contains',
-                              child: Text('contains'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'equals',
-                              child: Text('equals'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'starts_with',
-                              child: Text('starts with'),
-                            ),
-                          ],
-                          onChanged: (val) {
-                            if (val != null) {
-                              data.operator = val;
-                            }
-                          },
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    TextFormField(
-                      initialValue: data.conditionValue,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isDark ? Colors.white : Colors.black87,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: 'Keyword or phrase...',
-                        hintStyle: TextStyle(
-                          color: isDark ? Colors.white24 : Colors.black26,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        isDense: true,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        filled: true,
-                        fillColor: isDark ? Colors.black26 : Colors.grey[50],
-                      ),
-                      onChanged: (val) {
-                        data.conditionValue = val;
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'True ➜',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green,
-                          ),
-                        ),
-                        const Text(
-                          'False ➜',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.red,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-
-                  // C. ACTION: Action Type & Value
-                  if (node.type == 'action') ...[
-                    const SizedBox(height: 10),
-                    DropdownButtonFormField<String>(
-                      initialValue: data.actionType,
-                      isDense: true,
-                      decoration: InputDecoration(
-                        labelText: 'Action Type',
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                      ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'assign_dept',
-                          child: Text('Assign Department'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'add_tag',
-                          child: Text('Add Tag to User'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'custom',
-                          child: Text('Custom Event'),
-                        ),
-                      ],
-                      onChanged: (val) {
-                        if (val != null) {
-                          data.actionType = val;
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      initialValue: data.actionValue,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isDark ? Colors.white : Colors.black87,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: 'Value (e.g. Support, VIP)...',
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        isDense: true,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        filled: true,
-                        fillColor: isDark ? Colors.black26 : Colors.grey[50],
-                      ),
-                      onChanged: (val) {
-                        data.actionValue = val;
-                      },
-                    ),
-                  ],
-
-                  // D. MESSAGE & QUESTION: Content text area
                   if (node.type == 'text_field' || node.type == 'question') ...[
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 12),
                     TextFormField(
                       initialValue: data.content,
-                      maxLines: node.type == 'question' ? 3 : 2,
                       maxLength: 500,
+                      maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                      validator: (value) {
+                        if (value != null && value.length > 500) {
+                          return "Max 500 characters allowed";
+                        }
+                        return null;
+                      },
+                      maxLines: node.type == 'question' ? 3 : 2,
                       style: TextStyle(
                         fontSize: 12,
                         color: isDark ? Colors.white : Colors.black87,
                       ),
                       decoration: InputDecoration(
-                        counterText: '',
                         hintText: node.type == 'question'
-                            ? 'Ask question / list options...'
+                            ? 'Ask a question...'
                             : 'Enter message text to send...',
                         hintStyle: TextStyle(
                           color: isDark ? Colors.white24 : Colors.black26,
@@ -832,6 +665,9 @@ class CreateAutomationView extends GetView<AutomationController> {
                         isDense: true,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(
+                            color: isDark ? Colors.white10 : Colors.black12,
+                          ),
                         ),
                         filled: true,
                         fillColor: isDark ? Colors.black26 : Colors.grey[50],
@@ -841,49 +677,27 @@ class CreateAutomationView extends GetView<AutomationController> {
                       },
                     ),
                   ],
-
-                  // E. STOP node
-                  if (node.type == 'stop') ...[
-                    const SizedBox(height: 10),
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.red.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.check, size: 14, color: Colors.red),
-                          SizedBox(width: 6),
-                          Text(
-                            'Closes session on finish',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.red,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),
           ),
-
-          // 3. Footer / Resize Handle
+          // Footer / Status
           Container(
             padding: const EdgeInsets.only(left: 12, right: 12, bottom: 8),
             child: Row(
               children: [
-                Icon(Icons.circle, size: 8, color: color),
+                Icon(
+                  Icons.link,
+                  size: 12,
+                  color: isDark
+                      ? Colors.white10
+                      : Colors.black.withValues(alpha: 0.1),
+                ),
                 const SizedBox(width: 4),
                 Text(
-                  node.type.toUpperCase(),
+                  'Active Step',
                   style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 10,
                     color: isDark ? Colors.white30 : Colors.black26,
                   ),
                 ),
@@ -891,11 +705,11 @@ class CreateAutomationView extends GetView<AutomationController> {
                 GestureDetector(
                   onPanUpdate: (details) {
                     final newWidth = math.max(
-                      240.0,
+                      200.0,
                       node.size.value.width + details.delta.dx,
                     );
                     final newHeight = math.max(
-                      130.0,
+                      120.0,
                       node.size.value.height + details.delta.dy,
                     );
                     mobx.runInAction(() {
@@ -906,7 +720,7 @@ class CreateAutomationView extends GetView<AutomationController> {
                     cursor: SystemMouseCursors.resizeDownRight,
                     child: Icon(
                       Icons.open_in_full,
-                      size: 14,
+                      size: 16,
                       color: isDark ? Colors.white30 : Colors.black26,
                     ),
                   ),
@@ -917,25 +731,6 @@ class CreateAutomationView extends GetView<AutomationController> {
         ],
       ),
     );
-  }
-
-  String _getNodeTitle(String type) {
-    switch (type) {
-      case 'trigger':
-        return 'TRIGGER';
-      case 'condition':
-        return 'CONDITION';
-      case 'action':
-        return 'ACTION';
-      case 'text_field':
-        return 'MESSAGE';
-      case 'question':
-        return 'QUESTION / MENU';
-      case 'stop':
-        return 'STOP';
-      default:
-        return type.toUpperCase();
-    }
   }
 
   Color _getNodeColor(String type) {
@@ -998,20 +793,19 @@ class _ToolbarItem extends StatelessWidget {
       onTap: onPressed,
       borderRadius: BorderRadius.circular(8),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          border: Border.all(color: color.withValues(alpha: 0.35)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
           borderRadius: BorderRadius.circular(8),
-          color: color.withValues(alpha: 0.08),
         ),
         child: Row(
           children: [
-            Icon(icon, size: 16, color: color),
-            const SizedBox(width: 6),
+            Icon(icon, size: 18, color: color),
+            const SizedBox(width: 8),
             Text(
               label,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: isDark ? Colors.white : Colors.black87,
               ),
@@ -1042,53 +836,47 @@ class _KeywordInputState extends State<_KeywordInput> {
   final TextEditingController _controller = TextEditingController();
 
   void _submit() {
-    final val = _controller.text.trim();
-    if (val.isNotEmpty) {
-      widget.onAdd(val);
+    if (_controller.text.trim().isNotEmpty) {
+      widget.onAdd(_controller.text.trim());
       _controller.clear();
     }
   }
 
   @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: TextField(
-            controller: _controller,
-            style: TextStyle(
-              fontSize: 11,
-              color: widget.isDark ? Colors.white : Colors.black87,
-            ),
-            decoration: InputDecoration(
-              hintText: 'Add keyword + Enter',
-              hintStyle: TextStyle(
-                fontSize: 11,
-                color: widget.isDark ? Colors.white30 : Colors.black38,
-              ),
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 8,
-                vertical: 6,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(6),
-                borderSide: BorderSide(
-                  color: widget.color.withValues(alpha: 0.3),
-                ),
-              ),
-            ),
-            onSubmitted: (_) => _submit(),
-          ),
+    return TextField(
+      controller: _controller,
+      maxLength: 30,
+      maxLengthEnforcement: MaxLengthEnforcement.enforced,
+      decoration: InputDecoration(
+        counterText: "",
+        hintText: 'Add keyword...',
+        hintStyle: TextStyle(
+          fontSize: 11,
+          color: widget.isDark ? Colors.white24 : Colors.black26,
         ),
-        const SizedBox(width: 4),
-        IconButton(
-          icon: Icon(Icons.add, size: 16, color: widget.color),
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        suffixIcon: IconButton(
+          icon: Icon(Icons.add, size: 14, color: widget.color),
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(),
           onPressed: _submit,
+          splashRadius: 16,
         ),
-      ],
+      ),
+      style: TextStyle(
+        fontSize: 12,
+        color: widget.isDark ? Colors.white : Colors.black87,
+      ),
+      onSubmitted: (_) => _submit(),
     );
   }
 }

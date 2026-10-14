@@ -53,6 +53,7 @@ class CustomButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: isButtonDisabled ? null : onPressed,
         style: ElevatedButton.styleFrom(
+          enableFeedback: false,
           backgroundColor: isButtonDisabled
               ? Colors.grey.shade300
               : buttonStyle.backgroundColor,

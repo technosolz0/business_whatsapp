@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../common widgets/no_data_found.dart';
-import '../../../common widgets/common_pagination.dart';
-import '../../../common widgets/shimmer_widgets.dart';
 import '../../../common widgets/common_alert_dialog_delete.dart';
-import '../../../routes/app_pages.dart';
+import '../../../common widgets/common_pagination.dart';
+import '../../../common widgets/no_data_found.dart';
+import '../../../common widgets/shimmer_widgets.dart';
+import '../../../core/theme/app_colors.dart';
 import '../controllers/automation_controller.dart';
 import '../models/automation_model.dart';
 
@@ -21,11 +19,16 @@ class AutomationTable extends StatelessWidget {
 
     return Obx(() {
       if (controller.isLoading.value) {
-        return const TableShimmer(rows: 8, columns: 4);
+        return const TableShimmer(
+          key: ValueKey('table_shimmer'),
+          rows: 10,
+          columns: 4,
+        );
       }
 
       if (controller.automations.isEmpty) {
         return NoDataFound(
+          key: const ValueKey('table_empty'),
           icon: Icons.auto_mode,
           label: 'No Automations Found',
           isDark: isDark,
@@ -33,6 +36,7 @@ class AutomationTable extends StatelessWidget {
       }
 
       return Container(
+        key: const ValueKey('table_content'),
         decoration: BoxDecoration(
           color: isDark ? AppColors.cardDark : Colors.white,
           borderRadius: BorderRadius.circular(14),
@@ -84,10 +88,8 @@ class AutomationTable extends StatelessWidget {
       ),
       child: Row(
         children: [
-          _header("Flow Name", isDark, flex: 3),
-          _header("Trigger Keywords", isDark, flex: 3),
+          _header("Flow Name", isDark, flex: 4),
           _header("Status", isDark, flex: 2),
-          _header("Created", isDark, flex: 2),
           _header("Actions", isDark, flex: 2),
         ],
       ),
@@ -100,10 +102,10 @@ class AutomationTable extends StatelessWidget {
       child: Text(
         text,
         style: TextStyle(
-          fontSize: 13,
+          fontSize: 14,
           fontWeight: FontWeight.w600,
-          color: isDark ? AppColors.gray300 : const Color(0xFF6B7280),
-          letterSpacing: 0.3,
+          color: isDark ? AppColors.gray300 : const Color(0xFF6b7280),
+          letterSpacing: 0.5,
         ),
       ),
     );
@@ -114,147 +116,55 @@ class AutomationTable extends StatelessWidget {
     AutomationFlowModel flow,
     bool isDark,
   ) {
-    final dateFormat = DateFormat('dd MMM yyyy, HH:mm');
-    final formattedDate =
-        flow.createdAt != null ? dateFormat.format(flow.createdAt!) : '-';
-
     return InkWell(
-      onTap: () async {
-        await controller.loadAutomationForEdit(flow);
-        Get.toNamed(Routes.CREATE_AUTOMATION);
-      },
+      onTap: () {},
+      enableFeedback: false,
       hoverColor: isDark
           ? AppColors.gray800.withValues(alpha: 0.5)
           : Colors.grey[50],
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         child: Row(
           children: [
-            // 1. Flow Name
             Expanded(
-              flex: 3,
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      Icons.account_tree_outlined,
-                      size: 16,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      flow.name,
-                      overflow: TextOverflow.ellipsis,
-                      maxLines: 1,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: isDark
-                            ? AppColors.textPrimaryDark
-                            : AppColors.textPrimaryLight,
-                      ),
-                    ),
-                  ),
-                ],
+              flex: 4,
+              child: Text(
+                flow.name,
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: isDark
+                      ? AppColors.textPrimaryDark
+                      : AppColors.textPrimaryLight,
+                ),
               ),
             ),
-
-            // 2. Trigger Keywords
-            Expanded(
-              flex: 3,
-              child: flow.triggerKeywords.isEmpty
-                  ? Text(
-                      'None',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isDark ? Colors.white38 : Colors.black38,
-                      ),
-                    )
-                  : Wrap(
-                      spacing: 4,
-                      runSpacing: 4,
-                      children: flow.triggerKeywords.take(3).map((kw) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.amber.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(
-                              color: Colors.amber.withValues(alpha: 0.3),
-                            ),
-                          ),
-                          child: Text(
-                            kw,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.amber,
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-            ),
-
-            // 3. Status Switch
             Expanded(
               flex: 2,
               child: Obx(
-                () => Row(
-                  children: [
-                    Switch(
-                      value: flow.isActive.value,
-                      activeThumbColor: Colors.green,
-                      onChanged: (_) =>
-                          controller.toggleAutomationStatus(flow),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      flow.isActive.value ? 'Active' : 'Inactive',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: flow.isActive.value
-                            ? Colors.green
-                            : (isDark ? Colors.white38 : Colors.black38),
-                      ),
-                    ),
-                  ],
+                () => Text(
+                  flow.isActive.value ? 'Active' : 'Inactive',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: flow.isActive.value
+                        ? (isDark ? Colors.greenAccent : Colors.green)
+                        : (isDark
+                              ? AppColors.textSecondaryDark
+                              : AppColors.textSecondaryLight),
+                  ),
                 ),
               ),
             ),
-
-            // 4. Created Date
-            Expanded(
-              flex: 2,
-              child: Text(
-                formattedDate,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isDark
-                      ? AppColors.textSecondaryDark
-                      : AppColors.textSecondaryLight,
-                ),
-              ),
-            ),
-
-            // 5. Actions
             Expanded(
               flex: 2,
               child: Row(
                 children: [
                   IconButton(
-                    tooltip: "Edit Flow",
+                    tooltip: "Edit",
+                    enableFeedback: false,
                     icon: Icon(
                       Icons.edit_outlined,
                       size: 18,
@@ -262,19 +172,28 @@ class AutomationTable extends StatelessWidget {
                           ? AppColors.gray400
                           : AppColors.textPrimaryLight,
                     ),
-                    onPressed: () async {
-                      await controller.loadAutomationForEdit(flow);
-                      Get.toNamed(Routes.CREATE_AUTOMATION);
+                    padding: const EdgeInsets.all(8),
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
+                    onPressed: () {
+                      Future.microtask(
+                        () => controller.loadAutomationForEdit(flow),
+                      );
                     },
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 8),
                   IconButton(
-                    tooltip: "Delete Flow",
+                    tooltip: "Delete",
+                    enableFeedback: false,
                     icon: Icon(
                       Icons.delete_outline,
                       size: 18,
                       color: AppColors.error,
                     ),
+                    padding: const EdgeInsets.all(8),
+                    constraints: const BoxConstraints(),
                     onPressed: () => Get.dialog(
                       CommonAlertDialogDelete(
                         title: 'Delete Automation',
@@ -300,7 +219,7 @@ class AutomationTable extends StatelessWidget {
         currentPage: controller.currentPage.value,
         totalPages: controller.totalPages.value,
         showingText:
-            'Showing ${controller.startItem}-${controller.endItem} of ${controller.totalRecords} flows',
+            'Showing ${controller.startItem}-${controller.endItem} of ${controller.totalRecords} results',
         onPageChanged: (page) {
           if (page > controller.currentPage.value) {
             controller.goToNextPage();

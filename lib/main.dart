@@ -19,8 +19,6 @@ import 'app/modules/maintenance/views/under_maintenance_screen.dart';
 // Web URL strategy function
 void configureUrlStrategy() {
   if (kIsWeb) {
-    // Configure Flutter web to use path-based URLs instead of hash-based URLs
-    // This removes the # from URLs like localhost:8080/#/contacts → localhost:8080/contacts
     setPathUrlStrategy();
   }
 }
