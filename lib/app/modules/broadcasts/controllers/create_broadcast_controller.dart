@@ -286,17 +286,14 @@ class CreateBroadcastController extends GetxController {
     // Update recipient count when final list changes
     ever(finalRecipients, (_) => updateRecipientCount());
 
-    if (!isEdit.value) {
+    if (!isEdit.value && selectedAudience.value.isEmpty) {
       resetAll();
-    }
-
-    // Ensure accurate initial load for "All Contacts" default
-    // If 'all' is default, strict fetch is required to avoid pagination partial load
-    if (selectedAudience.value.isEmpty || selectedAudience.value == 'all') {
       selectedAudience.value = 'all'; // Set default explicitly
       selectAudience('all');
+    } else if (selectedAudience.value == 'all') {
+      selectAudience('all');
     } else {
-      loadInitialData(); // Fallback for other states (unlikely for new broadcast)
+      loadInitialData(); // Fallback for other states
     }
 
     loadTemplates();
@@ -1398,7 +1395,7 @@ class CreateBroadcastController extends GetxController {
       case 'import':
         return 'Imported Contacts';
       case 'custom':
-        return 'Custom Selection';
+        return 'Custom Segment';
       default:
         return 'Not selected';
     }

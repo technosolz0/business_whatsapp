@@ -107,7 +107,7 @@ class BroadcastReviewCardWidget extends StatelessWidget {
                             const SizedBox(height: 2),
                             Obx(
                               () => Text(
-                                'Audience: ${controller.selectedAudience.value}',
+                                'Audience: ${controller.getSelectedAudienceName()}',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: isDark

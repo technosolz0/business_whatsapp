@@ -342,6 +342,7 @@ class BroadcastsController extends GetxController {
 
       createController.isEdit.value = false;
       createController.resetAll();
+      createController.selectAudience('all');
 
       // Navigate to create broadcast route
       Get.offNamedUntil(
@@ -453,6 +454,10 @@ class BroadcastsController extends GetxController {
 
   void closeCreateForm() async {
     isCreatingBroadcast.value = false;
+
+    if (Get.isRegistered<CreateBroadcastController>()) {
+      Get.find<CreateBroadcastController>().resetAll();
+    }
 
     // 1. Reset pagination and filters to ensure new broadcast is visible on top
     currentPage.value = 1;

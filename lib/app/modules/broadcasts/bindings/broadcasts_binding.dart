@@ -5,11 +5,17 @@ import '../controllers/create_broadcast_controller.dart';
 class BroadcastsBinding extends Bindings {
   @override
   void dependencies() {
-    Get.lazyPut<BroadcastsController>(
-      () => BroadcastsController(),
-    );
-    Get.lazyPut<CreateBroadcastController>(
-      () => CreateBroadcastController(),
-    );
+    if (!Get.isRegistered<BroadcastsController>()) {
+      Get.lazyPut<BroadcastsController>(
+        () => BroadcastsController(),
+        fenix: true,
+      );
+    }
+    if (!Get.isRegistered<CreateBroadcastController>()) {
+      Get.put<CreateBroadcastController>(
+        CreateBroadcastController(),
+        permanent: true,
+      );
+    }
   }
 }

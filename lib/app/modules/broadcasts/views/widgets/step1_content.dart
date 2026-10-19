@@ -632,15 +632,24 @@ class Step1Content extends StatelessWidget {
                       ? Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'You are sending this broadcast to all subscribed contacts.',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: isDark
-                                    ? AppColors.textSecondaryDark
-                                    : AppColors.textSecondaryLight,
-                              ),
-                            ),
+                            Obx(() {
+                              final audience =
+                                  controller.selectedAudience.value;
+                              final text = audience == 'custom'
+                                  ? 'You are sending this broadcast to your selected custom segment contacts.'
+                                  : audience == 'import'
+                                  ? 'You are sending this broadcast to imported contacts.'
+                                  : 'You are sending this broadcast to all subscribed contacts.';
+                              return Text(
+                                text,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: isDark
+                                      ? AppColors.textSecondaryDark
+                                      : AppColors.textSecondaryLight,
+                                ),
+                              );
+                            }),
                             const SizedBox(height: 12),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -692,15 +701,24 @@ class Step1Content extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Expanded(
-                              child: Text(
-                                'You are sending this broadcast to all subscribed contacts.',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: isDark
-                                      ? AppColors.textSecondaryDark
-                                      : AppColors.textSecondaryLight,
-                                ),
-                              ),
+                              child: Obx(() {
+                                final audience =
+                                    controller.selectedAudience.value;
+                                final text = audience == 'custom'
+                                    ? 'You are sending this broadcast to your selected custom segment contacts.'
+                                    : audience == 'import'
+                                    ? 'You are sending this broadcast to imported contacts.'
+                                    : 'You are sending this broadcast to all subscribed contacts.';
+                                return Text(
+                                  text,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: isDark
+                                        ? AppColors.textSecondaryDark
+                                        : AppColors.textSecondaryLight,
+                                  ),
+                                );
+                              }),
                             ),
                             const SizedBox(width: 16),
                             Column(

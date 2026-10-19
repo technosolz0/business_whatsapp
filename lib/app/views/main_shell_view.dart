@@ -88,7 +88,10 @@ class _MainShellViewState extends State<MainShellView> {
 
     // Create Broadcast Controller
     if (!Get.isRegistered<CreateBroadcastController>()) {
-      Get.put<CreateBroadcastController>(CreateBroadcastController());
+      Get.put<CreateBroadcastController>(
+        CreateBroadcastController(),
+        permanent: true,
+      );
     }
 
     // Create Template Controller
