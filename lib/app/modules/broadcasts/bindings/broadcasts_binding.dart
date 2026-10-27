@@ -6,9 +6,9 @@ class BroadcastsBinding extends Bindings {
   @override
   void dependencies() {
     if (!Get.isRegistered<BroadcastsController>()) {
-      Get.lazyPut<BroadcastsController>(
-        () => BroadcastsController(),
-        fenix: true,
+      Get.put<BroadcastsController>(
+        BroadcastsController(),
+        permanent: true,
       );
     }
     if (!Get.isRegistered<CreateBroadcastController>()) {

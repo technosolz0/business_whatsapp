@@ -17,6 +17,9 @@ class BroadcastsView extends GetView<BroadcastsController> {
 
   @override
   Widget build(BuildContext context) {
+    if (!Get.isRegistered<BroadcastsController>()) {
+      Get.put<BroadcastsController>(BroadcastsController(), permanent: true);
+    }
     final currentRoute = Get.currentRoute.split('?').first;
     final isCreatingRoute = [
       Routes.CREATE_BROADCAST,

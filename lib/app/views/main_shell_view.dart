@@ -73,17 +73,17 @@ class _MainShellViewState extends State<MainShellView> {
     // Only initialize controllers that are always needed
     // Dashboard Controller (needed for sidebar unread counts)
     if (!Get.isRegistered<DashboardController>()) {
-      Get.put<DashboardController>(DashboardController());
+      Get.put<DashboardController>(DashboardController(), permanent: true);
     }
 
     // Templates Controller
     if (!Get.isRegistered<TemplatesController>()) {
-      Get.put<TemplatesController>(TemplatesController());
+      Get.put<TemplatesController>(TemplatesController(), permanent: true);
     }
 
     // Broadcasts Controller
     if (!Get.isRegistered<BroadcastsController>()) {
-      Get.put<BroadcastsController>(BroadcastsController());
+      Get.put<BroadcastsController>(BroadcastsController(), permanent: true);
     }
 
     // Create Broadcast Controller
@@ -96,7 +96,10 @@ class _MainShellViewState extends State<MainShellView> {
 
     // Create Template Controller
     if (!Get.isRegistered<CreateTemplateController>()) {
-      Get.put<CreateTemplateController>(CreateTemplateController());
+      Get.put<CreateTemplateController>(
+        CreateTemplateController(),
+        permanent: true,
+      );
     }
 
     // Chats Controller (needed for sidebar unread counts)
@@ -106,32 +109,35 @@ class _MainShellViewState extends State<MainShellView> {
 
     // Settings Controller
     if (!Get.isRegistered<SettingsController>()) {
-      Get.put<SettingsController>(SettingsController());
+      Get.put<SettingsController>(SettingsController(), permanent: true);
     }
 
     // Business Profile Controller
     if (!Get.isRegistered<BusinessProfileController>()) {
-      Get.put<BusinessProfileController>(BusinessProfileController());
+      Get.put<BusinessProfileController>(
+        BusinessProfileController(),
+        permanent: true,
+      );
     }
 
     // Contacts Controller
     if (!Get.isRegistered<ContactsController>()) {
-      Get.put<ContactsController>(ContactsController());
+      Get.put<ContactsController>(ContactsController(), permanent: true);
     }
 
     // Admins Controller
     if (!Get.isRegistered<AdminsController>()) {
-      Get.put<AdminsController>(AdminsController());
+      Get.put<AdminsController>(AdminsController(), permanent: true);
     }
 
     // Roles Controller
     if (!Get.isRegistered<RolesController>()) {
-      Get.put<RolesController>(RolesController());
+      Get.put<RolesController>(RolesController(), permanent: true);
     }
 
     // Charges Controller
     if (!Get.isRegistered<ChargesController>()) {
-      Get.put<ChargesController>(ChargesController());
+      Get.put<ChargesController>(ChargesController(), permanent: true);
     }
 
     // Automation Controller
@@ -200,6 +206,7 @@ class _MainShellViewState extends State<MainShellView> {
   }
 
   Widget _getPageFromRoute(String currentRoute) {
+    _initializeControllers();
     // Prefer currentRoute from NavController if available, otherwise Get.currentRoute
     final targetRoute = currentRoute.isNotEmpty
         ? currentRoute

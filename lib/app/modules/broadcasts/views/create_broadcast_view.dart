@@ -28,6 +28,13 @@ class CreateBroadcastView extends GetView<CreateBroadcastController> {
 
   @override
   Widget build(BuildContext context) {
+    if (!Get.isRegistered<CreateBroadcastController>()) {
+      Get.put<CreateBroadcastController>(CreateBroadcastController(),
+          permanent: true);
+    }
+    if (!Get.isRegistered<BroadcastsController>()) {
+      Get.put<BroadcastsController>(BroadcastsController(), permanent: true);
+    }
     final currentRoute = Get.currentRoute.split('?').first;
 
     // Set the current step based on the route or preview mode

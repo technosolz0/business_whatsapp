@@ -107,12 +107,23 @@ class ChatsController extends GetxController {
   }
 
   void _applyChatFilter(List<ChatModel> updatedChats) {
-    List<ChatModel> filteredChats = updatedChats;
+    List<ChatModel> filteredChats = List<ChatModel>.from(updatedChats);
     if (activeFilter.value == 'unRead') {
-      filteredChats = updatedChats.where((c) => c.unRead).toList();
+      filteredChats = filteredChats.where((c) => c.unRead).toList();
     } else if (activeFilter.value == 'isFavourite') {
-      filteredChats = updatedChats.where((c) => c.isFavourite).toList();
+      filteredChats = filteredChats.where((c) => c.isFavourite).toList();
     }
+
+    // Sort by actual last message time descending so clicking/opening a chat never jumps it to the top
+    filteredChats.sort((a, b) {
+      final timeA = a.userLastMessageTime;
+      final timeB = b.userLastMessageTime;
+      if (timeA == null && timeB == null) return 0;
+      if (timeA == null) return 1;
+      if (timeB == null) return -1;
+      return timeB.compareTo(timeA);
+    });
+
     chats.assignAll(filteredChats);
   }
 
@@ -1312,6 +1323,10 @@ class ChatsController extends GetxController {
   // Update chat unread status
   Future<void> updateChatUnreadStatus(String chatId, bool unRead) async {
     try {
+      final index = chats.indexWhere((c) => c.id == chatId);
+      if (index != -1 && chats[index].unRead != unRead) {
+        chats[index] = chats[index].copyWith(unRead: unRead);
+      }
       await _chatService.updateChat({
         'clientId': clientID,
         'chatId': chatId,
